@@ -581,18 +581,16 @@ html.touch-paging .cards{touch-action:pan-x}
     function setFormation(i, initial, instant){
       var c = CHAPTERS[i] || CHAPTERS[0], fr = frameFor(i), now = (performance.now() - start) / 1000, fn = FORM[c.form];
       /* 첫 진입: 화면 전체 격자에 숨어 있던 픽셀들 — 왼쪽에서 오른쪽으로 하나씩 켜진 뒤 로고 자리로 모인다 */
-      var unit = fr.s * (Math.min(W, H) * 1.45) / 72, cols = Math.max(4, Math.floor(W / unit)), rows = Math.max(4, Math.floor((H - 64) / unit)), used = {};
+      var unit = fr.s * (Math.min(W, H) * 1.45) / 72;
       for (var k = 0; k < N; k++) {
         var b = boxes[k], t = fn(b, k);
         if (initial) {
-          var cell, tries = 0;
-          do { cell = Math.floor(Math.random() * cols * rows); tries++; } while (used[cell] && tries < 20);
-          used[cell] = 1;
-          var X = ((cell % cols) + 0.5) * unit, Y = 64 + (Math.floor(cell / cols) + 0.5) * unit;
-          b.cur = { x: (X - fr.cx) / unit, y: (Y - fr.cy) / unit, z: 0 };
-          b.tw = now + 0.2 + (X / W) * 0.75 + Math.random() * 0.3;      /* 켜지는 순간: 화면을 왼→오로 쓸듯 */
-          b.t0 = b.tw + 0.3 + Math.random() * 0.55;                       /* 모이기 시작 */
-          b.dur = 0.9 + Math.random() * 0.4;
+          /* 화면 전체에 흩어진 작은 점들 — 잠깐 나타난 뒤 거의 동시에 로고 자리로 모인다 */
+          var X = 16 + Math.random() * (W - 32), Y = 72 + Math.random() * (H - 84);
+          b.cur = { x: (X - fr.cx) / unit, y: (Y - fr.cy) / unit, z: (Math.random() - 0.5) * 2 };
+          b.tw = now + 0.05 + Math.random() * 0.35;                       /* 점이 떠오르는 순간 */
+          b.t0 = now + 0.6 + Math.random() * 0.28;                        /* 모이기 시작 (거의 동시에) */
+          b.dur = 0.95 + Math.random() * 0.35;
         } else {
           b.t0 = now + Math.random() * 0.45;
           b.dur = 0.75 + Math.random() * 0.35;
@@ -605,10 +603,10 @@ html.touch-paging .cards{touch-action:pan-x}
       gFrom = { cx: g.cx, cy: g.cy, s: g.s, yaw: g.yaw, pitch: g.pitch, sway: g.sway, spin: g.spin, mode: g.mode, flow: g.flow, live: g.live, alpha: g.alpha };
       gTo = { cx: fr.cx, cy: fr.cy, s: fr.s, yaw: c.yaw, pitch: c.pitch, sway: c.sway, spin: c.spin, mode: chapters[i].getAttribute('data-mode') === 'ink' ? 1 : 0, flow: c.flow, live: c.live || 0, alpha: (MOBILE() || c.alpha === undefined) ? 1 : c.alpha };
       gT0 = now; gDur = (initial || reduce || instant) ? 0.01 : 0.9;
-      if (initial && !reduce) { gFrom.yaw = 0; gFrom.pitch = 0; gFrom.sway = 0; gDur = 2.9; }
+      if (initial && !reduce) { gFrom.yaw = 0; gFrom.pitch = 0; gFrom.sway = 0; gT0 = now + 0.5; gDur = 1.6; }
     }
     setFormation(0, true);
-    var introDone = false, INTRO_T = 3.3;
+    var introDone = false, INTRO_T = 2.6;
 
     /* 03 챕터: 픽셀 필드 위를 오가는 데이터 패킷 (행·열을 따라 빛이 옮겨 다닌다) */
     var packets = [], boost = new Float32Array(N);
@@ -685,24 +683,26 @@ html.touch-paging .cards{touch-action:pan-x}
       for (var i = 0; i < N; i++) {
         var b = boxes[i];
         var p = Math.max(0, Math.min(1, (t - b.t0) / b.dur));
-        if (b.from && b.to) { var e = b.back ? (1 + 1.7 * Math.pow(p - 1, 3) + 0.7 * Math.pow(p - 1, 2)) : easeOut(p); b.cur.x = b.from.x + (b.to.x - b.from.x) * e; b.cur.y = b.from.y + (b.to.y - b.from.y) * e; b.cur.z = b.from.z + (b.to.z - b.from.z) * e; b.m = b.mFrom + (b.mTo - b.mFrom) * e; }
-        var alpha = 1, dep = 1;
+        if (b.from && b.to) { var e = b.back ? (p < 0.5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2) : easeOut(p); b.cur.x = b.from.x + (b.to.x - b.from.x) * e; b.cur.y = b.from.y + (b.to.y - b.from.y) * e; b.cur.z = b.from.z + (b.to.z - b.from.z) * e; b.m = b.mFrom + (b.mTo - b.mFrom) * e; }
+        var alpha = 1, dep = 1, szf = 1;
         if (!introDone && b.back) {
-          if (t < b.tw) alpha = 0.07 + 0.04 * Math.sin(t * 6 + b.seed * 20);                 /* 숨어 있는 픽셀 */
-          else if (t < b.t0) alpha = (t - b.tw) < 0.07 ? 1 : 0.5;                              /* 깜빡 켜진 뒤 대기 */
-          else alpha = 0.5 + 0.5 * p;
+          if (t < b.tw) alpha = 0;
+          else if (t < b.t0) alpha = Math.min(0.6, (t - b.tw) * 3);                            /* 작은 점이 떠오른다 */
+          else alpha = 0.6 + 0.4 * p;
           dep = t < b.t0 ? 0.05 : 0.05 + 0.95 * p;                                              /* 납작한 점 → 입체 */
+          szf = t < b.t0 ? 0.32 : 0.32 + 0.68 * p;                                              /* 작은 점 → 픽셀 크기 */
+          if (alpha <= 0) continue;
         }
         var bob = g.flow > 0.01 ? Math.sin(t * 1.4 + b.fc * 0.35 + b.fr * 0.6) * 0.5 * g.flow : 0;
         var lv = g.live, lx = 0, ly = 0, lz = 0;
         if (lv > 0.01) { lz = (Math.sin(t * 0.9 + b.seed * 6.283) * 0.06 + Math.sin(t * 0.45 + b.gx * 0.3 + b.gy * 0.18) * 0.06) * lv; lx = Math.sin(t * 0.7 + b.seed2 * 6.283) * 0.018 * lv; ly = Math.cos(t * 0.8 + b.seed * 6.283) * 0.018 * lv; }
         var px = (b.cur.x + lx) * S, py = (b.cur.y + ly) * S, pz = (b.cur.z + bob + lz) * S;
         var z1 = -px * sy + pz * cy; var z2 = py * sp + z1 * cp;
-        list.push({ b: b, z: z2, a: alpha, px: px, py: py, pz: pz, i: i, dep: dep });
+        list.push({ b: b, z: z2, a: alpha, px: px, py: py, pz: pz, i: i, dep: dep, szf: szf });
       }
       list.sort(function(a, b){ return b.z - a.z; });
       for (var k2 = 0; k2 < list.length; k2++) {
-        var it = list[k2], bx = it.b, hz = bx.h * S * it.dep, hs = HS * S;
+        var it = list[k2], bx = it.b, hz = bx.h * S * it.dep, hs = HS * S * it.szf;
         /* 꼭짓점 8개 회전·투영 */
         var P = new Array(8), RZ = new Array(8), RX = new Array(8), RY = new Array(8);
         for (var q = 0; q < 8; q++) {
