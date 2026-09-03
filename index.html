@@ -488,7 +488,7 @@ html.touch-paging .cards{touch-action:pan-x}
   var CHAPTERS = [
     { form: 'logo',  yaw: 0,    pitch: -0.08, sway: 0.22, spin: 0,    morph: 0, flow: 0, live: 1,   sMax: 1.0,  sMin: 0.2,  fit: 0.9  },
     { form: 'logo',  yaw: -0.4, pitch: -0.06, sway: 0.12, spin: 0,    morph: 0, flow: 0, live: 0.5, sMax: 0.85, sMin: 0.2,  fit: 0.9  },
-    { form: 'burst', yaw: 0.5,  pitch: -0.1,  sway: 0.10, spin: 0.05, morph: 1, flow: 0, live: 0,   sMax: 0.85, sMin: 0.2,  fit: 0.86 },
+    { form: 'burst', yaw: 0.5,  pitch: -0.1,  sway: 0.30, spin: 0,    morph: 1, flow: 0, live: 0,   sMax: 0.85, sMin: 0.2,  fit: 0.86 },
     { form: 'field', yaw: 0,    pitch: -1.1,  sway: 0.02, spin: 0,    morph: 0, flow: 1, live: 0,   sMax: 1.0,  sMin: 0.3,  fit: 0.9  },
     { form: 'logo',  yaw: 0.2,  pitch: -0.1,  sway: 0.16, spin: 0,    morph: 0, flow: 0, live: 0.4, sMax: 1.0,  sMin: 0.18, fit: 0.92, alpha: 0.14 },
     { form: 'logo',  yaw: 0,    pitch: -0.05, sway: 0.18, spin: 0,    morph: 0, flow: 0, live: 0.6, sMax: 0.6,  sMin: 0.18, fit: 0.9  }
@@ -605,6 +605,8 @@ html.touch-paging .cards{touch-action:pan-x}
       }
       gFrom = { cx: g.cx, cy: g.cy, s: g.s, yaw: g.yaw, pitch: g.pitch, sway: g.sway, spin: g.spin, mode: g.mode, flow: g.flow, live: g.live, alpha: g.alpha };
       gTo = { cx: fr.cx, cy: fr.cy, s: fr.s, yaw: c.yaw, pitch: c.pitch, sway: c.sway, spin: c.spin, mode: chapters[i].getAttribute('data-mode') === 'ink' ? 1 : 0, flow: c.flow, live: c.live || 0, alpha: (MOBILE() || c.alpha === undefined) ? 1 : c.alpha };
+      gFrom.yaw = g.yaw + spinAcc; spinAcc = 0;
+      var dyaw = gTo.yaw - gFrom.yaw; dyaw = Math.atan2(Math.sin(dyaw), Math.cos(dyaw)); gFrom.yaw = gTo.yaw - dyaw;
       gT0 = now; gDur = (initial || reduce || instant) ? 0.01 : 0.9;
       if (initial && !reduce) { gFrom.yaw = 0; gFrom.pitch = 0; gFrom.sway = 0; gT0 = now + 0.5; gDur = 1.6; seedDots(fr, now); }
     }
