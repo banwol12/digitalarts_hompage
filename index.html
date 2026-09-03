@@ -693,11 +693,9 @@ html.touch-paging .cards{touch-action:pan-x}
         ctx.strokeStyle = rgb(pal.light); ctx.beginPath();
         for (var q = 0; q < 3; q++) { var an = b.rot + q * 2.094, rr = sz * (1.1 + (q === 1 ? 0.5 : 0)); var px = X + Math.cos(an) * rr, py = Y + Math.sin(an) * rr; if (q) ctx.lineTo(px, py); else ctx.moveTo(px, py); }
         ctx.closePath(); ctx.stroke();
-        ctx.fillStyle = rgb(pal.sky); ctx.fillRect(X + Math.cos(b.rot) * sz * 1.1 - 1.5, Y + Math.sin(b.rot) * sz * 1.1 - 1.5, 3, 3);
       } else if (b.kind === 'node') {
         var w = sz * 2.4, h = sz * 1.3; ctx.strokeStyle = rgb(pal.light);
         ctx.strokeRect(X - w / 2, Y - h / 2, w, h);
-        ctx.fillStyle = rgb(pal.sky); ctx.fillRect(X - w / 2 - 2, Y - 1.5, 3, 3); ctx.fillRect(X + w / 2 - 1, Y - 1.5, 3, 3);
         ctx.strokeStyle = rgb(pal.mid); ctx.beginPath(); ctx.moveTo(X + w / 2 + 1, Y); ctx.lineTo(X + w / 2 + sz * 1.8, Y); ctx.stroke();
       } else if (b.kind === 'wave') {
         ctx.strokeStyle = rgb(pal.light); ctx.beginPath();
