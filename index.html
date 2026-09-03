@@ -492,6 +492,21 @@ html.touch-paging .cards{touch-action:pan-x}
     }
   });
   N = boxes.length;
+  /* 02 챕터 코드 조각: VS Code Dark+ 배색으로 토큰을 부분별 채색 */
+  var VS = { ctrl:'#C586C0', type:'#569CD6', fn:'#DCDCAA', num:'#B5CEA8', str:'#CE9178', vari:'#9CDCFE', td:'#4EC9B0', punc:'#D4D4D4' };
+  var KW_CTRL = { 'for':1, 'if':1, 'else':1, 'return':1, 'while':1 }, KW_TYPE = { 'float':1, 'vec3':1, 'mat4':1, 'int':1, 'void':1, 'const':1, 'let':1, 'var':1 }, KW_TD = { 'TOP':1, 'CHOP':1, 'SOP':1, 'DAT':1, 'MAT':1, 'COMP':1 };
+  function lexParts(tok){
+    var re = /(#[0-9A-Fa-f]{3,6})|(0x[0-9A-Fa-f]+|\d+(?:\.\d+)?)|([A-Za-z_\u0394\u03b1][A-Za-z0-9_]*)|(\s+)|(.)/g, m, parts = [], out;
+    while ((m = re.exec(tok))) {
+      if (m[1]) parts.push([m[1], VS.str]);
+      else if (m[2]) parts.push([m[2], VS.num]);
+      else if (m[3]) { var w = m[3], nx = tok.charAt(re.lastIndex); parts.push([w, KW_CTRL[w] ? VS.ctrl : KW_TYPE[w] ? VS.type : KW_TD[w] ? VS.td : nx === '(' ? VS.fn : VS.vari]); }
+      else if (m[4]) parts.push([m[4], VS.punc]);
+      else parts.push([m[5], VS.punc]);
+    }
+    return parts;
+  }
+  boxes.forEach(function(b){ b.parts = lexParts(b.token); });
   var FCOLS = 40, FROWS = Math.ceil(N / FCOLS);
   boxes.forEach(function(b, i){ b.fc = i % FCOLS; b.fr = Math.floor(i / FCOLS); });
 
@@ -664,8 +679,11 @@ html.touch-paging .cards{touch-action:pan-x}
     function drawFragment(b, X, Y, sz, P, alpha, pal){
       ctx.globalAlpha = alpha; ctx.lineWidth = 1; ctx.strokeStyle = rgb(pal.mid); ctx.fillStyle = rgb(pal.light);
       if (b.kind === 'code') {
-        ctx.font = '500 ' + Math.max(9, sz * 1.5) + 'px ui-monospace, Menlo, Consolas, monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        ctx.fillText(b.token, X, Y);
+        ctx.font = '500 ' + Math.max(9, sz * 1.5) + 'px ui-monospace, Menlo, Consolas, monospace'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+        var parts = b.parts || [[b.token, VS.vari]], total = 0, widths = [];
+        for (var pi = 0; pi < parts.length; pi++) { var pw = ctx.measureText(parts[pi][0]).width; widths.push(pw); total += pw; }
+        var cx2 = X - total / 2;
+        for (var pj = 0; pj < parts.length; pj++) { ctx.fillStyle = parts[pj][1]; ctx.fillText(parts[pj][0], cx2, Y); cx2 += widths[pj]; }
       } else if (b.kind === 'wire') {
         ctx.strokeStyle = rgb(pal.light); ctx.beginPath();
         for (var e = 0; e < 12; e++) { var A = P[EDGES[e][0]], B = P[EDGES[e][1]]; ctx.moveTo(A[0], A[1]); ctx.lineTo(B[0], B[1]); }
