@@ -141,9 +141,15 @@ a.card:hover{background:var(--surface-warm);color:var(--text-body)}
 .scene canvas{width:100%;height:100%}
 
 /* ── Chapters: each one viewport, snap, content reveals on activation ── */
-.chapter{position:relative;z-index:1;min-height:100vh;min-height:100svh;scroll-snap-align:start;scroll-snap-stop:always;display:grid;align-content:center;padding-top:64px}
-html.touch-paging{scroll-snap-type:none;overscroll-behavior-y:none}
+.chapter{position:relative;z-index:1;min-height:100vh;min-height:100svh;scroll-snap-align:start;scroll-snap-stop:always;display:grid;grid-template-columns:minmax(0,1fr);align-content:center;padding-top:64px}
+.chapter .shell{min-width:0;max-width:min(100%,var(--container-max))}
+.cards{max-width:100%}
+/* 터치 기기: 문서를 스크롤하지 않고 main 을 챕터 단위로 밀어 넘긴다 (iOS 주소창 높이 변화에 흔들리지 않음) */
+html.touch-paging,html.touch-paging body{height:100%;overflow:hidden;overscroll-behavior:none;scroll-snap-type:none}
+html.touch-paging main{position:fixed;inset:0;z-index:1;transform:translateY(0);transition:transform 620ms cubic-bezier(.22,1,.36,1);will-change:transform}
+html.touch-paging .chapter{height:100%;min-height:0;overflow:hidden}
 html.touch-paging .cards{touch-action:pan-x}
+@media (prefers-reduced-motion:reduce){html.touch-paging main{transition:none}}
 .chapter .shell{width:100%}
 .js .reveal{opacity:0;transform:translateY(14px);transition:opacity var(--duration-slow) var(--ease),transform var(--duration-slow) var(--ease);transition-delay:calc(var(--i,0) * 70ms + 120ms)}
 .js .chapter.is-active .reveal{opacity:1;transform:none}
@@ -186,6 +192,7 @@ html.touch-paging .cards{touch-action:pan-x}
 .set.two li{grid-template-columns:56px minmax(0,1fr) minmax(0,1.2fr)}
 .cols3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--gutter)}
 .cols3 .col{border-top:1px solid var(--border-strong);padding-top:var(--space-16);display:flex;flex-direction:column;gap:var(--space-8)}
+.rowhead{display:flex;justify-content:space-between;align-items:flex-end;gap:var(--space-24);flex-wrap:wrap;width:100%}
 .cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--gutter)}
 .actions{display:flex;gap:var(--space-12);flex-wrap:wrap;justify-content:center}
 
@@ -208,9 +215,18 @@ html.touch-paging .cards{touch-action:pan-x}
   .site-nav,.progress{display:none}
   .brand>span:not(.mark){display:none}
   .site-header .btn.sm{min-height:36px}
-  .chapter{align-content:end;padding-bottom:var(--space-32);padding-top:calc(64px + 22vh)}
-  .chapter .stack{gap:var(--space-16)}
-  .chapter .kicker{margin-bottom:var(--space-8)}
+  .chapter{align-content:end;padding-bottom:var(--space-24);padding-top:calc(64px + 22vh);text-align:center}
+  .chapter .stack{gap:var(--space-16);align-items:center}
+  .chapter .kicker{margin-bottom:var(--space-8);justify-content:center}
+  .chapter .h2{max-width:none}
+  .chapter .lead{margin-inline:auto}
+  .set,.tools,.cards{width:100%;text-align:left}
+  .rowhead{flex-direction:column;align-items:center;gap:var(--space-12)}
+  .set li{grid-template-columns:44px minmax(0,1fr)}
+  .actions{justify-content:center}
+  .foot .row{align-items:center;text-align:center}
+  .foot .row{flex-direction:column;gap:var(--space-12)}
+  .foot .links{justify-content:center}
   .intro{padding-bottom:12vh;padding-top:64px}
   .intro .wordmark{gap:var(--space-12)}
   .display{font-size:clamp(28px,8.4vw,44px)}
@@ -220,7 +236,6 @@ html.touch-paging .cards{touch-action:pan-x}
   .right .shell>.stack{grid-column:1}
   .top{align-content:end;padding-top:calc(64px + 22vh)}
   .top .stack{gap:var(--space-12)}
-  .center .h2{max-width:none}
   .tools{grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--space-12) var(--space-16);margin-top:var(--space-4,4px)}
   .tools .col{padding-top:var(--space-12);gap:var(--space-8)}
   .tools .h3{font-size:16px;line-height:1.3}
@@ -233,14 +248,12 @@ html.touch-paging .cards{touch-action:pan-x}
   .cards::-webkit-scrollbar{display:none}
   .cards .card{flex:0 0 76vw;scroll-snap-align:start;padding:var(--space-20);gap:var(--space-12)}
   .cards .card .media{margin:calc(var(--space-20) * -1);margin-bottom:0}
-  .actions{justify-content:flex-start;gap:var(--space-8)}
-  .center .actions{justify-content:center}
+  .actions{gap:var(--space-8)}
   .actions .btn.lg{min-height:48px;padding:12px 20px;font-size:16px}
   .last .main{padding-bottom:var(--space-12)}
   .subscribe{flex-direction:column;gap:var(--space-8)}
   .subscribe .btn{width:100%}
   .foot{padding-top:var(--space-16);padding-bottom:var(--space-20)}
-  .foot .row{flex-direction:column;align-items:flex-start;gap:var(--space-12)}
   .foot .links{gap:var(--space-16)}
 }
 .static .reveal,.static .intro .wordmark,.static .intro .hint{opacity:1!important;transform:none!important;transition:none!important}
@@ -353,7 +366,7 @@ html.touch-paging .cards{touch-action:pan-x}
     <div class="shell">
       <div class="stack">
         <div class="kicker reveal" style="--i:0"><span class="cs-caption">04</span><i></i><span class="cs-caption">작품</span></div>
-        <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:var(--space-24);flex-wrap:wrap" class="reveal"><h2 class="h2" style="--i:1">학생 작품 아카이브</h2><a class="btn secondary sm" href="#" title="[아카이브 링크로 교체]">아카이브 전체 보기 <svg class="i"><use href="#arrow-up-right"/></svg></a></div>
+        <div class="reveal rowhead" style="--i:1"><h2 class="h2">학생 작품 아카이브</h2><a class="btn secondary sm" href="#" title="[아카이브 링크로 교체]">아카이브 전체 보기 <svg class="i"><use href="#arrow-up-right"/></svg></a></div>
         <div class="cards">
           <a class="card reveal" style="--i:2" href="#" title="[작품 상세 링크로 교체]"><div class="media"><canvas class="thumb" data-seed="3" aria-hidden="true"></canvas></div><span class="cs-caption">Interactive · [연도]</span><span class="title">[작품 제목을 입력하세요]</span><span class="cs-caption">[학생 이름]</span></a>
           <a class="card reveal" style="--i:3" href="#" title="[작품 상세 링크로 교체]"><div class="media"><canvas class="thumb" data-seed="11" aria-hidden="true"></canvas></div><span class="cs-caption">Generative · [연도]</span><span class="title">[작품 제목을 입력하세요]</span><span class="cs-caption">[학생 이름]</span></a>
@@ -469,12 +482,12 @@ html.touch-paging .cards{touch-action:pan-x}
   };
   /* 챕터별 회전·동작 설정. 위치와 크기는 frameFor() 가 화면과 텍스트를 실측해 "빈 영역"에 맞춘다 */
   var CHAPTERS = [
-    { form: 'logo',  yaw: 0,    pitch: -0.08, sway: 0.22, spin: 0,    morph: 0, flow: 0, sMax: 1.0,  sMin: 0.2,  fit: 0.9  },
-    { form: 'logo',  yaw: -0.4, pitch: -0.06, sway: 0.12, spin: 0,    morph: 0, flow: 0, sMax: 0.85, sMin: 0.2,  fit: 0.9  },
-    { form: 'burst', yaw: 0.5,  pitch: -0.1,  sway: 0.10, spin: 0.05, morph: 1, flow: 0, sMax: 0.85, sMin: 0.2,  fit: 0.86 },
-    { form: 'field', yaw: 0,    pitch: -1.1,  sway: 0.02, spin: 0,    morph: 0, flow: 1, sMax: 1.0,  sMin: 0.3,  fit: 0.9  },
-    { form: 'logo',  yaw: 0.2,  pitch: -0.1,  sway: 0.25, spin: 0,    morph: 0, flow: 0, sMax: 0.5,  sMin: 0.18, fit: 0.88 },
-    { form: 'logo',  yaw: 0,    pitch: -0.05, sway: 0.18, spin: 0,    morph: 0, flow: 0, sMax: 0.6,  sMin: 0.18, fit: 0.9  }
+    { form: 'logo',  yaw: 0,    pitch: -0.08, sway: 0.22, spin: 0,    morph: 0, flow: 0, live: 1,   sMax: 1.0,  sMin: 0.2,  fit: 0.9  },
+    { form: 'logo',  yaw: -0.4, pitch: -0.06, sway: 0.12, spin: 0,    morph: 0, flow: 0, live: 0.5, sMax: 0.85, sMin: 0.2,  fit: 0.9  },
+    { form: 'burst', yaw: 0.5,  pitch: -0.1,  sway: 0.10, spin: 0.05, morph: 1, flow: 0, live: 0,   sMax: 0.85, sMin: 0.2,  fit: 0.86 },
+    { form: 'field', yaw: 0,    pitch: -1.1,  sway: 0.02, spin: 0,    morph: 0, flow: 1, live: 0,   sMax: 1.0,  sMin: 0.3,  fit: 0.9  },
+    { form: 'logo',  yaw: 0.2,  pitch: -0.1,  sway: 0.25, spin: 0,    morph: 0, flow: 0, live: 0.6, sMax: 0.5,  sMin: 0.18, fit: 0.88 },
+    { form: 'logo',  yaw: 0,    pitch: -0.05, sway: 0.18, spin: 0,    morph: 0, flow: 0, live: 0.6, sMax: 0.6,  sMin: 0.18, fit: 0.9  }
   ];
   var VW = function(){ return document.documentElement.clientWidth || window.innerWidth; };
   var VH = function(){ return document.documentElement.clientHeight || window.innerHeight; };
@@ -495,7 +508,21 @@ html.touch-paging .cards{touch-action:pan-x}
     function easeOut(p){ return 1 - Math.pow(1 - p, 3); }
 
     var W = 0, H = 0, DPR = 1, SHELL = 0;
-    function resize(){ DPR = Math.min(window.devicePixelRatio || 1, MOBILE() ? 1.5 : 2); W = Math.max(1, VW()); H = Math.max(1, VH()); canvas.width = W * DPR; canvas.height = H * DPR; var sh = document.querySelector('.chapter .shell'); SHELL = sh ? sh.getBoundingClientRect().width - 72 : W; if (SHELL < 200) SHELL = W; }
+    var dprCap = Math.min(window.devicePixelRatio || 1, 3), fAcc = 0, fN = 0, fLast = 0;
+    function resize(){
+      DPR = Math.min(window.devicePixelRatio || 1, dprCap);
+      var sc = canvas.parentNode.getBoundingClientRect();
+      W = Math.max(1, Math.round(sc.width || VW())); H = Math.max(1, Math.round(sc.height || VH()));
+      canvas.width = Math.round(W * DPR); canvas.height = Math.round(H * DPR); canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
+      var sh = document.querySelector('.chapter .shell');
+      if (sh) { var cs = getComputedStyle(sh); SHELL = sh.clientWidth - (parseFloat(cs.paddingLeft) || 0) - (parseFloat(cs.paddingRight) || 0); }
+      if (!sh || SHELL < 200) SHELL = W;
+    }
+    /* 프레임이 떨어지면(평균 21ms 초과) 해상도를 한 단계 낮춘다 — 화질은 최대한, 끊김은 없게 */
+    function watchFrames(now){
+      if (fLast) { var dt = now - fLast; if (dt < 200 && now - start > 3500) { fAcc += dt; fN++; if (fN >= 90) { var avg = fAcc / fN; fAcc = 0; fN = 0; if (avg > 21 && dprCap > 1.25) { dprCap = Math.max(1.25, dprCap - 0.5); resize(); } } } }
+      fLast = now;
+    }
     resize(); window.addEventListener('resize', resize);
 
     /* 포메이션을 주어진 회전·크기로 투영했을 때의 화면상 경계 상자 (중심 0,0 기준 px) */
@@ -519,9 +546,9 @@ html.touch-paging .cards{touch-action:pan-x}
       if (MOBILE()) {
         if (i === 0) box = { x0: shellL, x1: shellR, y0: HDR + 16, y1: H - 0.12 * H - hOf('.wordmark') - 20 };
         else {
-          var stSel = i === 5 ? '.main .stack' : '.stack', padB = i === 5 ? hOf('.foot') + 12 : 32;
+          var stSel = i === 5 ? '.main .stack' : '.stack', padB = i === 5 ? hOf('.foot') + 12 : 24;
           var topM = H - padB - hOf(stSel);
-          box = { x0: shellL, x1: shellR, y0: HDR + 12, y1: Math.max(HDR + 12 + 56, topM - 12) };
+          box = { x0: shellL, x1: shellR, y0: HDR + 10, y1: Math.max(HDR + 10 + 56, topM - 10) };
         }
       } else if (i === 0) {
         box = { x0: shellL, x1: shellR, y0: HDR + M, y1: H - 0.12 * H - hOf('.wordmark') - M };
@@ -538,14 +565,15 @@ html.touch-paging .cards{touch-action:pan-x}
         var top5 = H - hOf('.foot') - 0.04 * H - hOf('.main .stack');
         box = { x0: shellL, x1: shellR, y0: HDR + M, y1: Math.max(HDR + M + 80, top5 - 16) };
       }
-      var bw = Math.max(40, box.x1 - box.x0), bh = Math.max(40, box.y1 - box.y0), sc = c.sMax;
-      for (var it = 0; it < 2; it++) { var bb = projectBBox(c.form, sc, c.yaw, c.pitch); var k2 = Math.min(bw * c.fit / (bb.x1 - bb.x0), bh * c.fit / (bb.y1 - bb.y0)); sc = Math.max(c.sMin, Math.min(c.sMax, sc * k2)); }
+      var sMax = MOBILE() ? Math.min(1.4, c.sMax * 1.6) : c.sMax, fit = MOBILE() ? Math.min(0.96, c.fit + 0.06) : c.fit;
+      var bw = Math.max(40, box.x1 - box.x0), bh = Math.max(40, box.y1 - box.y0), sc = sMax;
+      for (var it = 0; it < 2; it++) { var bb = projectBBox(c.form, sc, c.yaw, c.pitch); var k2 = Math.min(bw * fit / (bb.x1 - bb.x0), bh * fit / (bb.y1 - bb.y0)); sc = Math.max(c.sMin, Math.min(sMax, sc * k2)); }
       var bbF = projectBBox(c.form, sc, c.yaw, c.pitch);
       return { s: sc, cx: (box.x0 + box.x1) / 2 - (bbF.x0 + bbF.x1) / 2, cy: (box.y0 + box.y1) / 2 - (bbF.y0 + bbF.y1) / 2 };
     }
 
     var f0 = frameFor(0), c0 = CHAPTERS[0];
-    var g = { cx: f0.cx, cy: f0.cy, s: f0.s, yaw: c0.yaw, pitch: c0.pitch, sway: c0.sway, spin: c0.spin, mode: 1, flow: 0 };
+    var g = { cx: f0.cx, cy: f0.cy, s: f0.s, yaw: c0.yaw, pitch: c0.pitch, sway: c0.sway, spin: c0.spin, mode: 1, flow: 0, live: c0.live };
     var gFrom = null, gTo = null, gT0 = 0, gDur = 0.9;
     var active = 0, start = performance.now(), lastSpin = 0, spinAcc = 0;
 
@@ -557,10 +585,11 @@ html.touch-paging .cards{touch-action:pan-x}
         b.mFrom = b.m; b.mTo = c.morph;
         b.t0 = now + (initial ? 0.25 + (b.r / 34) * 0.9 + Math.random() * 1.2 : Math.random() * 0.45);
         b.dur = initial ? 0.9 + Math.random() * 0.5 : 0.75 + Math.random() * 0.35;
+        b.back = !!initial;
         if (reduce || instant) { b.cur = { x: t.x, y: t.y, z: t.z }; b.m = c.morph; b.t0 = now - 10; }
       }
-      gFrom = { cx: g.cx, cy: g.cy, s: g.s, yaw: g.yaw, pitch: g.pitch, sway: g.sway, spin: g.spin, mode: g.mode, flow: g.flow };
-      gTo = { cx: fr.cx, cy: fr.cy, s: fr.s, yaw: c.yaw, pitch: c.pitch, sway: c.sway, spin: c.spin, mode: chapters[i].getAttribute('data-mode') === 'ink' ? 1 : 0, flow: c.flow };
+      gFrom = { cx: g.cx, cy: g.cy, s: g.s, yaw: g.yaw, pitch: g.pitch, sway: g.sway, spin: g.spin, mode: g.mode, flow: g.flow, live: g.live };
+      gTo = { cx: fr.cx, cy: fr.cy, s: fr.s, yaw: c.yaw, pitch: c.pitch, sway: c.sway, spin: c.spin, mode: chapters[i].getAttribute('data-mode') === 'ink' ? 1 : 0, flow: c.flow, live: c.live || 0 };
       gT0 = now; gDur = (initial || reduce || instant) ? 0.01 : 0.9;
     }
     setFormation(0, true);
@@ -618,6 +647,7 @@ html.touch-paging .cards{touch-action:pan-x}
     }
 
     function render(now){
+      watchFrames(now);
       var t = (now - start) / 1000;
       if (gFrom && gTo) { var gp = Math.min(1, (t - gT0) / gDur), ge = easeOut(gp); for (var key in gTo) g[key] = gFrom[key] + (gTo[key] - gFrom[key]) * ge; if (gp >= 1) gFrom = gTo = null; }
       spinAcc += g.spin * (t - lastSpin); lastSpin = t;
@@ -626,6 +656,9 @@ html.touch-paging .cards{touch-action:pan-x}
       var pitch = g.pitch + Math.sin(t * 0.17) * g.sway * 0.35;
       var cy = Math.cos(yaw), sy = Math.sin(yaw), cp = Math.cos(pitch), sp = Math.sin(pitch);
       var D = 72, F = Math.min(W, H) * 1.45, S = g.s, OX = g.cx, OY = g.cy;
+      /* 광원이 아주 천천히 돌고, 부드러운 빛 띠가 표면을 스친다 */
+      var lx0 = -0.42 + Math.sin(t * 0.21) * 0.28, ly0 = -0.62 + Math.cos(t * 0.17) * 0.12, lz0 = -0.66; var lnorm = Math.sqrt(lx0*lx0 + ly0*ly0 + lz0*lz0); L = [lx0 / lnorm, ly0 / lnorm, lz0 / lnorm];
+      var sweepA = 0.8, sweepPos = Math.sin(t * 0.16) * 26, sweepC = Math.cos(sweepA), sweepS = Math.sin(sweepA);
       var pal = { dark: mix(PAL_PAPER.dark, PAL_INK.dark, g.mode), mid: mix(PAL_PAPER.mid, PAL_INK.mid, g.mode), light: mix(PAL_PAPER.light, PAL_INK.light, g.mode), sky: mix(PAL_PAPER.sky, PAL_INK.sky, g.mode), fog: mix(PAL_PAPER.fog, PAL_INK.fog, g.mode) };
       ctx.setTransform(DPR, 0, 0, DPR, 0, 0); ctx.clearRect(0, 0, W, H);
 
@@ -633,11 +666,13 @@ html.touch-paging .cards{touch-action:pan-x}
       for (var i = 0; i < N; i++) {
         var b = boxes[i];
         var p = Math.max(0, Math.min(1, (t - b.t0) / b.dur));
-        if (b.from && b.to) { var e = easeOut(p); b.cur.x = b.from.x + (b.to.x - b.from.x) * e; b.cur.y = b.from.y + (b.to.y - b.from.y) * e; b.cur.z = b.from.z + (b.to.z - b.from.z) * e; b.m = b.mFrom + (b.mTo - b.mFrom) * e; }
+        if (b.from && b.to) { var e = b.back ? (1 + 1.7 * Math.pow(p - 1, 3) + 0.7 * Math.pow(p - 1, 2)) : easeOut(p); b.cur.x = b.from.x + (b.to.x - b.from.x) * e; b.cur.y = b.from.y + (b.to.y - b.from.y) * e; b.cur.z = b.from.z + (b.to.z - b.from.z) * e; b.m = b.mFrom + (b.mTo - b.mFrom) * e; }
         var alpha = introDone ? 1 : Math.min(1, Math.max(0, (t - b.t0 + 0.05) * 2.5));
         if (alpha <= 0) continue;
         var bob = g.flow > 0.01 ? Math.sin(t * 1.4 + b.fc * 0.35 + b.fr * 0.6) * 0.5 * g.flow : 0;
-        var px = b.cur.x * S, py = b.cur.y * S, pz = (b.cur.z + bob) * S;
+        var lv = g.live, lx = 0, ly = 0, lz = 0;
+        if (lv > 0.01) { lz = (Math.sin(t * 0.9 + b.seed * 6.283) * 0.06 + Math.sin(t * 0.45 + b.gx * 0.3 + b.gy * 0.18) * 0.06) * lv; lx = Math.sin(t * 0.7 + b.seed2 * 6.283) * 0.018 * lv; ly = Math.cos(t * 0.8 + b.seed * 6.283) * 0.018 * lv; }
+        var px = (b.cur.x + lx) * S, py = (b.cur.y + ly) * S, pz = (b.cur.z + bob + lz) * S;
         var z1 = -px * sy + pz * cy; var z2 = py * sp + z1 * cp;
         list.push({ b: b, z: z2, a: alpha, px: px, py: py, pz: pz, i: i });
       }
@@ -667,7 +702,9 @@ html.touch-paging .cards{touch-action:pan-x}
             col = mix(col, pal.sky, Math.max(0, -ny2) * 0.18);
             var fog = Math.max(0, Math.min(1, (fcz + 18) / 40));
             col = mix(col, pal.fog, fog * 0.3);
+            var sd = (bx.cur.x * sweepC + bx.cur.y * sweepS) - sweepPos; var band = Math.exp(-sd * sd / 26) * 0.16; if (band > 0.01) col = mix(col, pal.light, band);
             if (glow > 0.02) col = mix(col, pal.sky, Math.min(0.85, glow * (f === 1 || f === 0 ? 1 : 0.6)));
+            if (g.live > 0.01) { var fl = Math.pow(Math.max(0, Math.sin(t * 1.1 + bx.seed * 40 + bx.gx * 0.5 - bx.gy * 0.3)), 22) * 0.32 * g.live; if (fl > 0.01) col = mix(col, pal.light, fl); }
             ctx.fillStyle = rgb(col); ctx.strokeStyle = ctx.fillStyle; ctx.lineWidth = 0.6;
             ctx.beginPath(); ctx.moveTo(P[fv[0]][0], P[fv[0]][1]); ctx.lineTo(P[fv[1]][0], P[fv[1]][1]); ctx.lineTo(P[fv[2]][0], P[fv[2]][1]); ctx.lineTo(P[fv[3]][0], P[fv[3]][1]); ctx.closePath(); ctx.fill(); ctx.stroke();
           }
@@ -693,10 +730,12 @@ html.touch-paging .cards{touch-action:pan-x}
     }
     body.classList.add('cs-inverse');
     chapters[0].classList.add('is-active');
+    var TOUCH = (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) || 'ontouchstart' in window;
+    var PAGED = TOUCH && !ONLY;
     var ticking = false;
     function pick(){
       ticking = false;
-      if (ONLY) return;
+      if (ONLY || PAGED) return;
       var mid = window.scrollY + VH() * 0.5, idx = 0;
       for (var k = 0; k < chapters.length; k++) { if (mid >= chapters[k].offsetTop) idx = k; }
       activate(idx);
@@ -704,11 +743,17 @@ html.touch-paging .cards{touch-action:pan-x}
     window.addEventListener('scroll', function(){ if (!ticking) { ticking = true; requestAnimationFrame(pick); } }, { passive: true });
 
     /* ── 터치 기기: 스와이프를 감지하는 순간 다음/이전 챕터로 부드럽게 이동 (한 번에 한 챕터) ── */
-    var paging = false;
+    var paging = false, mainEl = document.querySelector('main');
     function goTo(i){
       i = Math.max(0, Math.min(chapters.length - 1, i));
-      if (paging) return;
+      if (paging || i === active) return;
       paging = true;
+      if (PAGED) {
+        mainEl.style.transform = 'translateY(' + (-i * 100) + '%)';
+        activate(i);
+        setTimeout(function(){ paging = false; }, reduce ? 20 : 640);
+        return;
+      }
       var from = window.scrollY, to = chapters[i].offsetTop, t0 = performance.now(), dur = reduce ? 1 : 620;
       (function step(now){
         var p = Math.min(1, (now - t0) / dur), e = 1 - Math.pow(1 - p, 3);
@@ -716,9 +761,11 @@ html.touch-paging .cards{touch-action:pan-x}
         if (p < 1) requestAnimationFrame(step); else { window.scrollTo(0, to); paging = false; pick(); }
       })(t0);
     }
-    var TOUCH = (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) || 'ontouchstart' in window;
-    if (TOUCH && !ONLY) {
+    if (PAGED) {
       document.documentElement.classList.add('touch-paging');
+      window.scrollTo(0, 0);
+      document.querySelectorAll('a[href^="#c"]').forEach(function(a){ a.addEventListener('click', function(e){ var n = parseInt(a.getAttribute('href').slice(2), 10); if (!isNaN(n)) { e.preventDefault(); goTo(n); } }); });
+      window.addEventListener('resize', function(){ mainEl.style.transform = 'translateY(' + (-active * 100) + '%)'; });
       var ty = null, tx = null, tSkip = false, tFired = false;
       document.addEventListener('touchstart', function(e){
         var t = e.touches[0]; ty = t.clientY; tx = t.clientX; tFired = false;
@@ -729,7 +776,6 @@ html.touch-paging .cards{touch-action:pan-x}
         if (ty === null || tSkip) return;
         var t = e.touches[0], dy = t.clientY - ty, dx = t.clientX - tx;
         if (Math.abs(dx) > Math.abs(dy) * 1.2 && !tFired) return;                 /* 가로 제스처는 그대로 둔다 */
-        if (chapters[active].offsetHeight > VH() + 4) return;                     /* 화면보다 긴 챕터는 기본 스크롤 */
         if (e.cancelable) e.preventDefault();
         if (!tFired && Math.abs(dy) > 24) { tFired = true; goTo(active + (dy < 0 ? 1 : -1)); }
       }, { passive: false });
