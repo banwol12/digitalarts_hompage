@@ -588,7 +588,7 @@ html.touch-paging .cards{touch-action:pan-x}
           /* 화면 전체에 흩어진 작은 점들 — 잠깐 나타난 뒤 거의 동시에 로고 자리로 모인다 */
           var X = 16 + Math.random() * (W - 32), Y = 72 + Math.random() * (H - 84);
           b.cur = { x: (X - fr.cx) / unit, y: (Y - fr.cy) / unit, z: (Math.random() - 0.5) * 2 };
-          b.tw = now + 0.05 + Math.random() * 0.35;                       /* 점이 떠오르는 순간 */
+          b.tw = now + 0.03 + Math.random() * 0.22;                       /* 점이 떠오르는 순간 */
           b.t0 = now + 0.6 + Math.random() * 0.28;                        /* 모이기 시작 (거의 동시에) */
           b.dur = 0.95 + Math.random() * 0.35;
         } else {
@@ -603,10 +603,19 @@ html.touch-paging .cards{touch-action:pan-x}
       gFrom = { cx: g.cx, cy: g.cy, s: g.s, yaw: g.yaw, pitch: g.pitch, sway: g.sway, spin: g.spin, mode: g.mode, flow: g.flow, live: g.live, alpha: g.alpha };
       gTo = { cx: fr.cx, cy: fr.cy, s: fr.s, yaw: c.yaw, pitch: c.pitch, sway: c.sway, spin: c.spin, mode: chapters[i].getAttribute('data-mode') === 'ink' ? 1 : 0, flow: c.flow, live: c.live || 0, alpha: (MOBILE() || c.alpha === undefined) ? 1 : c.alpha };
       gT0 = now; gDur = (initial || reduce || instant) ? 0.01 : 0.9;
-      if (initial && !reduce) { gFrom.yaw = 0; gFrom.pitch = 0; gFrom.sway = 0; gT0 = now + 0.5; gDur = 1.6; }
+      if (initial && !reduce) { gFrom.yaw = 0; gFrom.pitch = 0; gFrom.sway = 0; gT0 = now + 0.5; gDur = 1.6; seedDots(fr, now); }
     }
     setFormation(0, true);
     var introDone = false, INTRO_T = 2.6;
+    var dots = [];
+    function seedDots(fr, now){
+      var unit = fr.s * (Math.min(W, H) * 1.45) / 72, count = MOBILE() ? 1400 : 2800; dots = [];
+      for (var q = 0; q < count; q++) {
+        var X = 12 + Math.random() * (W - 24), Y = 70 + Math.random() * (H - 80), tb = boxes[Math.floor(Math.random() * N)].to || { x: 0, y: 0 };
+        dots.push({ sx: (X - fr.cx) / unit, sy: (Y - fr.cy) / unit, tx: tb.x + (Math.random() - 0.5) * 3, ty: tb.y + (Math.random() - 0.5) * 3,
+          tw: now + 0.03 + Math.random() * 0.22, t0: now + 0.6 + Math.random() * 0.28, dur: 0.8 + Math.random() * 0.3, sz: 0.14 + Math.random() * 0.2, sh: Math.random() });
+      }
+    }
 
     /* 03 챕터: 픽셀 필드 위를 오가는 데이터 패킷 (행·열을 따라 빛이 옮겨 다닌다) */
     var packets = [], boost = new Float32Array(N);
@@ -679,6 +688,21 @@ html.touch-paging .cards{touch-action:pan-x}
       ctx.setTransform(DPR, 0, 0, DPR, 0, 0); ctx.clearRect(0, 0, W, H);
       var GA = usingOff ? 1 : g.alpha;
 
+      if (!introDone && dots.length) {
+        var F2 = F / D, mid = pal.mid, lig = pal.light;
+        for (var di = 0; di < dots.length; di++) {
+          var dd = dots[di]; if (t < dd.tw) continue;
+          var dp = Math.max(0, Math.min(1, (t - dd.t0) / dd.dur)), de = dp < 0.5 ? 2 * dp * dp : 1 - Math.pow(-2 * dp + 2, 2) / 2;
+          var da = t < dd.t0 ? Math.min(0.5, (t - dd.tw) * 3) : 0.5 * (1 - dp);
+          if (da <= 0.01) continue;
+          var dx = (dd.sx + (dd.tx - dd.sx) * de) * S, dy = (dd.sy + (dd.ty - dd.sy) * de) * S;
+          var dax = dx * cy, daz = -dx * sy, day = dy * cp - daz * sp, daz2 = dy * sp + daz * cp, dsc = F / (daz2 + D);
+          var DX = OX + dax * dsc, DY = OY + day * dsc, dsz = Math.max(1, dd.sz * S * dsc * (1 - 0.4 * dp));
+          ctx.globalAlpha = da; ctx.fillStyle = rgb(dd.sh > 0.7 ? lig : mid); ctx.fillRect(DX - dsz, DY - dsz, dsz * 2, dsz * 2);
+        }
+        ctx.globalAlpha = 1;
+      } else if (introDone && dots.length) { dots = []; }
+
       var list = [];
       for (var i = 0; i < N; i++) {
         var b = boxes[i];
@@ -723,7 +747,7 @@ html.touch-paging .cards{touch-action:pan-x}
             var lam = Math.max(0, nx1 * L[0] + ny2 * L[1] + nz2 * L[2]);
             var col = mix(pal.dark, pal.mid, Math.min(1, 0.25 + lam * 0.9));
             col = mix(col, pal.light, Math.pow(lam, 3) * 0.75);
-            col = mix(col, pal.sky, Math.max(0, -ny2) * 0.18);
+            col = mix(col, pal.light, Math.max(0, -ny2) * 0.12);
             var fog = Math.max(0, Math.min(1, (fcz + 18) / 40));
             col = mix(col, pal.fog, fog * 0.3);
             var sd = (bx.cur.x * sweepC + bx.cur.y * sweepS) - sweepPos; var band = Math.exp(-sd * sd / 26) * 0.16; if (band > 0.01) col = mix(col, pal.light, band);
