@@ -176,7 +176,8 @@ html.touch-paging .cards{touch-action:pan-x}
 /* Chapter 0 — intro: logo centred (canvas), wordmark below */
 .intro{text-align:center;align-content:end;padding-bottom:12vh}
 .intro .wordmark{display:flex;flex-direction:column;gap:var(--space-12);align-items:center}
-.intro-title{font:600 clamp(15px,1.75vw,26px)/1.4 var(--font-core);letter-spacing:0.28em;text-transform:uppercase;color:var(--text-body);text-align:center;padding-left:0.28em}
+.intro-sub{font:600 clamp(12px,1.2vw,17px)/1.4 var(--font-core);letter-spacing:0.3em;text-transform:uppercase;color:var(--text-muted);text-align:center;padding-left:0.3em}
+.intro-title{font:600 clamp(26px,3.6vw,50px)/1.1 var(--font-core);letter-spacing:0.34em;text-transform:uppercase;color:var(--text-body);text-align:center;padding-left:0.34em}
 .js .intro .wordmark{opacity:0;transform:translateY(14px);transition:opacity var(--duration-slow) var(--ease),transform var(--duration-slow) var(--ease)}
 .js .intro.is-ready .wordmark{opacity:1;transform:none}
 .intro .hint{position:absolute;left:0;right:0;bottom:var(--space-32);display:flex;justify-content:center;align-items:center;gap:var(--space-8);color:var(--text-muted)}
@@ -335,7 +336,8 @@ html.touch-paging .cards{touch-action:pan-x}
   <section class="chapter intro" id="c0" data-mode="ink">
     <div class="shell">
       <div class="wordmark">
-        <h1 class="intro-title">Seoul Institute of the Arts · Digital Arts</h1>
+        <span class="intro-sub">Seoul Institute of the Arts</span>
+        <h1 class="intro-title">Digital Arts</h1>
       </div>
     </div>
     <div class="hint cs-caption">Scroll <svg class="i"><use href="#chevron-down"/></svg></div>
