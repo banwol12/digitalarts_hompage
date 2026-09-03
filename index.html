@@ -477,8 +477,9 @@ html.touch-paging .cards{touch-action:pan-x}
   var chapters = Array.prototype.slice.call(document.querySelectorAll('.chapter'));
   var boxes = [], N = 0, CX = 17, CY = 17, R = 17.7;
   /* 02 챕터에서 픽셀이 풀리며 변하는 "디지털아트 파츠" — 코드 토큰 · 와이어프레임 큐브 · 메시 삼각형 · 노드 · 파형 · 버텍스 */
-  var TOKENS = ['float','vec3','sin(t)','noise()','uv.x','lerp','for','++i','{ }','< />','rgb()','fft','osc','TOP','CHOP','SOP','DAT','mesh','pos','mat4','if','=>','0x1F','1101','0010','fps 60','x=0.5','y*=2','render()','tex2D','uv','∆t','α','#F4FF53','px','z:12'];
-  var KINDS = ['code','code','code','wire','wire','tri','node','wave','vertex','code'];
+  /* 정돈된 구성: 글자 조각은 10% 만, 대표 토큰 16개. 나머지는 조용한 점·버텍스·와이어프레임 */
+  var TOKENS = ['float','vec3','sin(t)','noise()','lerp','for','TOP','CHOP','SOP','DAT','mesh','uv.x','0x1F','render()','#F4FF53','=>'];
+  var KINDS = ['code','wire','tri','node','wave','vertex','vertex','vertex','dot','dot'];
   GRID.forEach(function(row, r){
     for (var c = 0; c < row.length; c++) {
       if (row[c] !== '#') continue;
@@ -679,7 +680,7 @@ html.touch-paging .cards{touch-action:pan-x}
     function drawFragment(b, X, Y, sz, P, alpha, pal){
       ctx.globalAlpha = alpha; ctx.lineWidth = 1; ctx.strokeStyle = rgb(pal.mid); ctx.fillStyle = rgb(pal.light);
       if (b.kind === 'code') {
-        ctx.font = '500 ' + Math.max(9, sz * 1.5) + 'px ui-monospace, Menlo, Consolas, monospace'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+        ctx.font = '500 ' + Math.max(11, sz * 1.9) + 'px ui-monospace, Menlo, Consolas, monospace'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
         var parts = b.parts || [[b.token, VS.vari]], total = 0, widths = [];
         for (var pi = 0; pi < parts.length; pi++) { var pw = ctx.measureText(parts[pi][0]).width; widths.push(pw); total += pw; }
         var cx2 = X - total / 2;
@@ -702,9 +703,12 @@ html.touch-paging .cards{touch-action:pan-x}
         ctx.strokeStyle = rgb(pal.light); ctx.beginPath();
         for (var i2 = 0; i2 <= 10; i2++) { var wx = X - sz * 1.6 + i2 * sz * 0.32, wy = Y + Math.sin(i2 * 0.9 + b.rot) * sz * 0.5; if (i2) ctx.lineTo(wx, wy); else ctx.moveTo(wx, wy); }
         ctx.stroke();
+      } else if (b.kind === 'dot') {
+        ctx.globalAlpha = alpha * 0.55; ctx.fillStyle = rgb(pal.mid); var ds = Math.max(1.5, sz * 0.45); ctx.fillRect(X - ds / 2, Y - ds / 2, ds, ds);
       } else {
+        ctx.globalAlpha = alpha * 0.7;
         ctx.strokeStyle = rgb(pal.mid); ctx.beginPath(); ctx.moveTo(X - sz * 0.9, Y); ctx.lineTo(X + sz * 0.9, Y); ctx.moveTo(X, Y - sz * 0.9); ctx.lineTo(X, Y + sz * 0.9); ctx.stroke();
-        ctx.fillStyle = rgb(pal.sky); ctx.beginPath(); ctx.arc(X, Y, Math.max(1.5, sz * 0.22), 0, 6.283); ctx.fill();
+        ctx.fillStyle = rgb(pal.light); ctx.beginPath(); ctx.arc(X, Y, Math.max(1.5, sz * 0.22), 0, 6.283); ctx.fill();
       }
     }
 
