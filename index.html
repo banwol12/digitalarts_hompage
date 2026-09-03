@@ -185,8 +185,9 @@ a.card:hover{background:var(--surface-warm);color:var(--text-body)}
 .actions{display:flex;gap:var(--space-12);flex-wrap:wrap;justify-content:center}
 
 /* Chapter 5 — admission + compact footer */
+.works{align-content:end;padding-bottom:6vh}
 .last{grid-template-rows:1fr auto;align-content:stretch}
-.last .main{display:grid;align-content:center}
+.last .main{display:grid;align-content:end;padding-bottom:4vh}
 .subscribe{display:flex;gap:var(--space-8);width:100%;max-width:460px;margin-inline:auto;margin-top:var(--space-8)}
 .subscribe .btn{min-height:48px;flex:none}
 #submsg{min-height:1.4em}
@@ -317,7 +318,7 @@ a.card:hover{background:var(--surface-warm);color:var(--text-body)}
   </section>
 
   <!-- 04 · 작품 -->
-  <section class="chapter" id="c4" data-mode="ink">
+  <section class="chapter works" id="c4" data-mode="ink">
     <div class="shell">
       <div class="stack">
         <div class="kicker reveal" style="--i:0"><span class="cs-caption">04</span><i></i><span class="cs-caption">작품</span></div>
@@ -431,21 +432,16 @@ a.card:hover{background:var(--surface-warm);color:var(--text-body)}
     burst: function(b){ return { x: b.gx * 1.15 + (b.seed - 0.5) * 5, y: b.gy * 1.15 + (b.seed2 - 0.5) * 5, z: (b.seed - 0.5) * 26 }; },
     field: function(b){ return { x: (b.fc - (FCOLS - 1) / 2) * 1.3, y: (b.fr - (FROWS - 1) / 2) * 1.3, z: 0 }; }
   };
-  /* fx 는 콘텐츠 폭(shell) 기준, fy 는 화면 높이 기준 → 화면 비율이 달라도 위치가 콘텐츠와 함께 움직인다 */
+  /* 챕터별 회전·동작 설정. 위치와 크기는 frameFor() 가 화면과 텍스트를 실측해 "빈 영역"에 맞춘다 */
   var CHAPTERS = [
-    { form: 'logo',  fx: 0,     fy: -0.12, s: 0.82, yaw: 0,     pitch: -0.08, sway: 0.22, spin: 0,    morph: 0, flow: 0 },
-    { form: 'logo',  fx: 0.25,  fy: 0,     s: 0.78, yaw: -0.4,  pitch: -0.06, sway: 0.12, spin: 0,    morph: 0, flow: 0 },
-    { form: 'burst', fx: -0.25, fy: 0,     s: 0.8,  yaw: 0.5,   pitch: -0.1,  sway: 0.10, spin: 0.05, morph: 1, flow: 0 },
-    { form: 'field', fx: 0,     fy: 0.25,  s: 0.9,  yaw: 0,     pitch: -1.1,  sway: 0.02, spin: 0,    morph: 0, flow: 1 },
-    { form: 'logo',  fx: 0.38,  fy: -0.30, s: 0.40, yaw: 0.2,   pitch: -0.1,  sway: 0.25, spin: 0,    morph: 0, flow: 0 },
-    { form: 'logo',  fx: 0,     fy: -0.30, s: 0.44, yaw: 0,     pitch: -0.05, sway: 0.18, spin: 0,    morph: 0, flow: 0 }
+    { form: 'logo',  yaw: 0,    pitch: -0.08, sway: 0.22, spin: 0,    morph: 0, flow: 0, sMax: 1.0,  sMin: 0.2,  fit: 0.9  },
+    { form: 'logo',  yaw: -0.4, pitch: -0.06, sway: 0.12, spin: 0,    morph: 0, flow: 0, sMax: 0.85, sMin: 0.2,  fit: 0.9  },
+    { form: 'burst', yaw: 0.5,  pitch: -0.1,  sway: 0.10, spin: 0.05, morph: 1, flow: 0, sMax: 0.85, sMin: 0.2,  fit: 0.86 },
+    { form: 'field', yaw: 0,    pitch: -1.1,  sway: 0.02, spin: 0,    morph: 0, flow: 1, sMax: 1.0,  sMin: 0.3,  fit: 0.9  },
+    { form: 'logo',  yaw: 0.2,  pitch: -0.1,  sway: 0.25, spin: 0,    morph: 0, flow: 0, sMax: 0.5,  sMin: 0.18, fit: 0.88 },
+    { form: 'logo',  yaw: 0,    pitch: -0.05, sway: 0.18, spin: 0,    morph: 0, flow: 0, sMax: 0.6,  sMin: 0.18, fit: 0.9  }
   ];
   var MOBILE = function(){ return window.innerWidth < 800; };
-  function chapterCfg(i){
-    var c = CHAPTERS[i] || CHAPTERS[0], o = {}; for (var k in c) o[k] = c[k];
-    if (MOBILE()) { o.fx = 0; o.fy = i === 0 ? -0.12 : -0.25; o.s = i === 0 ? 0.82 : Math.min(0.5, c.s * 0.7); if (o.form === 'field') { o.fy = -0.24; o.s = 0.55; } }
-    return o;
-  }
 
   if (canvas && canvas.getContext) {
     var ctx = canvas.getContext('2d');
@@ -465,23 +461,66 @@ a.card:hover{background:var(--surface-warm);color:var(--text-body)}
     function resize(){ DPR = Math.min(window.devicePixelRatio || 1, 2); W = Math.max(1, window.innerWidth); H = Math.max(1, window.innerHeight); canvas.width = W * DPR; canvas.height = H * DPR; var sh = document.querySelector('.chapter .shell'); SHELL = sh ? sh.getBoundingClientRect().width - 72 : W; if (SHELL < 200) SHELL = W; }
     resize(); window.addEventListener('resize', resize);
 
-    var cfg = chapterCfg(0), g = { fx: cfg.fx, fy: cfg.fy, s: cfg.s, yaw: cfg.yaw, pitch: cfg.pitch, sway: cfg.sway, spin: cfg.spin, mode: 1, flow: 0 };
+    /* 포메이션을 주어진 회전·크기로 투영했을 때의 화면상 경계 상자 (중심 0,0 기준 px) */
+    function projectBBox(form, sc, yaw, pitch){
+      var cy = Math.cos(yaw), sy = Math.sin(yaw), cp = Math.cos(pitch), sp = Math.sin(pitch);
+      var F = Math.min(W, H) * 1.45, D = 72, fn = FORM[form];
+      var minx = 1e9, maxx = -1e9, miny = 1e9, maxy = -1e9;
+      for (var k = 0; k < N; k++) {
+        var t = fn(boxes[k], k), px = t.x * sc, py = t.y * sc, pz = t.z * sc;
+        var ax = px * cy + pz * sy, az = -px * sy + pz * cy, ay = py * cp - az * sp, az2 = py * sp + az * cp;
+        var s2 = F / (az2 + D), X = ax * s2, Y = ay * s2, r = HS * sc * s2 * 1.8;
+        if (X - r < minx) minx = X - r; if (X + r > maxx) maxx = X + r; if (Y - r < miny) miny = Y - r; if (Y + r > maxy) maxy = Y + r;
+      }
+      return { x0: minx, x1: maxx, y0: miny, y1: maxy };
+    }
+    /* 챕터별 빈 영역(헤더·텍스트·푸터를 실측)에 로고를 contain 방식으로 맞춘다 */
+    function frameFor(i){
+      var c = CHAPTERS[i] || CHAPTERS[0], sec = chapters[i], HDR = 64, M = 24;
+      var shellL = (W - SHELL) / 2, shellR = shellL + SHELL, box;
+      var hOf = function(sel){ var e = sec.querySelector(sel); return e ? e.offsetHeight : 0; };
+      if (MOBILE()) {
+        if (i === 0) box = { x0: shellL, x1: shellR, y0: HDR + M, y1: H - 0.14 * H - hOf('.wordmark') - M };
+        else box = { x0: shellL, x1: shellR, y0: HDR + M, y1: HDR + 0.34 * H - 12 };
+      } else if (i === 0) {
+        box = { x0: shellL, x1: shellR, y0: HDR + M, y1: H - 0.12 * H - hOf('.wordmark') - M };
+      } else if (i === 1) {
+        box = { x0: W / 2 + 28, x1: shellR - 56, y0: HDR + M, y1: H - M };
+      } else if (i === 2) {
+        box = { x0: shellL, x1: W / 2 - 28, y0: HDR + M, y1: H - M };
+      } else if (i === 3) {
+        box = { x0: shellL, x1: shellR - 56, y0: HDR + 0.07 * H + hOf('.stack') + 36, y1: H - 12 };
+      } else if (i === 4) {
+        var top4 = H - 0.06 * H - hOf('.stack');
+        box = { x0: shellL + SHELL * 0.66, x1: shellR - 56, y0: HDR + M, y1: Math.max(HDR + M + 70, top4 - 12) };
+      } else {
+        var top5 = H - hOf('.foot') - 0.04 * H - hOf('.main .stack');
+        box = { x0: shellL, x1: shellR, y0: HDR + M, y1: Math.max(HDR + M + 80, top5 - 16) };
+      }
+      var bw = Math.max(40, box.x1 - box.x0), bh = Math.max(40, box.y1 - box.y0), sc = c.sMax;
+      for (var it = 0; it < 2; it++) { var bb = projectBBox(c.form, sc, c.yaw, c.pitch); var k2 = Math.min(bw * c.fit / (bb.x1 - bb.x0), bh * c.fit / (bb.y1 - bb.y0)); sc = Math.max(c.sMin, Math.min(c.sMax, sc * k2)); }
+      var bbF = projectBBox(c.form, sc, c.yaw, c.pitch);
+      return { s: sc, cx: (box.x0 + box.x1) / 2 - (bbF.x0 + bbF.x1) / 2, cy: (box.y0 + box.y1) / 2 - (bbF.y0 + bbF.y1) / 2 };
+    }
+
+    var f0 = frameFor(0), c0 = CHAPTERS[0];
+    var g = { cx: f0.cx, cy: f0.cy, s: f0.s, yaw: c0.yaw, pitch: c0.pitch, sway: c0.sway, spin: c0.spin, mode: 1, flow: 0 };
     var gFrom = null, gTo = null, gT0 = 0, gDur = 0.9;
     var active = 0, start = performance.now(), lastSpin = 0, spinAcc = 0;
 
-    function setFormation(i, initial){
-      var c = chapterCfg(i), now = (performance.now() - start) / 1000, fn = FORM[c.form];
+    function setFormation(i, initial, instant){
+      var c = CHAPTERS[i] || CHAPTERS[0], fr = frameFor(i), now = (performance.now() - start) / 1000, fn = FORM[c.form];
       for (var k = 0; k < N; k++) {
         var b = boxes[k], t = fn(b, k);
         b.from = { x: b.cur.x, y: b.cur.y, z: b.cur.z }; b.to = t;
         b.mFrom = b.m; b.mTo = c.morph;
         b.t0 = now + (initial ? 0.25 + (b.r / 34) * 0.9 + Math.random() * 1.2 : Math.random() * 0.45);
         b.dur = initial ? 0.9 + Math.random() * 0.5 : 0.75 + Math.random() * 0.35;
-        if (reduce) { b.cur = { x: t.x, y: t.y, z: t.z }; b.m = c.morph; b.t0 = now - 10; }
+        if (reduce || instant) { b.cur = { x: t.x, y: t.y, z: t.z }; b.m = c.morph; b.t0 = now - 10; }
       }
-      gFrom = { fx: g.fx, fy: g.fy, s: g.s, yaw: g.yaw, pitch: g.pitch, sway: g.sway, spin: g.spin, mode: g.mode, flow: g.flow };
-      gTo = { fx: c.fx, fy: c.fy, s: c.s, yaw: c.yaw, pitch: c.pitch, sway: c.sway, spin: c.spin, mode: chapters[i].getAttribute('data-mode') === 'ink' ? 1 : 0, flow: c.flow };
-      gT0 = now; gDur = (initial || reduce) ? 0.01 : 0.9;
+      gFrom = { cx: g.cx, cy: g.cy, s: g.s, yaw: g.yaw, pitch: g.pitch, sway: g.sway, spin: g.spin, mode: g.mode, flow: g.flow };
+      gTo = { cx: fr.cx, cy: fr.cy, s: fr.s, yaw: c.yaw, pitch: c.pitch, sway: c.sway, spin: c.spin, mode: chapters[i].getAttribute('data-mode') === 'ink' ? 1 : 0, flow: c.flow };
+      gT0 = now; gDur = (initial || reduce || instant) ? 0.01 : 0.9;
     }
     setFormation(0, true);
     var introDone = false, INTRO_T = 3.0;
@@ -545,7 +584,7 @@ a.card:hover{background:var(--surface-warm);color:var(--text-body)}
       var yaw = g.yaw + Math.sin(t * 0.22) * g.sway + spinAcc;
       var pitch = g.pitch + Math.sin(t * 0.17) * g.sway * 0.35;
       var cy = Math.cos(yaw), sy = Math.sin(yaw), cp = Math.cos(pitch), sp = Math.sin(pitch);
-      var D = 72, F = Math.min(W, H) * 1.45, S = g.s, OX = W / 2 + g.fx * SHELL, OY = H / 2 + g.fy * H;
+      var D = 72, F = Math.min(W, H) * 1.45, S = g.s, OX = g.cx, OY = g.cy;
       var pal = { dark: mix(PAL_PAPER.dark, PAL_INK.dark, g.mode), mid: mix(PAL_PAPER.mid, PAL_INK.mid, g.mode), light: mix(PAL_PAPER.light, PAL_INK.light, g.mode), sky: mix(PAL_PAPER.sky, PAL_INK.sky, g.mode), fog: mix(PAL_PAPER.fog, PAL_INK.fog, g.mode) };
       ctx.setTransform(DPR, 0, 0, DPR, 0, 0); ctx.clearRect(0, 0, W, H);
 
@@ -621,7 +660,8 @@ a.card:hover{background:var(--surface-warm);color:var(--text-body)}
       activate(idx);
     }
     window.addEventListener('scroll', function(){ if (!ticking) { ticking = true; requestAnimationFrame(pick); } }, { passive: true });
-    window.addEventListener('resize', function(){ resize(); setFormation(active, false); pick(); });
+    window.addEventListener('resize', function(){ resize(); setFormation(active, false, true); pick(); });
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(function(){ resize(); if (active !== 0) setFormation(active, false, true); });
     pick();
   }
 
