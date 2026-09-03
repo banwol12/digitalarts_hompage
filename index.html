@@ -140,6 +140,9 @@ a.card:hover{background:var(--surface-warm);color:var(--text-body)}
 .brand:hover{color:var(--text-body)}
 .brand .mark{width:24px;height:26px;flex:none}
 .brand .mark svg{width:100%;height:100%;fill:currentColor}
+.brand-text{display:flex;flex-direction:column;gap:2px;line-height:1.1}
+.brand-text small{font:var(--weight-core) 11px/1.1 var(--font-core);letter-spacing:0.14em;text-transform:uppercase;color:var(--text-muted)}
+.brand-text strong{font:600 19px/1.1 var(--font-core);letter-spacing:0.06em}
 .site-nav{display:flex;gap:var(--space-32)}
 .site-nav a{font:var(--type-label);letter-spacing:var(--tracking-label);text-transform:uppercase;color:var(--text-muted)}
 .site-nav a:hover,.site-nav a.is-active{color:var(--text-body)}
@@ -173,8 +176,7 @@ html.touch-paging .cards{touch-action:pan-x}
 /* Chapter 0 — intro: logo centred (canvas), wordmark below */
 .intro{text-align:center;align-content:end;padding-bottom:12vh}
 .intro .wordmark{display:flex;flex-direction:column;gap:var(--space-12);align-items:center}
-.intro-sub{font:var(--weight-core) clamp(11px,1.1vw,16px)/1.4 var(--font-core);letter-spacing:0.3em;text-transform:uppercase;color:var(--text-muted);text-align:center}
-.intro-title{font:var(--weight-core) clamp(24px,3.4vw,48px)/1.1 var(--font-core);letter-spacing:0.34em;text-transform:uppercase;color:var(--text-body);text-align:center;padding-left:0.34em}
+.intro-title{font:600 clamp(15px,1.75vw,26px)/1.4 var(--font-core);letter-spacing:0.28em;text-transform:uppercase;color:var(--text-body);text-align:center;padding-left:0.28em}
 .js .intro .wordmark{opacity:0;transform:translateY(14px);transition:opacity var(--duration-slow) var(--ease),transform var(--duration-slow) var(--ease)}
 .js .intro.is-ready .wordmark{opacity:1;transform:none}
 .intro .hint{position:absolute;left:0;right:0;bottom:var(--space-32);display:flex;justify-content:center;align-items:center;gap:var(--space-8);color:var(--text-muted)}
@@ -232,6 +234,8 @@ html.touch-paging .cards{touch-action:pan-x}
   .subnav a:first-child{margin-left:auto}
   .subnav a:last-child{margin-right:auto}
   .brand{font-size:12px;letter-spacing:0.03em}
+  .brand-text small{font-size:9px}
+  .brand-text strong{font-size:15px}
   .brand .mark{width:20px;height:22px}
   .brand>span:not(.mark){display:block}
   .subnav{display:flex;gap:var(--space-20);height:36px;align-items:center;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;white-space:nowrap;border-top:1px solid var(--border-hairline)}
@@ -305,7 +309,7 @@ html.touch-paging .cards{touch-action:pan-x}
   <div class="shell row">
     <a class="brand" href="#c0" aria-label="서울예술대학교 디지털아트전공 홈">
       <span class="mark"><svg><use href="#logo"/></svg></span>
-      <span>Seoul Institute of the Arts · Digital Arts</span>
+      <span class="brand-text"><small>Seoul Institute of the Arts</small><strong>Digital Arts</strong></span>
     </a>
     <nav class="site-nav" aria-label="주요 메뉴">
       <a href="#c1" data-ch="1">전공소개</a><a href="#c2" data-ch="2">교육과정</a><a href="#c3" data-ch="3">디지털아트전공</a><a href="#c4" data-ch="4">포트폴리오</a><a href="#c5" data-ch="5">입학안내</a>
@@ -331,8 +335,7 @@ html.touch-paging .cards{touch-action:pan-x}
   <section class="chapter intro" id="c0" data-mode="ink">
     <div class="shell">
       <div class="wordmark">
-        <span class="intro-sub">Seoul Institute of the Arts</span>
-        <h1 class="intro-title">Digital Arts</h1>
+        <h1 class="intro-title">Seoul Institute of the Arts · Digital Arts</h1>
       </div>
     </div>
     <div class="hint cs-caption">Scroll <svg class="i"><use href="#chevron-down"/></svg></div>
