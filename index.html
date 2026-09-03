@@ -131,7 +131,10 @@ a.card:hover{background:var(--surface-warm);color:var(--text-body)}
 
 /* ── Header: fixed, 64px, hairline. Colors follow the body scope. ── */
 .site-header{position:fixed;inset:0 0 auto 0;z-index:30;height:var(--hdr);border-bottom:1px solid var(--border-hairline);background:var(--surface-page);transition:background-color var(--duration-slow) var(--ease),color var(--duration-slow) var(--ease)}
-.site-header .row{display:flex;align-items:center;justify-content:space-between;gap:var(--space-24);height:64px}
+.site-header .row{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:var(--space-24);height:64px}
+.site-header .row>.brand{justify-self:start}
+.site-header .row>.site-nav{justify-self:center}
+.site-header .row>.btn{justify-self:end}
 .subnav{display:none}
 .brand{display:flex;align-items:center;gap:var(--space-12);font:var(--weight-core) 17px/1 var(--font-core);letter-spacing:0.04em;color:var(--text-body);white-space:nowrap}
 .brand:hover{color:var(--text-body)}
@@ -169,8 +172,9 @@ html.touch-paging .cards{touch-action:pan-x}
 
 /* Chapter 0 — intro: logo centred (canvas), wordmark below */
 .intro{text-align:center;align-content:end;padding-bottom:12vh}
-.intro .wordmark{display:flex;flex-direction:column;gap:var(--space-16);align-items:center}
-.intro-title{font:var(--weight-core) clamp(13px,1.5vw,22px)/1.4 var(--font-core);letter-spacing:0.28em;text-transform:uppercase;color:var(--text-body);text-align:center}
+.intro .wordmark{display:flex;flex-direction:column;gap:var(--space-12);align-items:center}
+.intro-sub{font:var(--weight-core) clamp(11px,1.1vw,16px)/1.4 var(--font-core);letter-spacing:0.3em;text-transform:uppercase;color:var(--text-muted);text-align:center}
+.intro-title{font:var(--weight-core) clamp(24px,3.4vw,48px)/1.1 var(--font-core);letter-spacing:0.34em;text-transform:uppercase;color:var(--text-body);text-align:center;padding-left:0.34em}
 .js .intro .wordmark{opacity:0;transform:translateY(14px);transition:opacity var(--duration-slow) var(--ease),transform var(--duration-slow) var(--ease)}
 .js .intro.is-ready .wordmark{opacity:1;transform:none}
 .intro .hint{position:absolute;left:0;right:0;bottom:var(--space-32);display:flex;justify-content:center;align-items:center;gap:var(--space-8);color:var(--text-muted)}
@@ -224,7 +228,9 @@ html.touch-paging .cards{touch-action:pan-x}
   html{scroll-snap-type:y proximity}
   .shell{padding:0 var(--space-20)}
   .site-nav,.progress{display:none}
-  .site-header .row{height:52px;gap:var(--space-12)}
+  .site-header .row{display:flex;justify-content:space-between;height:52px;gap:var(--space-12)}
+  .subnav a:first-child{margin-left:auto}
+  .subnav a:last-child{margin-right:auto}
   .brand{font-size:12px;letter-spacing:0.03em}
   .brand .mark{width:20px;height:22px}
   .brand>span:not(.mark){display:block}
@@ -325,7 +331,8 @@ html.touch-paging .cards{touch-action:pan-x}
   <section class="chapter intro" id="c0" data-mode="ink">
     <div class="shell">
       <div class="wordmark">
-        <h1 class="intro-title">Seoul Institute of the Arts · Digital Arts</h1>
+        <span class="intro-sub">Seoul Institute of the Arts</span>
+        <h1 class="intro-title">Digital Arts</h1>
       </div>
     </div>
     <div class="hint cs-caption">Scroll <svg class="i"><use href="#chevron-down"/></svg></div>
