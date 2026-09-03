@@ -14,7 +14,8 @@
   /* base ink */
   --ink:#000000; --ink-70:rgba(0,0,0,0.70); --ink-45:rgba(0,0,0,0.45); --ink-15:rgba(0,0,0,0.15); --ink-08:rgba(0,0,0,0.08); --ink-04:rgba(0,0,0,0.04);
   /* base blue */
-  --blue-primary:#0e76ff; --blue-press:#0a5fd1; --blue-secondary:#99c5ff; --blue-tint-40:rgba(153,197,255,0.40); --blue-tint-10:rgba(14,118,255,0.10);
+  /* 사이트 조정: 키 컬러를 Cascades 블루(#0E76FF)에서 형광초록 #F4FF53 으로 교체. 토큰 이름은 유지 */
+  --blue-primary:#f4ff53; --blue-press:#dce73c; --blue-secondary:#f9ffa6; --blue-tint-40:rgba(244,255,83,0.40); --blue-tint-10:rgba(244,255,83,0.10);
   /* status */
   --green-success:oklch(0.58 0.13 155); --amber-warning:oklch(0.75 0.15 75); --red-danger:oklch(0.55 0.20 26);
   /* semantic surfaces */
@@ -24,7 +25,7 @@
   /* semantic lines */
   --border-hairline:var(--ink-15); --border-strong:var(--ink); --border-inverse:rgba(243,243,243,0.20); --focus-ring:var(--blue-primary);
   /* semantic accents */
-  --accent:var(--blue-primary); --accent-hover:var(--blue-press); --accent-on:var(--white);
+  --accent:var(--blue-primary); --accent-hover:var(--blue-press); --accent-on:var(--ink);
 
   /* fonts */
   /* 사이트 조정: 서체를 Pretendard 로 통일 (Cascades 원값은 Archivo / Archivo Narrow) */
@@ -58,8 +59,8 @@
   --shadow-none:none; --shadow-overlay:0 1px 0 var(--ink-15), 0 24px 64px rgba(0,0,0,0.18);
 
   /* effects */
-  --wash-blue:radial-gradient(60% 70% at 50% 0%, var(--blue-tint-40) 0%, rgba(247,247,245,0) 72%);
-  --wash-dark:radial-gradient(50% 60% at 50% 100%, rgba(14,118,255,0.35) 0%, rgba(0,0,0,0) 70%);
+  --wash-blue:radial-gradient(60% 70% at 50% 0%, rgba(244,255,83,0.28) 0%, rgba(247,247,245,0) 72%);
+  --wash-dark:radial-gradient(50% 60% at 50% 100%, rgba(244,255,83,0.16) 0%, rgba(0,0,0,0) 70%);
   --protect-bottom:linear-gradient(to top, rgba(0,0,0,0.65) 0%, rgba(0,0,0,0) 100%);
   --blur-panel:blur(16px); --overlay-scrim:rgba(0,0,0,0.55);
 
@@ -460,7 +461,7 @@ html.touch-paging .cards{touch-action:pan-x}
   var chapters = Array.prototype.slice.call(document.querySelectorAll('.chapter'));
   var boxes = [], N = 0, CX = 17, CY = 17, R = 17.7;
   /* 02 챕터에서 픽셀이 풀리며 변하는 "디지털아트 파츠" — 코드 토큰 · 와이어프레임 큐브 · 메시 삼각형 · 노드 · 파형 · 버텍스 */
-  var TOKENS = ['float','vec3','sin(t)','noise()','uv.x','lerp','for','++i','{ }','< />','rgb()','fft','osc','TOP','CHOP','SOP','DAT','mesh','pos','mat4','if','=>','0x1F','1101','0010','fps 60','x=0.5','y*=2','render()','tex2D','uv','∆t','α','#0E76FF','px','z:12'];
+  var TOKENS = ['float','vec3','sin(t)','noise()','uv.x','lerp','for','++i','{ }','< />','rgb()','fft','osc','TOP','CHOP','SOP','DAT','mesh','pos','mat4','if','=>','0x1F','1101','0010','fps 60','x=0.5','y*=2','render()','tex2D','uv','∆t','α','#F4FF53','px','z:12'];
   var KINDS = ['code','code','code','wire','wire','tri','node','wave','vertex','code'];
   GRID.forEach(function(row, r){
     for (var c = 0; c < row.length; c++) {
@@ -505,8 +506,8 @@ html.touch-paging .cards{touch-action:pan-x}
     var FACES = [ { n:[0,0,-1], v:[0,1,3,2] }, { n:[0,0,1], v:[4,5,7,6] }, { n:[1,0,0], v:[1,5,7,3] }, { n:[-1,0,0], v:[0,4,6,2] }, { n:[0,-1,0], v:[0,1,5,4] }, { n:[0,1,0], v:[2,3,7,6] } ];
     var EDGES = [[0,1],[1,3],[3,2],[2,0],[4,5],[5,7],[7,6],[6,4],[0,4],[1,5],[3,7],[2,6]];
     var L = [-0.42, -0.62, -0.66]; var ll = Math.sqrt(L[0]*L[0]+L[1]*L[1]+L[2]*L[2]); L = [L[0]/ll, L[1]/ll, L[2]/ll];
-    var PAL_INK   = { dark:[24,26,30],  mid:[140,142,146], light:[243,243,243], sky:[153,197,255], fog:[0,0,0] };
-    var PAL_PAPER = { dark:[8,8,10],    mid:[52,54,60],    light:[122,126,134], sky:[14,118,255],  fog:[247,247,245] };
+    var PAL_INK   = { dark:[24,26,30],  mid:[140,142,146], light:[243,243,243], sky:[244,255,83], fog:[0,0,0] };
+    var PAL_PAPER = { dark:[8,8,10],    mid:[52,54,60],    light:[122,126,134], sky:[176,192,20],  fog:[247,247,245] };
     function mix(a, b, t){ return [a[0]+(b[0]-a[0])*t, a[1]+(b[1]-a[1])*t, a[2]+(b[2]-a[2])*t]; }
     function rgb(c){ return 'rgb(' + (c[0]|0) + ',' + (c[1]|0) + ',' + (c[2]|0) + ')'; }
     function easeOut(p){ return 1 - Math.pow(1 - p, 3); }
