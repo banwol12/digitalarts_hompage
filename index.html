@@ -487,10 +487,10 @@ html.touch-paging .cards{touch-action:pan-x}
   /* 챕터별 회전·동작 설정. 위치와 크기는 frameFor() 가 화면과 텍스트를 실측해 "빈 영역"에 맞춘다 */
   var CHAPTERS = [
     { form: 'logo',  yaw: 0,    pitch: -0.08, sway: 0.22, spin: 0,    morph: 0, flow: 0, live: 1,   sMax: 1.0,  sMin: 0.2,  fit: 0.9  },
-    { form: 'logo',  yaw: -0.4, pitch: -0.06, sway: 0.12, spin: 0,    morph: 0, flow: 0, live: 0.5, sMax: 0.85, sMin: 0.2,  fit: 0.9  },
-    { form: 'burst', yaw: 0.5,  pitch: -0.1,  sway: 0.30, spin: 0,    morph: 1, flow: 0, live: 0,   sMax: 0.85, sMin: 0.2,  fit: 0.86 },
+    { form: 'logo',  yaw: -0.25, pitch: -0.06, sway: 0.10, spin: 0,   morph: 0, flow: 0, live: 0.5, sMax: 0.85, sMin: 0.2,  fit: 0.9  },
+    { form: 'burst', yaw: 0.15, pitch: -0.1,  sway: 0.20, spin: 0,    morph: 1, flow: 0, live: 0,   sMax: 0.85, sMin: 0.2,  fit: 0.86 },
     { form: 'field', yaw: 0,    pitch: -1.1,  sway: 0.02, spin: 0,    morph: 0, flow: 1, live: 0,   sMax: 1.0,  sMin: 0.3,  fit: 0.9  },
-    { form: 'logo',  yaw: 0.2,  pitch: -0.1,  sway: 0.16, spin: 0,    morph: 0, flow: 0, live: 0.4, sMax: 1.0,  sMin: 0.18, fit: 0.92, alpha: 0.14 },
+    { form: 'logo',  yaw: 0.1,  pitch: -0.1,  sway: 0.15, spin: 0,    morph: 0, flow: 0, live: 0.4, sMax: 1.0,  sMin: 0.18, fit: 0.92, alpha: 0.14 },
     { form: 'logo',  yaw: 0,    pitch: -0.05, sway: 0.18, spin: 0,    morph: 0, flow: 0, live: 0.6, sMax: 0.6,  sMin: 0.18, fit: 0.9  }
   ];
   var VW = function(){ return document.documentElement.clientWidth || window.innerWidth; };
@@ -680,6 +680,7 @@ html.touch-paging .cards{touch-action:pan-x}
       spinAcc += g.spin * (t - lastSpin); lastSpin = t;
       if (g.flow > 0.01 && !reduce) updateFlow(t); else lastT = t;
       var yaw = g.yaw + Math.sin(t * 0.22) * g.sway + spinAcc;
+      yaw = Math.max(-0.35, Math.min(0.35, yaw));                     /* 정면 기준 ±20° 를 넘지 않는다 */
       var pitch = g.pitch + Math.sin(t * 0.17) * g.sway * 0.35;
       var cy = Math.cos(yaw), sy = Math.sin(yaw), cp = Math.cos(pitch), sp = Math.sin(pitch);
       var D = 72, F = Math.min(W, H) * 1.45, S = g.s, OX = g.cx, OY = g.cy;
