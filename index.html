@@ -4,7 +4,8 @@
 <script>document.documentElement.classList.add('cs-inverse');</script>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>서울예술대학교 디지털아트전공</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600&family=Archivo+Narrow:wght@500;600&family=Noto+Sans+KR:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard-dynamic-subset.min.css">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600&display=swap">
 <style>
 /* ═══ Cascades Design System — tokens (Claude Design 프로젝트 93225dbe 에서 동기화, 값 그대로) ═══ */
 :root{
@@ -26,8 +27,9 @@
   --accent:var(--blue-primary); --accent-hover:var(--blue-press); --accent-on:var(--white);
 
   /* fonts */
-  --font-core:"Archivo","Noto Sans KR","Helvetica Neue",Arial,sans-serif;
-  --font-narrow:"Archivo Narrow","Noto Sans KR","Archivo Narrow Fallback",Arial,sans-serif;
+  /* 사이트 조정: 서체를 Pretendard 로 통일 (Cascades 원값은 Archivo / Archivo Narrow) */
+  --font-core:"Pretendard","Noto Sans KR","Helvetica Neue",Arial,sans-serif;
+  --font-narrow:"Pretendard","Noto Sans KR","Helvetica Neue",Arial,sans-serif;
   --font-display:var(--font-core); --font-body:var(--font-core); --font-label:var(--font-narrow);
 
   /* typography */
