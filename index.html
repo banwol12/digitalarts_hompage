@@ -40,7 +40,8 @@
   --text-display:61px; --text-h1:47px; --text-h2:31px; --text-h3:23px; --text-lead:18px; --text-md:15px; --text-base:14px; --text-label:11px; --text-caption:11px;
   --weight-core:500; --weight-body:400;
   --leading-display:calc(0.95em + 5px); --leading-heading:calc(1.05em + 5px); --leading-lead:calc(1.25em + 5px); --leading-body:calc(1.5em + 5px); --leading-label:calc(1.2em + 5px);
-  --tracking-display:-0.03em; --tracking-heading:-0.02em; --tracking-body:0em; --tracking-label:0.08em;
+  /* 사이트 조정: 자간 확대 (원값 -0.03 / -0.02 / 0 / 0.08em) */
+  --tracking-display:0.02em; --tracking-heading:0.03em; --tracking-body:0.04em; --tracking-label:0.18em;
   --type-display:var(--weight-core) var(--text-display)/var(--leading-display) var(--font-display);
   --type-h1:var(--weight-core) var(--text-h1)/var(--leading-heading) var(--font-display);
   --type-h2:var(--weight-core) var(--text-h2)/var(--leading-heading) var(--font-display);
@@ -84,7 +85,7 @@
 /* ── base.css ── */
 *,*::before,*::after{box-sizing:border-box}
 html{scroll-snap-type:y mandatory}
-body{margin:0;background:var(--surface-page);color:var(--text-body);font:var(--type-body);-webkit-font-smoothing:antialiased;word-break:keep-all;overflow-x:hidden;transition:background-color var(--duration-slow) var(--ease),color var(--duration-slow) var(--ease)}
+body{margin:0;background:var(--surface-page);color:var(--text-body);font:var(--type-body);letter-spacing:var(--tracking-body);-webkit-font-smoothing:antialiased;word-break:keep-all;overflow-x:hidden;transition:background-color var(--duration-slow) var(--ease),color var(--duration-slow) var(--ease)}
 h1,h2,h3,h4,p{margin:0}
 a{color:var(--text-link);text-decoration:none;transition:var(--transition-color)}
 a:hover{color:var(--text-link-hover)}
@@ -132,7 +133,7 @@ a.card:hover{background:var(--surface-warm);color:var(--text-body)}
 .site-header{position:fixed;inset:0 0 auto 0;z-index:30;height:var(--hdr);border-bottom:1px solid var(--border-hairline);background:var(--surface-page);transition:background-color var(--duration-slow) var(--ease),color var(--duration-slow) var(--ease)}
 .site-header .row{display:flex;align-items:center;justify-content:space-between;gap:var(--space-24);height:64px}
 .subnav{display:none}
-.brand{display:flex;align-items:center;gap:var(--space-12);font:var(--weight-core) 17px/1 var(--font-core);letter-spacing:-0.03em;color:var(--text-body);white-space:nowrap}
+.brand{display:flex;align-items:center;gap:var(--space-12);font:var(--weight-core) 17px/1 var(--font-core);letter-spacing:0.04em;color:var(--text-body);white-space:nowrap}
 .brand:hover{color:var(--text-body)}
 .brand .mark{width:24px;height:26px;flex:none}
 .brand .mark svg{width:100%;height:100%;fill:currentColor}
@@ -169,6 +170,7 @@ html.touch-paging .cards{touch-action:pan-x}
 /* Chapter 0 — intro: logo centred (canvas), wordmark below */
 .intro{text-align:center;align-content:end;padding-bottom:12vh}
 .intro .wordmark{display:flex;flex-direction:column;gap:var(--space-16);align-items:center}
+.intro-title{font:var(--weight-core) clamp(13px,1.5vw,22px)/1.4 var(--font-core);letter-spacing:0.28em;text-transform:uppercase;color:var(--text-body);text-align:center}
 .js .intro .wordmark{opacity:0;transform:translateY(14px);transition:opacity var(--duration-slow) var(--ease),transform var(--duration-slow) var(--ease)}
 .js .intro.is-ready .wordmark{opacity:1;transform:none}
 .intro .hint{position:absolute;left:0;right:0;bottom:var(--space-32);display:flex;justify-content:center;align-items:center;gap:var(--space-8);color:var(--text-muted)}
@@ -223,7 +225,7 @@ html.touch-paging .cards{touch-action:pan-x}
   .shell{padding:0 var(--space-20)}
   .site-nav,.progress{display:none}
   .site-header .row{height:52px;gap:var(--space-12)}
-  .brand{font-size:13px;letter-spacing:-0.02em}
+  .brand{font-size:12px;letter-spacing:0.03em}
   .brand .mark{width:20px;height:22px}
   .brand>span:not(.mark){display:block}
   .subnav{display:flex;gap:var(--space-20);height:36px;align-items:center;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;white-space:nowrap;border-top:1px solid var(--border-hairline)}
@@ -297,7 +299,7 @@ html.touch-paging .cards{touch-action:pan-x}
   <div class="shell row">
     <a class="brand" href="#c0" aria-label="서울예술대학교 디지털아트전공 홈">
       <span class="mark"><svg><use href="#logo"/></svg></span>
-      <span>서울예술대학교 디지털아트전공</span>
+      <span>Seoul Institute of the Arts · Digital Art</span>
     </a>
     <nav class="site-nav" aria-label="주요 메뉴">
       <a href="#c1" data-ch="1">전공소개</a><a href="#c2" data-ch="2">교육과정</a><a href="#c3" data-ch="3">디지털아트전공</a><a href="#c4" data-ch="4">작품</a><a href="#c5" data-ch="5">입학안내</a>
@@ -323,8 +325,7 @@ html.touch-paging .cards{touch-action:pan-x}
   <section class="chapter intro" id="c0" data-mode="ink">
     <div class="shell">
       <div class="wordmark">
-        <span class="cs-label muted">Seoul Institute of the Arts · Digital art</span>
-        <h1 class="display">서울예술대학교 디지털아트전공</h1>
+        <h1 class="intro-title">Seoul Institute of the Arts · Digital Art</h1>
       </div>
     </div>
     <div class="hint cs-caption">Scroll <svg class="i"><use href="#chevron-down"/></svg></div>
