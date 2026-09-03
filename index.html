@@ -479,7 +479,7 @@ html.touch-paging .cards{touch-action:pan-x}
   /* 02 챕터에서 픽셀이 풀리며 변하는 "디지털아트 파츠" — 코드 토큰 · 와이어프레임 큐브 · 메시 삼각형 · 노드 · 파형 · 버텍스 */
   /* 정돈된 구성: 글자 조각은 10% 만, 대표 토큰 16개. 나머지는 조용한 점·버텍스·와이어프레임 */
   var TOKENS = ['float','vec3','sin(t)','noise()','lerp','for','TOP','CHOP','SOP','DAT','mesh','uv.x','0x1F','render()','#F4FF53','=>'];
-  var KINDS = ['code','code','tri','wave','vertex','vertex','none','none','none','none'];   /* 사각형 계열(와이어 큐브·노드·점) 제외, 40% 는 흩어지며 사라짐 */
+  var KINDS = ['code','code','none','none','none','none','none','none','none','none'];      /* 코드 글자(20%)만 남기고 나머지는 흩어지며 사라짐 */
   GRID.forEach(function(row, r){
     for (var c = 0; c < row.length; c++) {
       if (row[c] !== '#') continue;
