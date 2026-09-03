@@ -52,6 +52,7 @@
   --space-2:2px; --space-8:8px; --space-12:12px; --space-16:16px; --space-20:20px; --space-22:22px; --space-24:24px; --space-28:28px; --space-32:32px; --space-36:36px; --space-37:37px; --space-52:52px; --space-56:56px; --space-60:60px; --space-64:64px;
   --gutter:var(--space-24); --pad-control-y:var(--space-12); --pad-control-x:var(--space-24); --pad-card:var(--space-32); --stack-tight:var(--space-8); --stack:var(--space-16); --stack-loose:var(--space-32); --section-y:var(--space-64);
   --container-max:1440px; --measure:64ch;
+  --hdr:64px;                                   /* 상단 바 높이 (폰에서는 두 줄, 88px) */
 
   /* borders */
   --radius-none:0px; --radius-sm:2px; --radius-pill:999px; --border-width:1px; --border-width-strong:2px;
@@ -126,8 +127,9 @@ a.card:hover{background:var(--surface-warm);color:var(--text-body)}
 .card .title{font:var(--weight-core) var(--text-lead)/1.15 var(--font-core);letter-spacing:var(--tracking-heading);font-size:clamp(17px,1.5vw,var(--text-lead))}
 
 /* ── Header: fixed, 64px, hairline. Colors follow the body scope. ── */
-.site-header{position:fixed;inset:0 0 auto 0;z-index:30;height:64px;border-bottom:1px solid var(--border-hairline);background:var(--surface-page);transition:background-color var(--duration-slow) var(--ease),color var(--duration-slow) var(--ease)}
+.site-header{position:fixed;inset:0 0 auto 0;z-index:30;height:var(--hdr);border-bottom:1px solid var(--border-hairline);background:var(--surface-page);transition:background-color var(--duration-slow) var(--ease),color var(--duration-slow) var(--ease)}
 .site-header .row{display:flex;align-items:center;justify-content:space-between;gap:var(--space-24);height:64px}
+.subnav{display:none}
 .brand{display:flex;align-items:center;gap:var(--space-12);font:var(--weight-core) 20px/1 var(--font-core);letter-spacing:-0.03em;color:var(--text-body);white-space:nowrap}
 .brand:hover{color:var(--text-body)}
 .brand .mark{width:24px;height:26px;flex:none}
@@ -146,7 +148,7 @@ a.card:hover{background:var(--surface-warm);color:var(--text-body)}
 .scene canvas{width:100%;height:100%}
 
 /* ── Chapters: each one viewport, snap, content reveals on activation ── */
-.chapter{position:relative;z-index:1;min-height:100vh;min-height:100svh;scroll-snap-align:start;scroll-snap-stop:always;display:grid;grid-template-columns:minmax(0,1fr);align-content:center;padding-top:64px}
+.chapter{position:relative;z-index:1;min-height:100vh;min-height:100svh;scroll-snap-align:start;scroll-snap-stop:always;display:grid;grid-template-columns:minmax(0,1fr);align-content:center;padding-top:var(--hdr)}
 .chapter .shell{min-width:0;max-width:min(100%,var(--container-max))}
 .cards{max-width:100%}
 /* 터치 기기: 문서를 스크롤하지 않고 main 을 챕터 단위로 밀어 넘긴다 (iOS 주소창 높이 변화에 흔들리지 않음) */
@@ -177,7 +179,7 @@ html.touch-paging .cards{touch-action:pan-x}
 .left .shell{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:var(--space-56)}
 .right .shell{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:var(--space-56)}
 .right .shell>.stack{grid-column:2}
-.top{align-content:start;padding-top:calc(64px + 7vh)}
+.top{align-content:start;padding-top:calc(var(--hdr) + 7vh)}
 .top .shell{max-width:1120px}
 .top .stack{gap:var(--space-20)}
 .center{text-align:center}
@@ -218,9 +220,17 @@ html.touch-paging .cards{touch-action:pan-x}
   html{scroll-snap-type:y proximity}
   .shell{padding:0 var(--space-20)}
   .site-nav,.progress{display:none}
-  .brand>span:not(.mark){display:none}
+  .site-header .row{height:52px;gap:var(--space-12)}
+  .brand{font-size:14px;letter-spacing:-0.02em}
+  .brand .mark{width:20px;height:22px}
+  .brand>span:not(.mark){display:block}
+  .subnav{display:flex;gap:var(--space-20);height:36px;align-items:center;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;white-space:nowrap;border-top:1px solid var(--border-hairline)}
+  .subnav::-webkit-scrollbar{display:none}
+  .subnav a{font:var(--type-label);letter-spacing:var(--tracking-label);text-transform:uppercase;color:var(--text-muted);flex:none;padding:6px 0;border-bottom:1px solid transparent}
+  .subnav a.is-active{color:var(--text-body);border-bottom-color:var(--text-body)}
   .site-header .btn.sm{min-height:36px}
-  .chapter{align-content:end;padding-bottom:var(--space-24);padding-top:calc(64px + 22vh);text-align:center}
+  :root{--hdr:88px}
+  .chapter{align-content:end;padding-bottom:var(--space-24);padding-top:calc(var(--hdr) + 18vh);text-align:center}
   .chapter .stack{gap:var(--space-16);align-items:center}
   .chapter .kicker{margin-bottom:var(--space-8);justify-content:center}
   .chapter .h2{max-width:none}
@@ -232,14 +242,14 @@ html.touch-paging .cards{touch-action:pan-x}
   .foot .row{align-items:center;text-align:center}
   .foot .row{flex-direction:column;gap:var(--space-12)}
   .foot .links{justify-content:center}
-  .intro{padding-bottom:12vh;padding-top:64px}
+  .intro{padding-bottom:12vh;padding-top:var(--hdr)}
   .intro .wordmark{gap:var(--space-12)}
   .display{font-size:clamp(26px,8vw,42px)}
   .h2{font-size:clamp(24px,6.6vw,32px)}
   .lead{font-size:15px;max-width:none}
   .left .shell,.right .shell{grid-template-columns:1fr}
   .right .shell>.stack{grid-column:1}
-  .top{align-content:end;padding-top:calc(64px + 22vh)}
+  .top{align-content:end;padding-top:calc(var(--hdr) + 18vh)}
   .top .stack{gap:var(--space-12)}
   .tools{grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--space-12) var(--space-16);margin-top:var(--space-4,4px)}
   .tools .col{padding-top:var(--space-12);gap:var(--space-8)}
@@ -292,6 +302,9 @@ html.touch-paging .cards{touch-action:pan-x}
     </nav>
     <a class="btn sm primary" href="https://www.seoularts.ac.kr/web/content.do?proFn=9323300" target="_blank" rel="noopener">입학안내 <svg class="i"><use href="#arrow-up-right"/></svg></a>
   </div>
+  <nav class="shell subnav" aria-label="챕터 메뉴">
+    <a href="#c1" data-ch="1">전공소개</a><a href="#c2" data-ch="2">교육과정</a><a href="#c3" data-ch="3">디지털아트전공</a><a href="#c4" data-ch="4">작품</a><a href="#c5" data-ch="5">입학안내</a>
+  </nav>
 </header>
 
 <nav class="progress" aria-label="챕터">
@@ -546,7 +559,7 @@ html.touch-paging .cards{touch-action:pan-x}
     }
     /* 챕터별 빈 영역(헤더·텍스트·푸터를 실측)에 로고를 contain 방식으로 맞춘다 */
     function frameFor(i){
-      var c = CHAPTERS[i] || CHAPTERS[0], sec = chapters[i], HDR = 64, M = 24;
+      var c = CHAPTERS[i] || CHAPTERS[0], sec = chapters[i], hdrEl = document.querySelector('.site-header'), HDR = hdrEl ? hdrEl.offsetHeight : 64, M = 24;
       var shellL = (W - SHELL) / 2, shellR = shellL + SHELL, box;
       var hOf = function(sel){ var e = sec.querySelector(sel); return e ? e.offsetHeight : 0; };
       if (MOBILE()) {
@@ -590,7 +603,7 @@ html.touch-paging .cards{touch-action:pan-x}
         var b = boxes[k], t = fn(b, k);
         if (initial) {
           /* 화면 전체에 흩어진 작은 점들 — 잠깐 나타난 뒤 거의 동시에 로고 자리로 모인다 */
-          var X = 16 + Math.random() * (W - 32), Y = 72 + Math.random() * (H - 84);
+          var hdr0 = (document.querySelector('.site-header') || {}).offsetHeight || 64, X = 16 + Math.random() * (W - 32), Y = hdr0 + 8 + Math.random() * (H - hdr0 - 20);
           b.cur = { x: (X - fr.cx) / unit, y: (Y - fr.cy) / unit, z: (Math.random() - 0.5) * 2 };
           b.tw = now + 0.03 + Math.random() * 0.22;                       /* 점이 떠오르는 순간 */
           b.t0 = now + 0.6 + Math.random() * 0.28;                        /* 모이기 시작 (거의 동시에) */
@@ -617,7 +630,7 @@ html.touch-paging .cards{touch-action:pan-x}
     function seedDots(fr, now){
       var unit = fr.s * (Math.min(W, H) * 1.45) / 72, count = MOBILE() ? 1400 : 2800; dots = [];
       for (var q = 0; q < count; q++) {
-        var X = 12 + Math.random() * (W - 24), Y = 70 + Math.random() * (H - 80), tb = boxes[Math.floor(Math.random() * N)].to || { x: 0, y: 0 };
+        var hdr1 = (document.querySelector('.site-header') || {}).offsetHeight || 64, X = 12 + Math.random() * (W - 24), Y = hdr1 + 6 + Math.random() * (H - hdr1 - 16), tb = boxes[Math.floor(Math.random() * N)].to || { x: 0, y: 0 };
         dots.push({ sx: (X - fr.cx) / unit, sy: (Y - fr.cy) / unit, tx: tb.x + (Math.random() - 0.5) * 3, ty: tb.y + (Math.random() - 0.5) * 3,
           tw: now + 0.03 + Math.random() * 0.22, t0: now + 0.6 + Math.random() * 0.28, dur: 0.8 + Math.random() * 0.3, sz: 0.14 + Math.random() * 0.2, sh: Math.random() });
       }
@@ -780,7 +793,7 @@ html.touch-paging .cards{touch-action:pan-x}
       if (i === active && chapters[i].classList.contains('is-active')) return;
       active = i;
       chapters.forEach(function(s, k){ s.classList.toggle('is-active', k === i); });
-      links.forEach(function(a){ a.classList.toggle('is-active', parseInt(a.getAttribute('data-ch'), 10) === i); });
+      links.forEach(function(a){ var on = parseInt(a.getAttribute('data-ch'), 10) === i; a.classList.toggle('is-active', on); if (on && a.parentNode && a.parentNode.classList.contains('subnav')) { var pn = a.parentNode; pn.scrollTo({ left: a.offsetLeft - pn.clientWidth / 2 + a.offsetWidth / 2, behavior: 'smooth' }); } });
       body.classList.toggle('cs-inverse', chapters[i].getAttribute('data-mode') === 'ink');
       setFormation(i, false);
     }
