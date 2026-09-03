@@ -659,7 +659,7 @@ html.touch-paging .cards{touch-action:pan-x}
     var introDone = false, INTRO_T = 3.7;
     var dots = [];
     function seedDots(fr, now){
-      var unit = fr.s * (Math.min(W, H) * 1.45) / 72, count = MOBILE() ? 2600 : 5000; dots = [];
+      var unit = fr.s * (Math.min(W, H) * 1.45) / 72, count = MOBILE() ? 2200 : 4200; dots = [];
       for (var q = 0; q < count; q++) {
         var hdr1 = (document.querySelector('.site-header') || {}).offsetHeight || 64, X = 12 + Math.random() * (W - 24), Y = hdr1 + 6 + Math.random() * (H - hdr1 - 16), tb = boxes[Math.floor(Math.random() * N)].to || { x: 0, y: 0 };
         dots.push({ sx: (X - fr.cx) / unit, sy: (Y - fr.cy) / unit, tx: tb.x + (Math.random() - 0.5) * 3, ty: tb.y + (Math.random() - 0.5) * 3,
@@ -723,7 +723,10 @@ html.touch-paging .cards{touch-action:pan-x}
       }
     }
 
+    var PERF = /[?&]perf=1/.test(location.search), perfLog = [];
+    if (PERF) window.__perf = perfLog;
     function render(now){
+      var p0 = PERF ? performance.now() : 0;
       watchFrames(now);
       var t = (now - start) / 1000;
       if (gFrom && gTo) { var gp = Math.min(1, (t - gT0) / gDur), ge = easeOut(gp); for (var key in gTo) g[key] = gFrom[key] + (gTo[key] - gFrom[key]) * ge; if (gp >= 1) gFrom = gTo = null; }
@@ -745,17 +748,24 @@ html.touch-paging .cards{touch-action:pan-x}
       var GA = usingOff ? 1 : g.alpha;
 
       if (!introDone && dots.length) {
-        var F2 = F / D, mid = pal.mid, lig = pal.light;
+        /* 보조 점: 색 2종 × 불투명도 4단계 = 8개 경로로 묶어 한 번에 채움 (수천 개여도 가볍게) */
+        var buckets = [], bk; for (bk = 0; bk < 8; bk++) buckets.push([]);
         for (var di = 0; di < dots.length; di++) {
           var dd = dots[di]; if (t < dd.tw) continue;
           var dp = Math.max(0, Math.min(1, (t - dd.t0) / dd.dur)), de = dp < 0.5 ? 2 * dp * dp : 1 - Math.pow(-2 * dp + 2, 2) / 2;
           var da = (t < dd.t0 ? Math.min(0.55, (t - dd.tw) * 2.2) : 0.55 * (1 - dp)) * (0.7 + 0.3 * Math.sin(t * 4 + dd.ph));
-          if (da <= 0.01) continue;
+          if (da <= 0.02) continue;
           var fl0 = t < dd.t0 ? 1 : Math.max(0, 1 - dp * 1.6);
           var dx = (dd.sx + (dd.tx - dd.sx) * de + Math.sin(t * 0.8 + dd.ph) * 0.8 * fl0) * S, dy = (dd.sy + (dd.ty - dd.sy) * de + Math.cos(t * 0.6 + dd.ph * 1.7) * 0.8 * fl0) * S;
           var dax = dx * cy, daz = -dx * sy, day = dy * cp - daz * sp, daz2 = dy * sp + daz * cp, dsc = F / (daz2 + D);
           var DX = OX + dax * dsc, DY = OY + day * dsc, dsz = Math.max(1, dd.sz * S * dsc * (1 - 0.4 * dp));
-          ctx.globalAlpha = da; ctx.fillStyle = rgb(dd.sh > 0.7 ? lig : mid); ctx.fillRect(DX - dsz, DY - dsz, dsz * 2, dsz * 2);
+          buckets[(dd.sh > 0.7 ? 4 : 0) + Math.min(3, Math.floor(da / 0.56 * 4))].push(DX - dsz, DY - dsz, dsz * 2);
+        }
+        for (bk = 0; bk < 8; bk++) {
+          var arr = buckets[bk]; if (!arr.length) continue;
+          ctx.globalAlpha = ((bk % 4) + 0.5) / 4 * 0.56; ctx.fillStyle = rgb(bk >= 4 ? pal.light : pal.mid); ctx.beginPath();
+          for (var ri = 0; ri < arr.length; ri += 3) ctx.rect(arr[ri], arr[ri + 1], arr[ri + 2], arr[ri + 2]);
+          ctx.fill();
         }
         ctx.globalAlpha = 1;
       } else if (introDone && dots.length) { dots = []; }
@@ -820,6 +830,7 @@ html.touch-paging .cards{touch-action:pan-x}
       }
       ctx.globalAlpha = 1;
       if (usingOff) { ctxMain.globalAlpha = g.alpha; ctxMain.drawImage(off, 0, 0); ctxMain.globalAlpha = 1; }
+      if (PERF && perfLog.length < 600) perfLog.push(+(performance.now() - p0).toFixed(2));
       if (!introDone && t > INTRO_T) { introDone = true; chapters[0].classList.add('is-ready'); }
       requestAnimationFrame(render);
     }
