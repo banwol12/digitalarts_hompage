@@ -307,8 +307,7 @@ main{min-height:60vh}
     filter = filter || 'all';
     var metas = ['all'].concat(D.works.map(function(w){ return w.meta; }).filter(function(m, i, a){ return a.indexOf(m) === i; }));
     var list = D.works.filter(function(w){ return filter === 'all' || w.meta === filter; });
-    app.innerHTML = '<section style="padding:96px 0 0;display:grid;gap:15px">' + marquee(D.taglines || [], false) + marquee(['DIGITAL ARTS', 'DIGITAL ARTS', 'DIGITAL ARTS', 'DIGITAL ARTS'], true) + marquee((D.taglines || []).slice().reverse(), false, true) + '</section>' +
-      '<section class="page tight"><h1 class="display" style="max-width:30ch">' + esc((D.statement || []).join(' ')) + '</h1>' +
+    app.innerHTML = '<section class="page"><h1 class="display" style="max-width:30ch">' + esc((D.statement || []).join(' ')) + '</h1>' +
       '<div class="filters">' + metas.map(function(m){ return '<a class="' + (m === filter ? 'is-active' : '') + '" href="#/works/' + m + '">' + m + '</a>'; }).join('') + '</div>' +
       '<div class="works-grid"><div class="rows" id="rows">' + list.map(rowItem).join('') + (list.length ? '' : '<p class="body">이 분야의 작품이 아직 없습니다.</p>') + '</div><div class="preview" id="preview"></div></div></section>' + footer();
     var pv = document.getElementById('preview');
