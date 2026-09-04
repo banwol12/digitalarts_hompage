@@ -141,7 +141,9 @@ main{min-height:60vh}
 .player .grp{display:flex;gap:var(--space-2)}
 @keyframes mq{from{transform:translate3d(0,0,0)}to{transform:translate3d(-33.333%,0,0)}}
 .ftr{border-top:var(--hairline) solid var(--border-faint);margin-top:var(--space-8x);padding:var(--space-40) var(--pm);display:grid;gap:32px}
-.ftr .big{font:600 clamp(2.5rem,9vw,7rem)/.94 var(--font);letter-spacing:-.03em}
+.ftr .wm{display:grid;gap:6px;justify-items:center;text-align:center;padding:8px 0 16px}
+.ftr .wm .sub{font:600 clamp(12px,1.2vw,17px)/1.4 var(--font);letter-spacing:.3em;text-transform:uppercase;color:var(--text-muted);padding-left:.3em}
+.ftr .wm .ttl{font:600 clamp(26px,3.6vw,50px)/1.1 var(--font);letter-spacing:.34em;text-transform:uppercase;color:var(--text-body);padding-left:.34em}
 .ftr .cols{display:grid;grid-template-columns:repeat(4,1fr);gap:15px;align-items:start}
 .ftr .cols .caption{font:400 var(--text-12)/1.6 var(--font);color:var(--text-meta)}
 .ftr .bottom{display:flex;justify-content:space-between;gap:var(--space-4);flex-wrap:wrap}
@@ -149,10 +151,15 @@ main{min-height:60vh}
 .btn:hover{color:var(--link-hover);border-color:var(--border-faint)}
 
 @media (max-width:767px){
+  :root{--text-10:9px;--text-12:10px;--text-16:13px;--text-20:17px}          /* 모바일: 전체 3px 작게 (작은 라벨은 9·10px 까지만) */
+  .display{font-size:clamp(1.4rem,3.2vw,2.75rem)}
+  .work-title{font-size:clamp(1.8rem,6vw,4rem)}
+  .ftr .wm .sub{font-size:11px}
+  .ftr .wm .ttl{font-size:23px}
   .brand{gap:6px}
   .brand .mark{width:20px;height:22px}
   .brand .word{font-size:12px;letter-spacing:.1em;white-space:nowrap}
-  .hdr .center a{font-size:12px}
+  .hdr .center a{font-size:11px}
   .page{padding-top:100px}
   .section{grid-template-columns:1fr;gap:var(--space-15)}
   .credits{grid-template-columns:1fr 1fr}
@@ -229,7 +236,7 @@ main{min-height:60vh}
   function marquee(items, big, rev){ var run = items.concat(items, items).map(function(t){ return '<span>' + esc(t) + '</span>'; }).join(''); return '<div class="marquee' + (big ? ' big' : '') + (rev ? ' rev' : '') + '"><div class="track">' + run + '</div></div>'; }
   function footer(){
     var C = D.contact || {};
-    return '<footer class="ftr"><div class="big">DIGITAL ARTS</div><div class="cols">' +
+    return '<footer class="ftr"><div class="wm"><span class="sub">Seoul Institute of the Arts</span><span class="ttl">Digital Arts</span></div><div class="cols">' +
       '<div class="caption">' + (C.address || []).map(esc).join('<br>') + '</div>' +
       '<div class="caption">for the screen<br>and beyond</div>' +
       '<div><div class="label">work with us</div><div style="margin-top:7px"><a class="btn" href="' + (C.email && C.email.indexOf('@') > 0 ? 'mailto:' + C.email : '#') + '">' + esc(C.email || '[전공 이메일]') + '</a></div></div>' +
