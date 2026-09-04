@@ -3,7 +3,8 @@
    seed: 자리표시 썸네일 패턴 번호(이미지가 생기면 image: 'images/xxx.jpg' 를 추가하세요) */
 window.PORTFOLIO_DATA = {
   brand: 'DIGITAL ARTS',
-  taglines: ['PIXELS INTO SPACE', 'CODE INTO LIGHT', 'SIGNAL INTO SOUND', 'SCREENS INTO STAGES'],
+  taglines: ['PIXELS PAST THE PANEL', 'SIGNALS SHAPING SPACE', 'SCREENS SET ON STAGES', 'CODE CRAFTING CULTURE'],
+  strapline: 'for the screen and beyond',
   statement: ['화면 안에서 시작해', '공간과 관객 사이로 나간다.'],
   intro: '서울예술대학교 디지털아트전공 학생들의 작품 아카이브입니다. 코드와 데이터, 센서, 빛과 소리로 만든 작업을 연도와 분야로 정리했습니다.',
   works: [
