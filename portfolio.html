@@ -271,6 +271,7 @@ main{min-height:60vh}
       spin.vel *= Math.pow(0.25, dt);                                                 /* 휠·터치로 얻은 속도는 2초쯤에 걸쳐 사라진다 */
       var A = small ? W * 0.40 : Math.min(W * 0.31, H * 0.40), B = A * (small ? 1.15 : 0.70);
       var cx = W / 2, cy = H * (small ? 0.47 : 0.5);
+      B = Math.min(B, cy - 64 - A * 0.2);                                            /* 좁고 긴 창: 맨 위 타일이 헤더를 덮지 않게 */
       tiles.forEach(function(tl){
         var ang = tl.a + spin.ang;
         var d = Math.cos(ang - NEAR);                                                 /* 1 = 가장 가까움(왼쪽 아래), −1 = 가장 멂(오른쪽 위) */
