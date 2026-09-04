@@ -1,6 +1,7 @@
 /* 포트폴리오 데이터 — 대괄호 자리표시자만 실제 값으로 바꾸면 됩니다.
    n: 번호(세 자리), slug: 주소용 영문, meta: interactive | generative | projection | xr | film | sound
-   seed: 자리표시 썸네일 패턴 번호(이미지가 생기면 image: 'images/xxx.jpg' 를 추가하세요) */
+   seed: 자리표시 썸네일 패턴 번호(이미지가 생기면 image: 'images/xxx.jpg' 또는 GIF, 영상이면 video: 'images/xxx.mp4' 를 추가하세요)
+   ratio: [가로, 세로] — 첫 화면 궤도에서 이 작품 타일의 화면비 (예: [16,9], [4,5], [1,1]; 없으면 순서대로 섞어서 배정) */
 window.PORTFOLIO_DATA = {
   brand: 'DIGITAL ARTS',
   taglines: ['PIXELS PAST THE PANEL', 'SIGNALS SHAPING SPACE', 'SCREENS SET ON STAGES', 'CODE CRAFTING CULTURE'],
