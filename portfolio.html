@@ -66,6 +66,8 @@ button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:poin
 
 /* ── 홈: 타원 궤도 ── */
 .home{position:relative;height:100vh;height:100svh;overflow:hidden}
+body.is-home{overflow:hidden;height:100vh;height:100svh}
+.home .tag{display:grid;gap:4px}
 .orbit{position:absolute;inset:0}
 .tile{position:absolute;left:0;top:0;will-change:transform;cursor:pointer;background:var(--surface-raised)}
 .tile img,.tile canvas{width:100%;height:100%;object-fit:cover;display:block}
@@ -228,52 +230,61 @@ main{min-height:60vh}
       '</div><div class="bottom micro"><span>© seoul institute of the arts · digital arts ' + new Date().getFullYear() + '</span><a class="micro" href="index.html">back to main site</a></div></footer>';
   }
 
-  /* ── 홈: 세로로 선 이미지들이 타원 궤도를 따라 돈다 (뒤로 갈수록 작고 어둡게) ── */
+  /* ── 홈: cipher.tv 첫 화면 — 대표 이미지·GIF가 타원 궤도를 돌고, 휠·터치가 회전 속도와 방향을 바꾼다 ── */
+  var orbitVel = 0, orbitAng = 0, orbitLast = 0;
   function Home(){
     cancelAnimationFrame(raf);
+    document.body.classList.add('is-home');
     app.innerHTML = '<section class="home"><div class="orbit" id="orbit"></div><div class="mark"><svg><use href="#logo"/></svg></div>' +
-      '<div class="tag micro">' + esc(D.strapline || '') + '</div><div class="credit micro">seoul institute of the arts<br>digital arts</div></section>' +
-      '<section style="padding:var(--space-8x) 0 var(--space-40);display:grid;gap:15px">' + marquee(D.taglines || [], false) + marquee(['DIGITAL ARTS', 'DIGITAL ARTS', 'DIGITAL ARTS', 'DIGITAL ARTS'], true) + marquee((D.taglines || []).slice().reverse(), false, true) + '</section>' +
-      '<section class="home-intro"><h1 class="display">' + (D.statement || []).map(function(l){ return '<span style="display:block">' + esc(l) + '</span>'; }).join('') + '</h1><p class="body">' + esc(D.intro || '') + '</p></section>' +
-      '<section style="padding:var(--space-8x) var(--pm) 0"><div class="loader"><span class="micro">loading data</span><span class="pct">100%</span></div><div class="rows">' + D.works.slice(0, 4).map(rowItem).join('') + '</div></section>' + footer();
+      '<div class="tag micro"><span>' + esc(D.strapline || '') + '</span><span style="opacity:.6">scroll to spin</span></div><div class="credit micro">seoul institute of the arts<br>digital arts</div></section>';
     var orbit = document.getElementById('orbit');
     var works = D.works.slice(0, 14), N = works.length, tiles = [];
-    var sizes = [[300, 190], [190, 240], [260, 160], [170, 170], [280, 175], [200, 250], [240, 150], [180, 225]];
+    var sizes = [[340, 215], [210, 265], [300, 185], [190, 190], [320, 200], [220, 275], [270, 170], [200, 250]];
     works.forEach(function(w, i){
       var sz = sizes[i % sizes.length];
       var t = document.createElement('a'); t.className = 'tile'; t.href = '#/work/' + w.slug; t.title = w.title;
       t.appendChild(media(w, sz[0], sz[1]));
       orbit.appendChild(t);
-      tiles.push({ el: t, w: sz[0], h: sz[1], a: (i / N) * Math.PI * 2, y: ((i % 3) - 1) * 0.11 + (i % 2 ? 0.04 : -0.04) });
+      tiles.push({ el: t, w: sz[0], h: sz[1], a: (i / N) * Math.PI * 2, y: ((i % 3) - 1) * 0.09 + (i % 2 ? 0.03 : -0.03) });
     });
-    var t0 = performance.now();
+    orbitLast = performance.now();
     function frameFn(now){
       var W = window.innerWidth, H = window.innerHeight, small = W < 768;
-      var cx = W / 2, cy = H * 0.5, A = W * (small ? 0.42 : 0.36), B = A * 0.45, F = 900, t = (now - t0) / 1000, k = small ? 0.55 : Math.min(1, W / 1440);
-      var wob = reduce ? 0 : Math.sin(t * 0.18) * 0.06;
+      var dt = Math.min(0.05, (now - orbitLast) / 1000); orbitLast = now;
+      var base = reduce ? 0 : Math.PI * 2 / 52;                                   /* 기본: 52초에 한 바퀴 */
+      orbitAng += (base + orbitVel) * dt;
+      orbitVel *= Math.pow(0.12, dt);                                               /* 휠·터치로 얻은 속도는 서서히 사라진다 */
+      var cx = W / 2, cy = H * 0.5, A = W * (small ? 0.44 : 0.38), B = A * 0.42, F = 900, k = small ? 0.5 : Math.min(1, W / 1440);
       tiles.forEach(function(tl){
-        var ang = tl.a + (reduce ? 0 : t * (Math.PI * 2 / 48));
-        var x = Math.cos(ang) * A, z = Math.sin(ang) * B;                 /* z > 0 = 앞쪽 */
-        var s = F / (F - z * 1.6) * k;                                     /* 앞은 크게, 뒤는 작게 */
-        var y = cy + tl.y * H * (1 + wob) * s - (tl.h * s) / 2 + Math.sin(ang * 2 + t * 0.3) * 6;
+        var ang = tl.a + orbitAng;
+        var x = Math.cos(ang) * A, z = Math.sin(ang) * B;                          /* z > 0 = 앞쪽 */
+        var s = F / (F - z * 1.5) * k;                                              /* 앞은 크게, 뒤는 작게 */
+        var y = cy + z * 0.28 + tl.y * H * s - (tl.h * s) / 2;                     /* 뒤는 위, 앞은 아래 → 기울어진 타원 */
         var sx = cx + x - (tl.w * s) / 2;
         tl.el.style.transform = 'translate3d(' + sx.toFixed(1) + 'px,' + y.toFixed(1) + 'px,0)';
         tl.el.style.width = (tl.w * s).toFixed(1) + 'px'; tl.el.style.height = (tl.h * s).toFixed(1) + 'px';
         tl.el.style.zIndex = String(1 + Math.round((z + B) / (2 * B) * 50));      /* 1–51: 헤더(100)·진입 화면(200)보다 항상 아래 */
-        tl.el.style.setProperty('--dim', ((0.5 - z / B * 0.5) * 0.55).toFixed(2));   /* 뒤쪽 이미지는 어둡게 */
+        tl.el.style.setProperty('--dim', ((0.5 - z / B * 0.5) * 0.55).toFixed(2));
       });
-      if (!reduce) raf = requestAnimationFrame(frameFn);
+      raf = requestAnimationFrame(frameFn);
     }
     raf = requestAnimationFrame(frameFn);
   }
+  /* 휠: 아래로 굴리면 빨라지고, 위로 굴리면 반대로 돈다. 터치: 쓸어 넘긴 방향으로 */
+  window.addEventListener('wheel', function(e){ if (!document.body.classList.contains('is-home')) return; e.preventDefault(); orbitVel += e.deltaY * 0.0022; orbitVel = Math.max(-3.5, Math.min(3.5, orbitVel)); }, { passive: false });
+  var tY = null, tX = null;
+  window.addEventListener('touchstart', function(e){ var t = e.touches[0]; tY = t.clientY; tX = t.clientX; }, { passive: true });
+  window.addEventListener('touchmove', function(e){ if (!document.body.classList.contains('is-home') || tY === null) return; var t = e.touches[0]; var dy = tY - t.clientY, dx = tX - t.clientX; tY = t.clientY; tX = t.clientX; e.preventDefault(); orbitVel += (dy + dx) * 0.012; orbitVel = Math.max(-3.5, Math.min(3.5, orbitVel)); }, { passive: false });
+  window.addEventListener('touchend', function(){ tY = null; }, { passive: true });
 
   /* ── works: 큰 프레임 세로 스택 ── */
   function Works(filter){
-    cancelAnimationFrame(raf);
+    cancelAnimationFrame(raf); document.body.classList.remove('is-home');
     filter = filter || 'all';
     var metas = ['all'].concat(D.works.map(function(w){ return w.meta; }).filter(function(m, i, a){ return a.indexOf(m) === i; }));
     var list = D.works.filter(function(w){ return filter === 'all' || w.meta === filter; });
-    app.innerHTML = '<section class="page"><h1 class="display" style="max-width:30ch">' + esc((D.statement || []).join(' ')) + '</h1>' +
+    app.innerHTML = '<section style="padding:96px 0 0;display:grid;gap:15px">' + marquee(D.taglines || [], false) + marquee(['DIGITAL ARTS', 'DIGITAL ARTS', 'DIGITAL ARTS', 'DIGITAL ARTS'], true) + marquee((D.taglines || []).slice().reverse(), false, true) + '</section>' +
+      '<section class="page tight"><h1 class="display" style="max-width:30ch">' + esc((D.statement || []).join(' ')) + '</h1>' +
       '<div class="filters">' + metas.map(function(m){ return '<a class="' + (m === filter ? 'is-active' : '') + '" href="#/works/' + m + '">' + m + '</a>'; }).join('') + '</div>' +
       '<div class="works-grid"><div class="rows" id="rows">' + list.map(rowItem).join('') + (list.length ? '' : '<p class="body">이 분야의 작품이 아직 없습니다.</p>') + '</div><div class="preview" id="preview"></div></div></section>' + footer();
     var pv = document.getElementById('preview');
@@ -285,7 +296,7 @@ main{min-height:60vh}
 
   /* ── 상세 ── */
   function Work(slug){
-    cancelAnimationFrame(raf);
+    cancelAnimationFrame(raf); document.body.classList.remove('is-home');
     var w = D.works.filter(function(x){ return x.slug === slug; })[0] || D.works[0]; if (!w) { Works(); return; }
     var more = D.works.filter(function(x){ return x.slug !== w.slug; }).slice(0, 3);
     app.innerHTML = '<section class="page tight"><a class="navlink back" href="#/works">← works</a>' +
