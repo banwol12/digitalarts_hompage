@@ -68,8 +68,7 @@ button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:poin
 .home{position:relative;height:100vh;height:100svh;overflow:hidden}
 body.is-home{overflow:hidden;height:100vh;height:100svh}
 .orbit{position:absolute;inset:0}
-.tile{position:absolute;left:0;top:0;will-change:transform;cursor:pointer;background:var(--surface-raised);overflow:hidden}
-.tile.ph{outline:1px solid var(--border-hairline);outline-offset:-1px}
+.tile{position:absolute;left:0;top:0;will-change:transform;cursor:pointer;background:#000;overflow:hidden}
 .tile img,.tile canvas,.tile video{width:100%;height:100%;object-fit:cover;display:block;transition:filter var(--duration-normal) var(--ease-out),opacity var(--duration-normal) var(--ease-out)}
 .home.is-hot .tile:not(.hot) > *{filter:grayscale(1) brightness(.62)}
 .home .mark{position:absolute;left:50%;top:50%;width:44px;height:47px;transform:translate(-50%,-50%);color:var(--bone)}
@@ -187,6 +186,7 @@ main{min-height:60vh}
 
 <main id="app"></main>
 
+<script src="config.js"></script>
 <script src="portfolio-data.js"></script>
 <script>
 (function(){
@@ -252,7 +252,7 @@ main{min-height:60vh}
     works.forEach(function(w, i){
       var r = (w.ratio && w.ratio.length === 2) ? w.ratio : ratios[i % ratios.length], ar = r[0] / r[1];
       var t = document.createElement('a'); t.className = 'tile'; t.href = '#/work/' + w.slug; t.setAttribute('aria-label', w.title);
-      t.appendChild(media(w, 480, Math.round(480 / ar))); if (!w.image && !w.video) t.classList.add('ph');
+      t.appendChild(media(w, 480, Math.round(480 / ar)));
       var tl = { el: t, ar: ar, kw: ar >= 1.4 ? 0.72 : ar >= 1 ? 0.55 : 0.46, a: (i / N) * Math.PI * 2, j: (((i * 7) % 5) - 2) * 0.035, hs: 1, hot: false };
       t.addEventListener('mouseenter', function(){ home.classList.add('is-hot'); t.classList.add('hot'); tl.hot = true; });
       t.addEventListener('mouseleave', function(){ home.classList.remove('is-hot'); t.classList.remove('hot'); tl.hot = false; });
@@ -347,8 +347,29 @@ main{min-height:60vh}
     var c = document.querySelector('.hdr .center a'); if (c) c.classList.toggle('is-active', name === 'works' || name === 'work');
     window.scrollTo(0, 0);
   }
-  window.addEventListener('hashchange', route);
-  route();
+  /* ── 데이터: config.js 에 Supabase 연결이 있으면 관리자 페이지(admin.html)에서 저장한 작품·사이트 정보를 쓰고,
+     연결이 없거나 아직 작품이 없으면 portfolio-data.js 의 자리표시 데이터를 쓴다 ── */
+  function pad3(n){ return ('00' + n).slice(-3); }
+  function applyRemote(rows, site){
+    if (rows && rows.length) D.works = rows.map(function(r, i){
+      var rt = String(r.ratio || '16:10').split(':').map(Number);
+      return { n: pad3(i + 1), slug: r.slug, title: r.title || '', student: r.student || '', meta: r.category || 'installation', year: r.year || '', tools: r.tools || [],
+        statement: r.statement || '', paragraphs: r.paragraphs || [], seed: i * 7 + 3, ratio: (rt.length === 2 && rt[0] > 0 && rt[1] > 0) ? rt : null, image: r.image || '', video: r.video || '' };
+    });
+    (site || []).forEach(function(row){ if (row.value != null && row.value !== '' && !(Array.isArray(row.value) && !row.value.length)) D[row.key] = row.value; });
+  }
+  function loadRemote(done){
+    var C = window.SITE_CONFIG || {};
+    if (STATIC || !C.SUPABASE_URL || !C.SUPABASE_ANON_KEY || typeof fetch !== 'function') return done();
+    var h = { apikey: C.SUPABASE_ANON_KEY, Authorization: 'Bearer ' + C.SUPABASE_ANON_KEY }, base = C.SUPABASE_URL.replace(/\/$/, '') + '/rest/v1/';
+    var started = false, start = function(){ if (!started) { started = true; done(); } };
+    var late = setTimeout(start, 4000);                                             /* 4초 안에 안 오면 자리표시 데이터로 먼저 연다 */
+    Promise.all([
+      fetch(base + 'works?select=*&published=eq.true&order=sort.asc,created_at.asc', { headers: h }).then(function(r){ return r.ok ? r.json() : []; }),
+      fetch(base + 'site?select=key,value', { headers: h }).then(function(r){ return r.ok ? r.json() : []; })
+    ]).then(function(res){ clearTimeout(late); applyRemote(res[0], res[1]); if (started) route(); else start(); }, start);
+  }
+  loadRemote(function(){ window.addEventListener('hashchange', route); route(); });
 
   /* ── 진입: 퍼센트 카운터 → 페이드 (세션당 한 번) ── */
   var entry = document.getElementById('entry'), pct = document.getElementById('pct');

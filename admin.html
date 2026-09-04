@@ -1,0 +1,318 @@
+<!doctype html>
+<html lang="ko">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Digital Arts · Admin</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard-dynamic-subset.min.css">
+<style>
+/* 관리자 페이지 — 포트폴리오와 같은 Cipher 토큰(검정·본색·헤어라인·소문자 라벨), Pretendard */
+:root{--black:#000;--bone:#e9eae4;--b70:rgba(233,234,228,.7);--b45:rgba(233,234,228,.45);--b24:rgba(233,234,228,.24);--b12:rgba(233,234,228,.12);--b6:rgba(233,234,228,.06);--warn:#ff6b57;--key:#f4ff53;--font:"Pretendard","Noto Sans KR",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;--pm:40px}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--black);color:var(--bone);font:400 14px/1.6 var(--font);-webkit-font-smoothing:antialiased}
+a{color:inherit;text-decoration:none}
+button,input,select,textarea{font:inherit;color:inherit}
+h1{font:500 23px/1.3 var(--font);margin:0;letter-spacing:.01em}
+.label{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--b45)}
+.hdr{display:flex;align-items:center;justify-content:space-between;gap:24px;padding:15px var(--pm);border-bottom:1px solid var(--b12)}
+.hdr .brand{display:flex;align-items:center;gap:10px;font-weight:500;font-size:13px;letter-spacing:.14em;text-transform:uppercase}
+.hdr .brand span{color:var(--b45)}
+.hdr nav{display:flex;gap:24px;font-size:13px;align-items:center}
+.hdr nav a,.hdr nav button{background:none;border:0;padding:0;cursor:pointer;color:var(--b70)}
+.hdr nav a:hover,.hdr nav button:hover{color:var(--bone)}
+.hdr nav .who{color:var(--b45);font-size:12px}
+.wrap{padding:32px var(--pm) 96px}
+.login{max-width:360px;margin:14vh auto 0;display:grid;gap:26px}
+.field{display:grid;gap:6px}
+.field input,.field select,.field textarea{width:100%;background:none;border:0;border-bottom:1px solid var(--b24);padding:8px 0;outline:0;border-radius:0;color:var(--bone)}
+.field input:focus,.field select:focus,.field textarea:focus{border-bottom-color:var(--bone)}
+.field select option{background:#111;color:var(--bone)}
+.field textarea{resize:vertical;min-height:72px;line-height:1.6}
+.field .hint{font-size:11px;color:var(--b45)}
+.check{display:flex;gap:10px;align-items:center;font-size:13px;cursor:pointer}
+.check input{accent-color:var(--bone)}
+.btn{display:inline-flex;align-items:center;gap:8px;background:none;border:1px solid var(--b24);padding:9px 14px;font-size:11px;letter-spacing:.14em;text-transform:uppercase;cursor:pointer;color:var(--bone);border-radius:0}
+.btn:hover{border-color:var(--bone)}
+.btn.primary{background:var(--bone);color:var(--black);border-color:var(--bone)}
+.btn.primary:hover{background:#fff}
+.btn.danger{color:var(--warn);border-color:rgba(255,107,87,.4)}
+.btn.danger:hover{border-color:var(--warn)}
+.btn:disabled{opacity:.4;cursor:default}
+.msg{font-size:12px;color:var(--b70);min-height:1.6em}
+.msg.err{color:var(--warn)}
+.dash{display:grid;grid-template-columns:320px 1fr;gap:48px;align-items:start}
+.list .head{display:flex;justify-content:space-between;align-items:center;padding:0 0 12px}
+.row{display:grid;grid-template-columns:36px 1fr auto;gap:12px;align-items:center;padding:10px 0;border-top:1px solid var(--b12);cursor:pointer;color:var(--b70)}
+.row:last-child{border-bottom:1px solid var(--b12)}
+.row:hover,.row.is-sel{color:var(--bone)}
+.row .n{font-size:11px;letter-spacing:.1em;color:var(--b45)}
+.row.draft .n{color:var(--key)}
+.row .t{display:grid;gap:2px;min-width:0}
+.row .t span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row .t small{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--b45)}
+.row .ops{display:flex;gap:2px}
+.row .ops button{background:none;border:0;padding:2px 5px;cursor:pointer;color:var(--b45);font-size:11px}
+.row .ops button:hover{color:var(--bone)}
+.tabs{display:flex;gap:24px;margin-bottom:28px;font-size:13px}
+.tabs button{background:none;border:0;padding:0 0 6px;cursor:pointer;color:var(--b45);border-bottom:1px solid transparent}
+.tabs button.is-on{color:var(--bone);border-bottom-color:var(--bone)}
+.form{display:grid;gap:24px;max-width:760px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:24px}
+.media{display:grid;grid-template-columns:180px 1fr;gap:16px;align-items:start}
+.media .well{aspect-ratio:16/10;background:var(--b6);border:1px solid var(--b12);overflow:hidden;display:grid;place-items:center;color:var(--b24);font-size:11px;letter-spacing:.14em;text-transform:uppercase}
+.media .well img,.media .well video{width:100%;height:100%;object-fit:cover;display:block}
+.media .file{display:grid;gap:10px}
+.media input[type=file]{font-size:12px;color:var(--b70);max-width:100%}
+.actions{display:flex;gap:12px;flex-wrap:wrap;align-items:center;padding-top:16px;border-top:1px solid var(--b12)}
+.actions .sp{flex:1}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--bone);color:var(--black);padding:10px 16px;font-size:12px;letter-spacing:.04em;opacity:0;transition:opacity .2s;pointer-events:none;z-index:9}
+.toast.is-on{opacity:1}
+.setup{max-width:640px;display:grid;gap:18px}
+.setup ol{padding-left:18px;display:grid;gap:10px;color:var(--b70);margin:0}
+.setup code{font-size:12px;background:var(--b6);padding:1px 6px}
+.empty{color:var(--b45);padding:40px 0;font-size:13px}
+.notice{border:1px solid rgba(255,107,87,.4);color:var(--warn);padding:12px 14px;font-size:12px;margin-bottom:24px}
+@media (max-width:900px){:root{--pm:16px}.dash{grid-template-columns:1fr;gap:32px}.grid2{grid-template-columns:1fr}.media{grid-template-columns:1fr}.hdr nav{gap:14px}.hdr nav .who{display:none}}
+</style>
+<header class="hdr">
+  <a class="brand" href="portfolio.html">Digital Arts <span>/ admin</span></a>
+  <nav id="nav"></nav>
+</header>
+<main class="wrap" id="app"></main>
+<div class="toast" id="toast" role="status"></div>
+<script src="config.js"></script>
+<script src="portfolio-data.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+(function(){
+  'use strict';
+  var C = window.SITE_CONFIG || {}, D = window.PORTFOLIO_DATA || {};
+  var app = document.getElementById('app'), nav = document.getElementById('nav'), toastEl = document.getElementById('toast');
+  var CATS = ['installation', 'mapping', 'animation', 'vfx', 'game'];
+  var RATIOS = ['16:10', '16:9', '3:2', '5:4', '1:1', '4:5', '9:16'];
+  var MAX_IMG = 15 * 1024 * 1024, MAX_VID = 50 * 1024 * 1024;
+
+  function esc(s){ return String(s == null ? '' : s).replace(/[&<>"]/g, function(c){ return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  function pad(n){ return ('00' + n).slice(-3); }
+  function lines(v){ return String(v || '').split('\n').map(function(s){ return s.trim(); }).filter(Boolean); }
+  function toast(m){ toastEl.textContent = m; toastEl.classList.add('is-on'); clearTimeout(toast.t); toast.t = setTimeout(function(){ toastEl.classList.remove('is-on'); }, 2400); }
+  function errText(e){ return (e && (e.message || e.error_description || e.msg)) || String(e); }
+
+  /* ── 설정이 비어 있으면 안내만 ── */
+  if (!C.SUPABASE_URL || !C.SUPABASE_ANON_KEY || typeof supabase === 'undefined') {
+    app.innerHTML = '<div class="setup"><div class="label">setup</div><h1>관리자 페이지를 켜려면 Supabase 연결이 필요합니다</h1>' +
+      '<ol><li>Supabase 대시보드 › SQL Editor 에서 <code>supabase/schema.sql</code> 전체를 실행합니다. (works · site · admins 테이블, portfolio 저장소 버킷, 권한 정책)</li>' +
+      '<li>Authentication › Users › Add user 로 관리자 계정(이메일·비밀번호)을 만들고, Authentication › Providers › Email 에서 <em>Allow new users to sign up</em> 을 끕니다.</li>' +
+      '<li>SQL Editor 에서 <code>insert into public.admins (email) values (\'관리자 이메일\');</code> 를 실행해 그 계정을 관리자로 등록합니다.</li>' +
+      '<li><code>config.js</code> 의 SUPABASE_URL · SUPABASE_ANON_KEY 를 Project Settings › API 값으로 채우고 배포합니다.</li></ol>' +
+      '<p class="msg">supabase-js 를 CDN 에서 불러오므로 인터넷 연결이 필요합니다. 자세한 순서는 README 의 "관리자 페이지" 항목에 있습니다.</p></div>';
+    return;
+  }
+
+  var sb = supabase.createClient(C.SUPABASE_URL, C.SUPABASE_ANON_KEY);
+  var S = { user: null, works: [], site: {}, sel: null, draft: null, tab: 'works', admin: true, loaded: false };
+
+  sb.auth.getSession().then(function(r){ S.user = r.data && r.data.session ? r.data.session.user : null; if (S.user) load(); else render(); });
+  sb.auth.onAuthStateChange(function(ev, session){
+    var u = session ? session.user : null, was = !!S.user; S.user = u;
+    if (u && !was) load(); else if (!u) { S.loaded = false; S.works = []; S.sel = null; render(); }
+  });
+
+  /* ── 데이터 ── */
+  function load(){
+    return Promise.all([
+      sb.from('works').select('*').order('sort', { ascending: true }).order('created_at', { ascending: true }),
+      sb.from('site').select('key,value'),
+      sb.from('admins').select('email').limit(1)
+    ]).then(function(r){
+      if (r[0].error) throw r[0].error;
+      S.works = r[0].data || []; S.site = {};
+      (r[1].data || []).forEach(function(row){ S.site[row.key] = row.value; });
+      S.admin = !!(r[2].data && r[2].data.length);
+      S.loaded = true;
+      if (S.sel && S.sel !== 'new' && !S.works.some(function(w){ return w.id === S.sel; })) S.sel = null;
+      render();
+    }).catch(function(e){ S.loaded = true; render(); toast('불러오기 실패: ' + errText(e)); });
+  }
+  function current(){ if (S.sel === 'new') return S.draft; for (var i = 0; i < S.works.length; i++) if (S.works[i].id === S.sel) return S.works[i]; return null; }
+  function siteVal(key){ return S.site[key] != null ? S.site[key] : D[key]; }
+  function autoSlug(){ var base = 'work-' + pad(S.works.length + 1); var taken = S.works.some(function(w){ return w.slug === base; }); return taken ? base + '-' + Date.now().toString(36) : base; }
+
+  /* ── 화면 ── */
+  function render(){
+    nav.innerHTML = S.user
+      ? '<a href="portfolio.html" target="_blank" rel="noopener">사이트 보기 ↗</a><span class="who">' + esc(S.user.email) + '</span><button type="button" id="logout">로그아웃</button>'
+      : '<a href="portfolio.html">사이트 보기 ↗</a>';
+    if (S.user) { var lo = document.getElementById('logout'); if (lo) lo.addEventListener('click', function(){ sb.auth.signOut(); }); }
+    if (!S.user) return Login();
+    if (!S.loaded) { app.innerHTML = '<div class="empty">불러오는 중…</div>'; return; }
+    Dash();
+  }
+
+  function Login(){
+    app.innerHTML = '<form class="login" id="login" autocomplete="on"><div><div class="label">admin</div><h1 style="margin-top:6px">포트폴리오 관리</h1></div>' +
+      '<label class="field"><span class="label">email</span><input type="email" name="email" required autocomplete="username"></label>' +
+      '<label class="field"><span class="label">password</span><input type="password" name="password" required autocomplete="current-password"></label>' +
+      '<div class="msg" id="lmsg"></div><div><button class="btn primary" type="submit">로그인</button></div></form>';
+    var f = document.getElementById('login'), m = document.getElementById('lmsg');
+    f.addEventListener('submit', function(e){
+      e.preventDefault(); m.className = 'msg'; m.textContent = '확인 중…';
+      var btn = f.querySelector('button'); btn.disabled = true;
+      sb.auth.signInWithPassword({ email: f.elements.email.value.trim(), password: f.elements.password.value })
+        .then(function(r){ if (r.error) throw r.error; m.textContent = ''; })
+        .catch(function(err){ m.className = 'msg err'; m.textContent = '로그인 실패: ' + errText(err); })
+        .then(function(){ btn.disabled = false; });
+    });
+  }
+
+  function Dash(){
+    var list = '<div class="list"><div class="head"><span class="label">works · ' + S.works.length + '</span><button class="btn" type="button" id="add">+ 새 작품</button></div>' +
+      (S.works.length ? S.works.map(function(w, i){
+        return '<div class="row' + (w.id === S.sel ? ' is-sel' : '') + (w.published ? '' : ' draft') + '" data-id="' + esc(w.id) + '" title="' + (w.published ? '' : '비공개 · ') + esc(w.slug) + '">' +
+          '<span class="n">' + pad(i + 1) + '</span><span class="t"><span>' + esc(w.title || '(제목 없음)') + '</span><small>' + esc(w.student || '') + (w.student ? ' · ' : '') + esc(w.category || '') + '</small></span>' +
+          '<span class="ops"><button type="button" data-move="-1" title="위로" aria-label="위로">▲</button><button type="button" data-move="1" title="아래로" aria-label="아래로">▼</button></span></div>';
+      }).join('') : '<div class="empty">아직 작품이 없습니다. 새 작품을 추가하면 사이트의 자리표시 작품 대신 여기 목록이 보입니다.</div>') +
+      '<p class="msg" style="margin-top:12px">번호는 목록 순서대로 001부터 자동으로 붙습니다. 노란 번호는 비공개 작품입니다.</p></div>';
+    var right = '<div><div class="tabs"><button type="button" class="' + (S.tab === 'works' ? 'is-on' : '') + '" data-tab="works">작품</button><button type="button" class="' + (S.tab === 'site' ? 'is-on' : '') + '" data-tab="site">사이트 정보</button></div>' +
+      (S.tab === 'site' ? SiteForm() : WorkForm()) + '</div>';
+    app.innerHTML = (S.admin ? '' : '<div class="notice">이 계정(' + esc(S.user.email) + ')은 admins 목록에 없어 저장이 거부됩니다. SQL Editor 에서 insert into public.admins (email) values (\'' + esc(S.user.email) + '\'); 를 실행하세요.</div>') +
+      '<div class="dash">' + list + right + '</div>';
+
+    document.getElementById('add').addEventListener('click', function(){
+      S.draft = { title: '', student: '', category: CATS[0], year: '', tools: [], slug: '', statement: '', paragraphs: [], ratio: '16:10', image: '', video: '', published: true };
+      S.sel = 'new'; S.tab = 'works'; render();
+    });
+    Array.prototype.forEach.call(app.querySelectorAll('.row'), function(row){
+      row.addEventListener('click', function(e){
+        var mv = e.target.getAttribute && e.target.getAttribute('data-move');
+        if (mv) { move(row.getAttribute('data-id'), parseInt(mv, 10)); return; }
+        S.sel = row.getAttribute('data-id'); S.tab = 'works'; render();
+      });
+    });
+    Array.prototype.forEach.call(app.querySelectorAll('.tabs button'), function(b){ b.addEventListener('click', function(){ S.tab = b.getAttribute('data-tab'); render(); }); });
+    if (S.tab === 'site') bindSite(); else bindWork();
+  }
+
+  function field(label, name, value, opts){
+    opts = opts || {};
+    var inner;
+    if (opts.select) inner = '<select name="' + name + '">' + opts.select.map(function(o){ return '<option value="' + esc(o) + '"' + (o === value ? ' selected' : '') + '>' + esc(o) + '</option>'; }).join('') + '</select>';
+    else if (opts.textarea) inner = '<textarea name="' + name + '" rows="' + (opts.rows || 3) + '" placeholder="' + esc(opts.placeholder || '') + '">' + esc(value) + '</textarea>';
+    else inner = '<input type="text" name="' + name + '" value="' + esc(value) + '" placeholder="' + esc(opts.placeholder || '') + '">';
+    return '<label class="field"><span class="label">' + esc(label) + '</span>' + inner + (opts.hint ? '<span class="hint">' + esc(opts.hint) + '</span>' : '') + '</label>';
+  }
+  function mediaBlock(kind, url){
+    var isVideo = kind === 'video';
+    var preview = url ? (isVideo ? '<video src="' + esc(url) + '" muted loop autoplay playsinline></video>' : '<img src="' + esc(url) + '" alt="">') : (isVideo ? 'no video' : 'no image');
+    return '<div class="field"><span class="label">' + (isVideo ? 'video (mp4 · webm, 50MB 이하)' : 'image (jpg · png · gif, 15MB 이하)') + '</span><div class="media"><div class="well" id="well-' + kind + '">' + preview + '</div>' +
+      '<div class="file"><input type="file" name="' + kind + 'File" accept="' + (isVideo ? 'video/mp4,video/webm' : 'image/*') + '">' +
+      '<input type="text" name="' + kind + '" value="' + esc(url || '') + '" placeholder="또는 주소를 직접 입력" style="background:none;border:0;border-bottom:1px solid var(--b24);padding:6px 0;outline:0;border-radius:0;width:100%">' +
+      (url ? '<button class="btn" type="button" data-clear="' + kind + '">지우기</button>' : '') + '</div></div>' +
+      '<span class="hint">' + (isVideo ? '첫 화면 궤도와 작품 페이지에서 소리 없이 반복 재생됩니다. 없으면 이미지를 씁니다.' : '첫 화면 궤도의 타일과 목록의 미리보기에 쓰입니다. GIF 도 됩니다.') + '</span></div>';
+  }
+
+  function WorkForm(){
+    var w = current();
+    if (!w) return '<div class="empty">왼쪽 목록에서 작품을 고르거나 "새 작품"을 누르세요.</div>';
+    var isNew = S.sel === 'new';
+    return '<form class="form" id="wf">' +
+      '<div class="label">' + (isNew ? 'new work' : 'work · ' + esc(w.slug)) + '</div>' +
+      '<div class="grid2">' + field('title · 작품 제목', 'title', w.title) + field('student · 학생 이름', 'student', w.student) + '</div>' +
+      '<div class="grid2">' + field('category · 분야', 'category', w.category, { select: CATS }) + field('year · 연도', 'year', w.year, { placeholder: '2026' }) + '</div>' +
+      '<div class="grid2">' + field('tools · 도구', 'tools', (w.tools || []).join(', '), { placeholder: 'TouchDesigner, Kinect', hint: '쉼표로 구분' }) + field('slug · 주소', 'slug', w.slug, { placeholder: autoSlug(), hint: '영문·숫자·하이픈. 비우면 자동' }) + '</div>' +
+      field('statement · 한 문장', 'statement', w.statement, { textarea: true, rows: 2 }) +
+      field('paragraphs · 본문', 'paragraphs', (w.paragraphs || []).join('\n\n'), { textarea: true, rows: 7, hint: '문단은 빈 줄로 구분 (작품 개요 · 제작 과정 · 결과)' }) +
+      field('ratio · 첫 화면 타일 화면비', 'ratio', w.ratio || '16:10', { select: RATIOS }) +
+      mediaBlock('image', w.image) + mediaBlock('video', w.video) +
+      '<label class="check"><input type="checkbox" name="published"' + (w.published ? ' checked' : '') + '> 공개 (끄면 사이트에서 숨김)</label>' +
+      '<div class="actions"><button class="btn primary" type="submit">저장</button>' +
+      (isNew ? '' : '<a class="btn" href="portfolio.html#/work/' + encodeURIComponent(w.slug) + '" target="_blank" rel="noopener">미리보기 ↗</a>') +
+      '<span class="sp"></span>' + (isNew ? '<button class="btn" type="button" id="cancel">취소</button>' : '<button class="btn danger" type="button" id="del">삭제</button>') + '</div>' +
+      '<div class="msg" id="wmsg"></div></form>';
+  }
+  function bindWork(){
+    var f = document.getElementById('wf'); if (!f) return;
+    var msg = document.getElementById('wmsg');
+    var setBusy = function(b){ Array.prototype.forEach.call(f.querySelectorAll('button'), function(x){ x.disabled = b; }); };
+    ['image', 'video'].forEach(function(kind){
+      var fi = f.elements[kind + 'File'], url = f.elements[kind];
+      fi.addEventListener('change', function(){
+        var file = fi.files && fi.files[0]; if (!file) return;
+        if (file.size > (kind === 'video' ? MAX_VID : MAX_IMG)) { msg.className = 'msg err'; msg.textContent = '파일이 너무 큽니다.'; fi.value = ''; return; }
+        msg.className = 'msg'; msg.textContent = '업로드 중…'; setBusy(true);
+        upload(file, kind, f.elements.slug.value.trim() || autoSlug()).then(function(publicUrl){
+          url.value = publicUrl; msg.textContent = '업로드했습니다. 저장을 눌러 반영하세요.';
+          document.getElementById('well-' + kind).innerHTML = kind === 'video' ? '<video src="' + esc(publicUrl) + '" muted loop autoplay playsinline></video>' : '<img src="' + esc(publicUrl) + '" alt="">';
+        }).catch(function(e){ msg.className = 'msg err'; msg.textContent = '업로드 실패: ' + errText(e); }).then(function(){ setBusy(false); fi.value = ''; });
+      });
+      url.addEventListener('change', function(){ var v = url.value.trim(); document.getElementById('well-' + kind).innerHTML = v ? (kind === 'video' ? '<video src="' + esc(v) + '" muted loop autoplay playsinline></video>' : '<img src="' + esc(v) + '" alt="">') : (kind === 'video' ? 'no video' : 'no image'); });
+    });
+    Array.prototype.forEach.call(f.querySelectorAll('[data-clear]'), function(b){ b.addEventListener('click', function(){ var k = b.getAttribute('data-clear'); f.elements[k].value = ''; document.getElementById('well-' + k).textContent = 'no ' + k; b.remove(); }); });
+    f.addEventListener('submit', function(e){
+      e.preventDefault();
+      var g = function(n){ return f.elements[n].value.trim(); };
+      var slug = g('slug') || autoSlug();
+      if (!/^[a-z0-9-]+$/i.test(slug)) { msg.className = 'msg err'; msg.textContent = 'slug 는 영문·숫자·하이픈만 됩니다.'; return; }
+      var row = { title: g('title'), student: g('student'), category: g('category'), year: g('year'), tools: g('tools').split(',').map(function(s){ return s.trim(); }).filter(Boolean),
+        slug: slug.toLowerCase(), statement: g('statement'), paragraphs: g('paragraphs').split(/\n\s*\n/).map(function(s){ return s.trim(); }).filter(Boolean),
+        ratio: g('ratio'), image: g('image') || null, video: g('video') || null, published: f.elements.published.checked, updated_at: new Date().toISOString() };
+      if (S.sel === 'new') row.sort = S.works.length + 1; else row.id = S.sel;
+      msg.className = 'msg'; msg.textContent = '저장 중…'; setBusy(true);
+      sb.from('works').upsert(row).select().single().then(function(r){
+        if (r.error) throw r.error;
+        S.sel = r.data.id; S.draft = null; toast('저장했습니다'); return load();
+      }).catch(function(err){ msg.className = 'msg err'; msg.textContent = '저장 실패: ' + errText(err); setBusy(false); });
+    });
+    var del = document.getElementById('del'), cancel = document.getElementById('cancel');
+    if (cancel) cancel.addEventListener('click', function(){ S.sel = null; S.draft = null; render(); });
+    if (del) del.addEventListener('click', function(){
+      var w = current(); if (!w) return;
+      if (!window.confirm('"' + (w.title || w.slug) + '" 을(를) 삭제할까요? 되돌릴 수 없습니다.')) return;
+      setBusy(true);
+      sb.from('works').delete().eq('id', w.id).then(function(r){ if (r.error) throw r.error; S.sel = null; toast('삭제했습니다'); return load(); })
+        .catch(function(err){ msg.className = 'msg err'; msg.textContent = '삭제 실패: ' + errText(err); setBusy(false); });
+    });
+  }
+  function upload(file, kind, slug){
+    var ext = (file.name.split('.').pop() || 'bin').toLowerCase().replace(/[^a-z0-9]/g, '') || 'bin';
+    var path = slug.toLowerCase() + '/' + kind + '-' + Date.now() + '.' + ext;
+    return sb.storage.from('portfolio').upload(path, file, { upsert: true, contentType: file.type || undefined, cacheControl: '31536000' })
+      .then(function(r){ if (r.error) throw r.error; return sb.storage.from('portfolio').getPublicUrl(path).data.publicUrl; });
+  }
+  function move(id, dir){
+    var i = -1; S.works.forEach(function(w, k){ if (w.id === id) i = k; });
+    var j = i + dir; if (i < 0 || j < 0 || j >= S.works.length) return;
+    var order = S.works.slice(); var t = order[i]; order[i] = order[j]; order[j] = t;
+    var rows = order.map(function(w, k){ return { id: w.id, slug: w.slug, sort: k + 1 }; });
+    sb.from('works').upsert(rows).then(function(r){ if (r.error) throw r.error; return load(); }).catch(function(e){ toast('순서 변경 실패: ' + errText(e)); });
+  }
+
+  function SiteForm(){
+    var c = siteVal('contact') || {};
+    return '<form class="form" id="sf"><div class="label">site</div>' +
+      field('statement · 목록 페이지 첫 문장', 'statement', (siteVal('statement') || []).join('\n'), { textarea: true, rows: 2, hint: '줄바꿈이 그대로 줄 나눔이 됩니다' }) +
+      field('taglines · 첫 화면 왼쪽 아래에 번갈아 뜨는 문장', 'taglines', (siteVal('taglines') || []).join('\n'), { textarea: true, rows: 4, hint: '한 줄에 하나' }) +
+      field('strapline · 첫 화면 가운데 아래 한 줄', 'strapline', siteVal('strapline') || '') +
+      field('intro · 목록 페이지 소개', 'intro', siteVal('intro') || '', { textarea: true, rows: 3 }) +
+      '<div class="grid2">' + field('contact email', 'email', c.email || '') + field('instagram (주소)', 'instagram', c.instagram || '') + '</div>' +
+      '<div class="grid2">' + field('youtube (주소)', 'youtube', c.youtube || '') + field('address · 주소', 'address', (c.address || []).join('\n'), { textarea: true, rows: 2, hint: '한 줄에 하나' }) + '</div>' +
+      '<div class="actions"><button class="btn primary" type="submit">저장</button></div><div class="msg" id="smsg"></div></form>';
+  }
+  function bindSite(){
+    var f = document.getElementById('sf'), msg = document.getElementById('smsg');
+    f.addEventListener('submit', function(e){
+      e.preventDefault();
+      var g = function(n){ return f.elements[n].value.trim(); };
+      var rows = [
+        { key: 'statement', value: lines(g('statement')) }, { key: 'taglines', value: lines(g('taglines')) },
+        { key: 'strapline', value: g('strapline') }, { key: 'intro', value: g('intro') },
+        { key: 'contact', value: { email: g('email'), instagram: g('instagram'), youtube: g('youtube'), address: lines(g('address')) } }
+      ];
+      msg.className = 'msg'; msg.textContent = '저장 중…';
+      sb.from('site').upsert(rows).then(function(r){ if (r.error) throw r.error; toast('저장했습니다'); return load(); })
+        .catch(function(err){ msg.className = 'msg err'; msg.textContent = '저장 실패: ' + errText(err); });
+    });
+  }
+})();
+</script>
+</html>
