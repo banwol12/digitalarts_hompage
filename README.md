@@ -60,3 +60,48 @@ CLI 대신 https://vercel.com/new 에서 이 폴더를 드래그해 올려도 �
 - 올린 파일은 Supabase Storage 의 `portfolio` 버킷에 들어가고 공개 주소로 사이트에 표시됩니다.
 
 주의: anon key 는 공개용이라 코드에 넣어도 되지만, 쓰기는 `admins` 에 등록된 이메일로 로그인한 계정만 가능하도록 정책이 걸려 있습니다.
+
+## 5. 작품 게시 페이지 (`/submit`) 와 데이터 계약 — 백엔드 담당자용
+
+`submit.html` 은 학생 누구나 작품을 올리는 공개 페이지입니다. 제출은 항상 **검토 대기(pending) · 비공개** 로 들어가고,
+관리자(`/admin`)의 "검토 대기" 목록에서 **승인 · 게시 / 수정만 저장 / 반려** 를 고릅니다. 승인된 작품만 사이트에 나옵니다.
+
+프론트엔드(`submit.html`, `admin.html`)는 오직 `portfolio-api.js` 의 `window.PortfolioAPI` 만 호출합니다.
+백엔드를 Supabase 가 아닌 것으로 바꾸려면 그 파일의 `remote` 객체만 같은 계약으로 다시 구현하면 되고, 화면 코드는 손댈 필요가 없습니다.
+`config.js` 가 비어 있으면 자동으로 **미리보기 모드**(이 브라우저의 localStorage)로 동작하므로 백엔드 없이도 제출 → 승인 → 사이트 표시 흐름을 볼 수 있습니다.
+
+### 작품(work) 한 건의 모양
+| 필드 | 타입 | 설명 |
+|---|---|---|
+| id | uuid/string | 서버가 부여 |
+| sort | int | 게시 순서 (관리자 ▲▼). 번호 001… 은 이 순서로 화면에서 계산 |
+| slug | string | 주소용, 유일. 제출은 `sub-…`, 관리자 생성은 `work-001` 식 |
+| title, student | string | 제목, 학생 이름 |
+| category | string | installation · mapping · animation · vfx · game |
+| year | string | 제작 연도 |
+| tools | string[] | 도구 |
+| statement | string | 한 문장 |
+| paragraphs | string[] | 본문 문단 |
+| ratio | string | 첫 화면 타일 화면비 `16:10` 등 |
+| image, video | string/null | 공개 URL (이미지 필수, 영상 선택) |
+| status | string | pending · approved · rejected |
+| published | bool | 사이트 표시 여부 (approved 이면서 true 일 때만 공개) |
+| submitter_email, submitter_note | string/null | 제출자 연락처·메모 (관리자만 봄) |
+| created_at, updated_at | timestamp | |
+
+### 프론트엔드가 부르는 함수 (`PortfolioAPI`)
+| 함수 | 누가 | 하는 일 |
+|---|---|---|
+| `listWorks({all})` | 사이트·관리자 | all 이 없으면 `published && status='approved'` 만, 있으면 전부 (관리자) |
+| `getSite()` | 사이트·관리자 | `{statement, taglines, strapline, intro, contact}` |
+| `upload(file, path)` | 게시·관리자 | 파일 저장 후 공개 URL 반환. 게시 페이지는 `submissions/<slug>/…`, 관리자는 `works/<slug>/…` 경로 |
+| `submitWork(row)` | 게시 페이지 (로그인 없음) | `status='pending', published=false` 로 새 작품 생성 |
+| `saveWork(row)` | 관리자 | 생성/수정 (승인 = status→approved, published→true, sort 부여) |
+| `deleteWork(id)` | 관리자 | 삭제 |
+| `reorder([{id, slug}…])` | 관리자 | 순서대로 sort 1… 부여 |
+| `saveSite(map)` | 관리자 | 사이트 정보 저장 |
+| `auth.getUser / signIn / signOut / onChange`, `isAdmin()` | 관리자 | 로그인과 관리자 여부 |
+
+`portfolio.html`(공개 사이트)은 라이브러리 없이 REST 로 `works`(승인·게시된 것)와 `site` 만 읽습니다.
+Supabase 를 쓸 때 필요한 테이블·정책은 `supabase/schema.sql` 에 다 있고, 다시 실행해도 안전합니다.
+공개 제출은 anon 키로 insert 하므로 스팸이 걱정되면 백엔드에서 rate limit 이나 captcha 를 붙이면 됩니다. 어차피 관리자가 승인해야 게시됩니다.

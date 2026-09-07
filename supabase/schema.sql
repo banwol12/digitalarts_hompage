@@ -100,3 +100,28 @@ create policy "portfolio admin delete" on storage.objects for delete to authenti
 
 -- 관리자 등록 (이메일을 본인 것으로 바꿔 실행)
 -- insert into public.admins (email) values ('admin@example.com') on conflict do nothing;
+
+
+-- ─────────────────────────────────────────────────────────────
+-- 작품 게시 페이지 (submit.html) — 누구나 '검토 대기' 상태로 제출, 관리자가 승인해야 게시
+-- ─────────────────────────────────────────────────────────────
+alter table public.works add column if not exists status          text not null default 'approved';  -- pending | approved | rejected
+alter table public.works add column if not exists submitter_email text;                              -- 제출자 연락처 (사이트에 표시하지 않음)
+alter table public.works add column if not exists submitter_note  text;                              -- 제출자가 전공에 남긴 말
+alter table public.works drop constraint if exists works_status_check;
+alter table public.works add constraint works_status_check check (status in ('pending', 'approved', 'rejected'));
+
+-- 공개 조회는 승인·게시된 작품만
+drop policy if exists "public reads published works" on public.works;
+create policy "public reads published works" on public.works for select to anon
+  using (published and status = 'approved');
+
+-- 누구나 제출할 수 있지만 반드시 '검토 대기 · 비공개' 상태로만
+drop policy if exists "anyone can submit pending works" on public.works;
+create policy "anyone can submit pending works" on public.works for insert to anon
+  with check (status = 'pending' and published = false);
+
+-- 저장소: 제출 파일은 submissions/ 폴더에만 올릴 수 있음 (읽기는 이미 공개)
+drop policy if exists "anyone can upload submissions" on storage.objects;
+create policy "anyone can upload submissions" on storage.objects for insert to anon
+  with check (bucket_id = 'portfolio' and (storage.foldername(name))[1] = 'submissions');

@@ -235,7 +235,7 @@ main{min-height:60vh}
     return '<footer class="ftr"><div class="big">DIGITAL ARTS</div><div class="cols">' +
       '<div class="caption">' + (C.address || []).map(esc).join('<br>') + '</div>' +
       '<div class="caption">for the screen<br>and beyond</div>' +
-      '<div><div class="label">work with us</div><div style="margin-top:7px"><a class="btn" href="' + (C.email && C.email.indexOf('@') > 0 ? 'mailto:' + C.email : '#') + '">' + esc(C.email || '[전공 이메일]') + '</a></div></div>' +
+      '<div><div class="label">work with us</div><div style="margin-top:7px;display:grid;gap:7px;justify-items:start"><a class="btn" href="' + (C.email && C.email.indexOf('@') > 0 ? 'mailto:' + C.email : '#') + '">' + esc(C.email || '[전공 이메일]') + '</a><a class="btn" href="submit.html">submit a work ↗</a></div></div>' +
       '<div style="display:grid;gap:7px;justify-items:start"><a class="btn" href="' + (C.instagram || '#') + '">instagram</a><a class="btn" href="' + (C.youtube || '#') + '">youtube</a></div>' +
       '</div><div class="bottom micro"><span>© seoul institute of the arts · digital arts ' + new Date().getFullYear() + '</span><a class="micro" href="index.html">back to main site</a></div></footer>';
   }
@@ -311,6 +311,7 @@ main{min-height:60vh}
     var metas = ['all'].concat(D.works.map(function(w){ return w.meta; }).filter(function(m, i, a){ return a.indexOf(m) === i; }));
     var list = D.works.filter(function(w){ return filter === 'all' || w.meta === filter; });
     app.innerHTML = '<section class="page"><h1 class="display" style="max-width:30ch">' + esc((D.statement || []).join(' ')) + '</h1>' +
+      '<p class="micro" style="margin:12px 0 0"><a href="submit.html" style="border-bottom:1px solid var(--border-hairline)">학생 작품 게시하기 ↗</a></p>' +
       '<div class="filters">' + metas.map(function(m){ return '<a class="' + (m === filter ? 'is-active' : '') + '" href="#/works/' + m + '">' + m + '</a>'; }).join('') + '</div>' +
       '<div class="works-grid"><div class="rows" id="rows">' + list.map(rowItem).join('') + (list.length ? '' : '<p class="body">이 분야의 작품이 아직 없습니다.</p>') + '</div><div class="preview" id="preview"></div></div></section>' + footer();
     var pv = document.getElementById('preview');
@@ -363,12 +364,18 @@ main{min-height:60vh}
   }
   function loadRemote(done){
     var C = window.SITE_CONFIG || {};
-    if (STATIC || !C.SUPABASE_URL || !C.SUPABASE_ANON_KEY || typeof fetch !== 'function') return done();
+    if (STATIC) return done();
+    if (!C.SUPABASE_URL || !C.SUPABASE_ANON_KEY || typeof fetch !== 'function') {
+      /* 백엔드 연결 전: 게시 페이지·관리자 미리보기 모드가 이 브라우저(localStorage)에 저장한 작품이 있으면 그것을 보여준다 */
+      try { var lw = JSON.parse(localStorage.getItem('pf-works') || '[]').filter(function(r){ return r.published && r.status === 'approved'; }).sort(function(a, b){ return (a.sort || 0) - (b.sort || 0); });
+        var ls = JSON.parse(localStorage.getItem('pf-site') || '{}'); applyRemote(lw, Object.keys(ls).map(function(k){ return { key: k, value: ls[k] }; })); } catch (e) {}
+      return done();
+    }
     var h = { apikey: C.SUPABASE_ANON_KEY, Authorization: 'Bearer ' + C.SUPABASE_ANON_KEY }, base = C.SUPABASE_URL.replace(/\/$/, '') + '/rest/v1/';
     var started = false, start = function(){ if (!started) { started = true; done(); } };
     var late = setTimeout(start, 4000);                                             /* 4초 안에 안 오면 자리표시 데이터로 먼저 연다 */
     Promise.all([
-      fetch(base + 'works?select=*&published=eq.true&order=sort.asc,created_at.asc', { headers: h }).then(function(r){ return r.ok ? r.json() : []; }),
+      fetch(base + 'works?select=*&published=eq.true&status=eq.approved&order=sort.asc,created_at.asc', { headers: h }).then(function(r){ return r.ok ? r.json() : []; }),
       fetch(base + 'site?select=key,value', { headers: h }).then(function(r){ return r.ok ? r.json() : []; })
     ]).then(function(res){ clearTimeout(late); applyRemote(res[0], res[1]); if (started) route(); else start(); }, start);
   }
