@@ -33,5 +33,5 @@ window.PORTFOLIO_DATA = {
       { n:'005', label:'game', body:'게임 엔진으로 만든 인터랙티브 세계와 플레이.' }
     ]
   },
-  contact: { email: '[전공 이메일]', address: ['서울예술대학교 안산캠퍼스', '[캠퍼스 주소]'], instagram: 'https://www.instagram.com/seoularts_digitalarts/', youtube: 'https://www.youtube.com/@sia_digitalarts' }
+  contact: { email: '[전공 이메일]', address: ['서울예술대학교'], instagram: 'https://www.instagram.com/seoularts_digitalarts/', youtube: 'https://www.youtube.com/@sia_digitalarts' }
 };
