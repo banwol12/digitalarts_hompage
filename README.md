@@ -13,6 +13,8 @@
 | `logo.png`, `logo-grid.json` | 원본 로고와 32×34 픽셀 그리드 (참고용) |
 
 ## 1. Supabase (약 5분)
+
+> 홈페이지의 "소식 받기" 이메일 폼은 2026-09-07 에 없앴습니다. 아래 subscribers 테이블은 없어도 되고, 포트폴리오 관리자(4·5번)를 쓸 때만 Supabase 가 필요합니다.
 1. https://supabase.com 에서 New project 생성 (Region: Northeast Asia (Seoul) 권장).
 2. 왼쪽 메뉴 SQL Editor → `supabase/schema.sql` 내용을 붙여넣고 Run.
 3. Project Settings → API 에서 **Project URL** 과 **anon public** 키를 복사.

@@ -221,9 +221,6 @@ html.touch-paging .cards{touch-action:pan-x}
 .works{align-content:center}
 .last{grid-template-rows:1fr auto;align-content:stretch}
 .last .main{display:grid;align-content:end;padding-bottom:4vh}
-.subscribe{display:flex;gap:var(--space-8);width:100%;max-width:460px;margin-inline:auto;margin-top:var(--space-8)}
-.subscribe .btn{min-height:48px;flex:none}
-#submsg{min-height:1.4em}
 .foot{border-top:1px solid var(--border-hairline);padding-top:var(--space-24);padding-bottom:var(--space-32)}
 .foot .row{display:flex;justify-content:space-between;align-items:center;gap:var(--space-24);flex-wrap:wrap}
 .foot .links{display:flex;gap:var(--space-24);flex-wrap:wrap}
@@ -284,8 +281,6 @@ html.touch-paging .cards{touch-action:pan-x}
   .actions{gap:var(--space-8)}
   .actions .btn.lg{min-height:48px;padding:12px 20px;font-size:13px}
   .last .main{padding-bottom:var(--space-12)}
-  .subscribe{flex-direction:column;gap:var(--space-8)}
-  .subscribe .btn{width:100%}
   .foot{padding-top:var(--space-16);padding-bottom:var(--space-20)}
   .foot .links{gap:var(--space-16)}
 }
@@ -318,7 +313,7 @@ html.touch-paging .cards{touch-action:pan-x}
     <nav class="site-nav" aria-label="주요 메뉴">
       <a href="#c1" data-ch="1">전공소개</a><a href="#c2" data-ch="2">교육과정</a><a href="#c3" data-ch="3">디지털아트전공</a><a href="#c4" data-ch="4">포트폴리오</a><a href="#c5" data-ch="5">입학안내</a>
     </nav>
-    <a class="btn sm primary" href="https://www.seoularts.ac.kr/web/content.do?proFn=9323300" target="_blank" rel="noopener">입학안내 <svg class="i"><use href="#arrow-up-right"/></svg></a>
+    <a class="btn sm primary" href="https://www.seoularts.ac.kr/web/cop/bbsWeb/selectBoardList.do?bbsId=BBSMSTR_000000000924" target="_blank" rel="noopener">입학안내 <svg class="i"><use href="#arrow-up-right"/></svg></a>
   </div>
   <nav class="shell subnav" aria-label="챕터 메뉴">
     <a href="#c1" data-ch="1">전공소개</a><a href="#c2" data-ch="2">교육과정</a><a href="#c3" data-ch="3">디지털아트전공</a><a href="#c4" data-ch="4">포트폴리오</a><a href="#c5" data-ch="5">입학안내</a>
@@ -418,22 +413,16 @@ html.touch-paging .cards{touch-action:pan-x}
       <div class="stack">
         <div class="kicker reveal" style="--i:0;justify-content:center"><span class="cs-caption">05</span><i></i><span class="cs-caption">입학안내</span></div>
         <h2 class="h2 reveal" style="--i:1">만드는 사람이 곧 매체가 된다.</h2>
-        <p class="lead reveal" style="--i:2">다음 학년도 모집 일정과 실기 안내는 서울예술대학교 입학처에서 확인할 수 있습니다. 전공에 관한 질문은 언제든 보내 주세요.</p>
+        <p class="lead reveal" style="--i:2">다음 학년도 모집 일정과 실기 안내는 서울예술대학교 입학처에서 확인할 수 있습니다.</p>
         <div class="actions reveal" style="--i:3">
-          <a class="btn lg primary" href="https://www.seoularts.ac.kr/web/content.do?proFn=9323300" target="_blank" rel="noopener">입학처 바로가기 <svg class="i i-20"><use href="#arrow-up-right"/></svg></a>
-          <a class="btn lg secondary" href="#" title="[전공 문의 이메일로 교체]">전공 문의하기</a>
+          <a class="btn lg primary" href="https://www.seoularts.ac.kr/web/cop/bbsWeb/selectBoardList.do?bbsId=BBSMSTR_000000000924" target="_blank" rel="noopener">입학처 바로가기 <svg class="i i-20"><use href="#arrow-up-right"/></svg></a>
         </div>
-        <form class="subscribe reveal" id="subscribe" style="--i:4" novalidate>
-          <input class="input" type="email" name="email" placeholder="이메일 주소 — 전시·워크숍 소식 받기" aria-label="이메일 주소" autocomplete="email" required>
-          <button class="btn primary" type="submit">소식 받기</button>
-        </form>
-        <span class="cs-caption reveal" id="submsg" style="--i:5" aria-live="polite"></span>
       </div>
     </div>
     <footer class="shell foot">
       <div class="row">
-        <span class="cs-caption">© 2026 Seoul Institute of the Arts · Digital Arts · 안산 · 남산 · [캠퍼스 주소] · [전화번호]</span>
-        <span class="links"><a class="cs-caption" href="#" title="[링크 교체]">Instagram</a><a class="cs-caption" href="#" title="[링크 교체]">YouTube</a><a class="cs-caption" href="https://www.seoularts.ac.kr/" target="_blank" rel="noopener">대학 홈페이지</a><a class="cs-caption" href="#c0">Top <svg class="i"><use href="#arrow-up"/></svg></a></span>
+        <span class="cs-caption">© 2026 Seoul Institute of the Arts · Digital Arts · 안산 · 남산</span>
+        <span class="links"><a class="cs-caption" href="https://www.instagram.com/seoularts_digitalarts/" target="_blank" rel="noopener">Instagram</a><a class="cs-caption" href="https://www.youtube.com/@sia_digitalarts" target="_blank" rel="noopener">YouTube</a><a class="cs-caption" href="https://www.seoularts.ac.kr/web/main/mainPage.do" target="_blank" rel="noopener">대학 홈페이지</a><a class="cs-caption" href="#c0">Top <svg class="i"><use href="#arrow-up"/></svg></a></span>
       </div>
     </footer>
   </section>
@@ -918,26 +907,6 @@ html.touch-paging .cards{touch-action:pan-x}
     pick();
     if (STATIC) { window.__scene = { g: g, boxes: boxes, frameFor: frameFor, state: function(){ return { active: active, W: W, H: H, SHELL: SHELL, g: g }; } }; setTimeout(function(){ resize(); if (ONLY) { activate(parseInt(ONLY, 10)); } else { pick(); } setFormation(active, false, true); render(performance.now()); }, 400); }
   }
-
-  /* ── 소식 받기: Supabase REST 로 subscribers 테이블에 insert (config.js 의 URL·anon key 사용) ── */
-  var form = document.getElementById('subscribe'), msg = document.getElementById('submsg');
-  if (form && msg) form.addEventListener('submit', function(e){
-    e.preventDefault();
-    var email = (form.querySelector('input').value || '').trim();
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { msg.textContent = '이메일 주소를 확인해 주세요.'; return; }
-    var cfg = window.SITE_CONFIG || {};
-    if (!cfg.SUPABASE_URL || !cfg.SUPABASE_ANON_KEY) { msg.textContent = 'Supabase 연결 전입니다. config.js 에 URL 과 anon key 를 넣으면 저장됩니다.'; return; }
-    msg.textContent = '보내는 중';
-    fetch(cfg.SUPABASE_URL.replace(/\/$/, '') + '/rest/v1/subscribers', {
-      method: 'POST',
-      headers: { 'apikey': cfg.SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + cfg.SUPABASE_ANON_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
-      body: JSON.stringify({ email: email, source: 'homepage' })
-    }).then(function(res){
-      if (res.ok) { msg.textContent = '등록되었습니다. 소식이 준비되면 보내 드리겠습니다.'; form.reset(); }
-      else if (res.status === 409) { msg.textContent = '이미 등록된 주소입니다.'; }
-      else { msg.textContent = '저장하지 못했습니다. 잠시 후 다시 시도해 주세요. (' + res.status + ')'; }
-    }).catch(function(){ msg.textContent = '네트워크 오류입니다. 잠시 후 다시 시도해 주세요.'; });
-  });
 
   /* ── 작품 카드 미디어: 잉크 위 뉴트럴 픽셀 필드 (이미지 자리표시) ── */
   document.querySelectorAll('canvas.thumb').forEach(function(cv){
