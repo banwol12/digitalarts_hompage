@@ -149,6 +149,8 @@ html.booting .site-header{opacity:0;transform:translateY(-10px);pointer-events:n
 @keyframes handdwell{from{--a:0%}to{--a:100%}}
 .hand-cursor.is-click{animation:handclick .35s ease-out}
 @keyframes handclick{0%{box-shadow:0 0 0 1px rgba(0,0,0,.55),0 0 0 0 rgba(244,255,83,.9)}100%{box-shadow:0 0 0 1px rgba(0,0,0,.55),0 0 0 22px rgba(244,255,83,0)}}
+.hand-dbg{position:fixed;left:var(--space-24);bottom:var(--space-24);z-index:44;margin:0;font:500 11px/1.5 ui-monospace,Menlo,monospace;color:#F4FF53;background:rgba(0,0,0,.72);padding:8px 10px;pointer-events:none;white-space:pre;display:none}
+html.hand-on .hand-dbg:not(:empty){display:block}
 .hand-flick{position:fixed;left:0;top:0;z-index:44;pointer-events:none;font:600 22px/1 var(--font-core);color:#F4FF53;text-shadow:0 0 0 1px #000,0 1px 2px rgba(0,0,0,.6);opacity:0;will-change:transform}
 .hand-flick.is-on{animation:handflick .6s ease-out}
 @keyframes handflick{0%{opacity:1;margin-top:0}100%{opacity:0;margin-top:-26px}}
@@ -456,6 +458,7 @@ html.touch-paging .cards{touch-action:pan-x}
 <canvas class="hand-mini" id="handMini" width="240" height="180" aria-hidden="true"></canvas>
 <div class="hand-note" id="handNote" role="status" aria-live="polite"></div>
 <div class="hand-flick" id="handFlick" aria-hidden="true"></div>
+<pre class="hand-dbg" id="handDbg" aria-hidden="true"></pre>
 
 <script>
 (function(){
@@ -966,17 +969,18 @@ html.touch-paging .cards{touch-action:pan-x}
          · 챕터 = 검지를 위로 휙 올리면 다음, 아래로 휙 내리면 이전 (이동 벡터, strokeInvert). 넘긴 뒤엔 손가락이 잠깐 멈춰야 다시 받는다. 오른쪽 00–05 번호도 된다 ── */
     var HCFG = { boxKX: 3.4, boxKY: 3.0, boxGrowMax: 1.6, over: 0.03, calFrames: 6, calStill: 0.02, calMaxMs: 900, sizeAlpha: 0.06,
       smoothMin: 0.14, smoothMax: 0.65, deadZone: 2.0, anchorMs: 120,
-      pushOn: 1.3, pushOff: 1.12, pushHoldMax: 1600, baseAlpha: 0.04, dragMove: 22, clickRadius: 20,
-      dwellMs: 1000, dwellMove: 14, strokeDist: 0.26, strokeVel: 1.4, strokeRatio: 2.0, strokeStartV: 0.9, strokeEndV: 0.55, strokeMinMs: 90, strokeMaxMs: 700, strokeCool: 900, upEase: 0.8, settleV: 0.5, settleMs: 160, armMaxMs: 1500, restV: 0.6, restAlpha: 0.03, awayMin: 0.08, strokeInvert: true,     /* true: 위로 올리면 다음, 내리면 이전 (사용자 요청 2026-09-09) */   /* 긋기 문턱: 사용자 피드백으로 한 단계 둔하게 (확실히 휙 그어야 넘어간다) */
+      pushOn: 1.3, pushOff: 1.12, pushFrames: 4, pushStillV: 1.0, pushHoldMax: 1600, baseAlpha: 0.04, dragMove: 22, clickRadius: 20,
+      dwellMs: 1000, dwellMove: 40, strokeDist: 0.26, strokeVel: 1.4, strokeRatio: 1.3, strokeStartV: 0.9, strokeEndV: 0.55, strokeMinMs: 60, strokeMaxMs: 700, strokeCool: 900, upEase: 0.8, settleV: 0.5, settleMs: 160, armMaxMs: 1500, returnMs: 1500, returnTol: 0.14, strokeInvert: true,     /* true: 위로 올리면 다음, 내리면 이전 (사용자 요청 2026-09-09) */   /* 긋기 문턱: 사용자 피드백으로 한 단계 둔하게 (확실히 휙 그어야 넘어간다) */
       miniDwellMs: 1200, lostMs: 350, relostMs: 1000, detectGap: 26 };
     var hand = { on: false, loading: false, denied: false, paused: false, stream: null, video: null, lm: null,
       cal: { done: false, samples: [], t0: 0 }, box: null, ext: { l: 0, r: 0, t: 0, b: 0 }, sizeS: 0, calCount: 0,
       cur: { x: -100, y: -100 }, prevRaw: null, target: null, hist: [], seen: false, lostT: 0, lostSince: 0, hover: null, hoverT: 0, lastClick: '',
-      size0: 0, sizeR: 1, pressed: false, pressAt: 0, pressMove: 0, anchor: { x: 0, y: 0 }, pressRaw: null, drag: false, clicks: 0,
+      size0: 0, sizeR: 1, pushN: 0, tipV: 0, pressed: false, pressAt: 0, pressMove: 0, anchor: { x: 0, y: 0 }, pressRaw: null, drag: false, clicks: 0,
       dwellEl: null, dwellAt: 0, dwellPos: null, dwellDone: null,
-      strokes: [], mv: null, pending: null, pendingM: null, pendingScore: 0, pendingT: 0, rawU: null, armed: true, settled: 0, lastStroke: 0, restY: 0, pages: 0, miniAt: 0,
+      strokes: [], mv: null, pending: null, pendingM: null, pendingScore: 0, pendingT: 0, rawU: null, armed: true, settled: 0, lastStroke: 0, lastDir: 0, lastStartY: 0, pages: 0, miniAt: 0,
       lastDetect: -1, detectMs: 0, skip: 0, stage: 0, stageT: 0 };
     var handBtn = document.getElementById('handBtn'), handCursor = document.getElementById('handCursor'), handNote = document.getElementById('handNote'), handMini = document.getElementById('handMini'), handFlick = document.getElementById('handFlick');
+    var handDbg = /[?&]debug=1/.test(location.search) ? document.getElementById('handDbg') : null; hand.dbgLog = [];   /* ?debug=1: 화면 왼쪽 아래 진단 패널 */
     var HAND_OK = !STATIC && !MOBILE() && !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
     var MP = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.21', MP_MODEL = 'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task';
     var BONES = [[0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],[5,9],[9,10],[10,11],[11,12],[9,13],[13,14],[14,15],[15,16],[13,17],[17,18],[18,19],[19,20],[0,17]];
@@ -1083,7 +1087,7 @@ html.touch-paging .cards{touch-action:pan-x}
       var n = c.samples.length, mx = 0, my = 0, ms = 0; for (var i = 0; i < n; i++) { mx += c.samples[i].x; my += c.samples[i].y; ms += c.samples[i].s; } mx /= n; my /= n; ms /= n;
       var dev = 0; for (var j = 0; j < n; j++) dev = Math.max(dev, Math.hypot(c.samples[j].x - mx, c.samples[j].y - my));
       if (n >= HCFG.calFrames && (dev < HCFG.calStill || now - c.t0 > HCFG.calMaxMs)) {
-        hand.box = { cx: mx, cy: my }; hand.sizeS = ms; hand.ext = { l: 0, r: 0, t: 0, b: 0 }; c.done = true; hand.calCount++; hand.restY = VH() / 2;
+        hand.box = { cx: mx, cy: my }; hand.sizeS = ms; hand.ext = { l: 0, r: 0, t: 0, b: 0 }; c.done = true; hand.calCount++;
         hand.seen = false; hand.size0 = ms; hand.sizeR = 1;
         if (hand.calCount > 1) note('다시 맞췄습니다. 지금 손 자리가 화면 가운데입니다.', 2200); else stage(2);
       }
@@ -1095,13 +1099,13 @@ html.touch-paging .cards{touch-action:pan-x}
       if (!hand.cal.done) { calUpdate(L, tip, size, now); return; }
       if (whole && !hand.pressed) hand.sizeS += (size - hand.sizeS) * HCFG.sizeAlpha;      /* 거리가 바뀌면 상자도 같이 (손이 다 보일 때만 믿는다) */
       var raw = mapTip(tip);
-      if (!hand.seen) { hand.seen = true; hand.cur.x = raw.x; hand.cur.y = raw.y; hand.target = raw; hand.prevRaw = raw; hand.hist = []; hand.strokes = []; hand.mv = null; hand.armed = true; hand.pressed = false; hand.restY = raw.y; }
+      if (!hand.seen) { hand.seen = true; hand.cur.x = raw.x; hand.cur.y = raw.y; hand.target = raw; hand.prevRaw = raw; hand.hist = []; hand.strokes = []; hand.mv = null; hand.armed = true; hand.pressed = false; }
       /* 거리(가상 z축) — 손 전체가 보일 때만 믿는다 */
-      if (!hand.pressed && whole) hand.size0 += (size - hand.size0) * HCFG.baseAlpha;
       hand.sizeR = whole ? size / (hand.size0 || size) : 1;
+      if (!hand.pressed && whole && hand.sizeR < 1.15) hand.size0 += (size - hand.size0) * HCFG.baseAlpha;   /* 기준 크기는 손이 가까워지는 중이 아닐 때만 따라간다 */
       /* ── 커서: 절대 좌표 + 적응 스무딩 (멀면 서둘러, 가까우면 묵직) ── */
       if (!hand.pressed) {
-        var sp = dist(raw, hand.prevRaw); hand.prevRaw = raw;
+        var sp = dist(raw, hand.prevRaw); hand.prevRaw = raw; hand.tipV = sp / VH() / 0.033;   /* 프레임당 이동 → 화면 높이/초 */
         if (dist(raw, hand.target) > HCFG.deadZone) hand.target = raw;
         var far = dist(hand.cur, hand.target);
         var a = Math.max(HCFG.smoothMin, Math.min(HCFG.smoothMax, HCFG.smoothMin + Math.max(sp, far) / 40));
@@ -1109,13 +1113,15 @@ html.touch-paging .cards{touch-action:pan-x}
         hand.hist.push({ x: hand.cur.x, y: hand.cur.y, t: now }); while (hand.hist.length && now - hand.hist[0].t > 400) hand.hist.shift();
       }
       /* ── 밀어서 누르기 (보조): 누르는 동안 커서는 직전 자리에 ── */
-      if (!hand.pressed && hand.sizeR > HCFG.pushOn) {
-        hand.pressed = true; hand.pressAt = now; hand.pressMove = 0; hand.pressRaw = raw;
+      /* 손 크기가 커지는 게 4프레임 이어지고 손가락이 거의 제자리일 때만 '밀기'. (휙 그을 때 손이 기울며 커 보이는 것을 클릭으로 오인하지 않게) */
+      hand.pushN = (hand.sizeR > HCFG.pushOn && hand.tipV < HCFG.pushStillV) ? hand.pushN + 1 : Math.max(0, hand.pushN - 1);
+      if (!hand.pressed && hand.pushN >= HCFG.pushFrames) {
+        hand.pushN = 0; hand.pressed = true; hand.pressAt = now; hand.pressMove = 0; hand.pressRaw = raw;
         var anc = hand.cur; for (var h = hand.hist.length - 1; h >= 0; h--) { if (now - hand.hist[h].t >= HCFG.anchorMs) { anc = hand.hist[h]; break; } }
         hand.anchor = { x: anc.x, y: anc.y }; hand.cur.x = anc.x; hand.cur.y = anc.y; hand.target = { x: anc.x, y: anc.y };
         if (handCursor) handCursor.classList.add('is-press');
         if (dragStart(hand.cur.x, hand.cur.y)) hand.drag = true;
-        else { var a1 = clickableAt(hand.cur.x, hand.cur.y); if (a1) { fireClick(a1); hand.dwellDone = a1; } }
+        else { var a1 = clickableAt(hand.cur.x, hand.cur.y) || hand.hover; if (a1) { fireClick(a1); hand.dwellDone = a1; } }   /* 밀기 클릭: 커서 아래 또는 방금까지 가리키던 링크 */
       } else if (hand.pressed) {
         var dd = { x: raw.x - hand.pressRaw.x, y: raw.y - hand.pressRaw.y };
         hand.pressMove = Math.max(hand.pressMove, Math.hypot(dd.x, dd.y));
@@ -1145,6 +1151,7 @@ html.touch-paging .cards{touch-action:pan-x}
         if (!el) hand.dwellDone = null;
       }
       strokeStep(hand.rawU || raw, now);
+      if (handDbg) handDbg.textContent = 'armed ' + hand.armed + ' · refr ' + (now - hand.lastStroke < HCFG.strokeCool) + ' · sizeR ' + hand.sizeR.toFixed(2) + (hand.pressed ? ' PRESSED' : '') + ' · seg ' + (hand.mv ? (hand.mv.dir < 0 ? '↑' : '↓') : '-') + ' · pages ' + hand.pages + '\n' + hand.dbgLog.join('\n');
       /* ── 오른쪽 아래 손 미리보기를 가리키면 다시 맞추기 ── */
       if (handMini) { var r = handMini.getBoundingClientRect(); var inMini = hand.cur.x >= r.left && hand.cur.x <= r.right && hand.cur.y >= r.top && hand.cur.y <= r.bottom;
         if (inMini) { if (!hand.miniAt) hand.miniAt = now; else if (now - hand.miniAt > HCFG.miniDwellMs) { hand.miniAt = 0; startCal(); } } else hand.miniAt = 0; }
@@ -1155,16 +1162,19 @@ html.touch-paging .cards{touch-action:pan-x}
        내리기 전에 살짝 들어 올리는 "예비 동작" 은 작은 구간으로 따로 끝나 버려서(기준 미달) 무시되고, 뒤따르는 큰 구간이 방향을 정한다.
        한 번 넘긴 뒤엔 손가락이 잠깐 멈춰야 다시 받으므로 되돌아오는 동작은 넘기지 않는다. 손이 프레임 밖으로 나가며 끝난 구간도 그 자리에서 판정한다 ── */
     function segOK(m, now){                                                        /* 이 구간이 긋기 기준을 넘는가 */
-      var dy = (m.ly - m.sy) / VH(), dx = (m.lx - m.sx) / VW(), ease = dy < 0 ? HCFG.upEase : 1;   /* 위로 긋기는 중력 반대라 느리고 짧다 → 기준 완화 */
-      var away = Math.abs(m.ly - hand.restY) >= Math.abs(m.sy - hand.restY) + HCFG.awayMin * VH();
+      var dy = (m.ly - m.sy) / VH(), dx = (m.lx - m.sx) / VH(), ease = dy < 0 ? HCFG.upEase : 1;   /* 위로 긋기는 중력 반대라 느리고 짧다 → 기준 완화. dx 도 화면 높이 기준(픽셀 비율) */
+      /* 복귀: 직전 긋기 뒤 1.5초 안에, 반대 방향으로, 그 긋기의 출발점 근처로 돌아오는 동작 → 넘기지 않는다 (그 밖의 동작은 어디서 시작하든 긋기) */
+      var isReturn = now - hand.lastStroke < HCFG.returnMs && m.dir === -hand.lastDir && Math.abs(m.ly - hand.lastStartY) < HCFG.returnTol * VH();
+      var away = !isReturn;
       var ok = away && Math.abs(dy) > HCFG.strokeDist * ease && m.peak > HCFG.strokeVel * ease && Math.abs(dy) > Math.abs(dx) * HCFG.strokeRatio && (dy > 0 ? 1 : -1) === m.dir && now - m.t0 >= HCFG.strokeMinMs && now - m.t0 < HCFG.strokeMaxMs + 400;
-      if (hand.trace) hand.trace.push({ dy: +dy.toFixed(3), peak: +m.peak.toFixed(2), away: away, rest: +(hand.restY / VH()).toFixed(2), sy: +(m.sy / VH()).toFixed(2), ly: +(m.ly / VH()).toFixed(2), dir: m.dir, ok: ok });
+      if (hand.trace) hand.trace.push({ dy: +dy.toFixed(3), peak: +m.peak.toFixed(2), away: away, sy: +(m.sy / VH()).toFixed(2), ly: +(m.ly / VH()).toFixed(2), dir: m.dir, ok: ok });
+      if (handDbg) { hand.dbgLog.unshift((m.dir < 0 ? '↑' : '↓') + ' dy ' + Math.abs(dy).toFixed(2) + ' v ' + m.peak.toFixed(1) + ' dx ' + Math.abs(dx).toFixed(2) + (away ? '' : ' RETURN') + ' ' + Math.round(now - m.t0) + 'ms → ' + (ok ? 'OK' : 'no')); hand.dbgLog.length = Math.min(hand.dbgLog.length, 6); }
       return ok ? Math.abs(dy) : 0;
     }
     function strokeFire(m, now){
       if (!hand.armed || now - hand.lastStroke < HCFG.strokeCool) return;             /* 멈춘 뒤에만, 한 번 넘기고 0.75초 뒤에만 */
       var dir = m.dir * (HCFG.strokeInvert ? -1 : 1);
-      hand.armed = false; hand.settled = 0; hand.lastStroke = now; hand.pages++; hand.dwellAt = now; hand.dwellPos = null;
+      hand.armed = false; hand.settled = 0; hand.lastStroke = now; hand.lastDir = m.dir; hand.lastStartY = m.sy; hand.pages++; hand.dwellAt = now; hand.dwellPos = null;
       flickMark(m.dir); goTo(active + dir); if (hand.stage === 3) stage(4);             /* 화살표는 손가락이 움직인 방향, 이동은 strokeInvert 에 따라 (지금: 올리면 다음, 내리면 이전) */
     }
     /* 구간이 끝났을 때. reversed=true 면 방향이 바뀌며 끝난 것 → 바로 판정하지 않고 보류했다가 다음 구간과 비교해 큰 쪽만 쓴다
@@ -1177,7 +1187,7 @@ html.touch-paging .cards{touch-action:pan-x}
     }
     function strokeStep(raw, now){
       var sl = hand.strokes[hand.strokes.length - 1];
-      if (sl && Math.hypot(raw.x - sl.x, raw.y - sl.y) > VH() * 0.15) { hand.strokes = []; hand.mv = null; hand.pending = null; }   /* 한 프레임에 크게 튀면(다시 잡힌 손) 이력을 버린다 */
+      if (sl && Math.hypot(raw.x - sl.x, raw.y - sl.y) > VH() * 0.4) { hand.strokes = []; hand.mv = null; hand.pending = null; }   /* 한 프레임에 아주 크게 튀면(다시 잡힌 손) 이력을 버린다 */
       hand.strokes.push({ x: raw.x, y: raw.y, t: now }); while (hand.strokes.length > 12) hand.strokes.shift();
       var sn = hand.strokes.length; if (sn < 3) return;
       /* 떨림에 강한 '느린' 속도: 200ms 창 (재무장·쉬는 자리 판단용). 긋기 자체는 아래의 66ms 속도로 본다 */
@@ -1199,9 +1209,6 @@ html.touch-paging .cards{touch-action:pan-x}
       }
       /* 재무장: 200ms 속도가 낮아지면 (손 떨림으로 영영 재무장이 안 되던 문제). 어떤 경우든 1.5초가 지나면 다시 받는다 */
       if (!hand.armed) { if (slowV < HCFG.settleV) { if (!hand.settled) hand.settled = now; else if (now - hand.settled > HCFG.settleMs) hand.armed = true; } else hand.settled = 0; if (now - hand.lastStroke > HCFG.armMaxMs) hand.armed = true; }
-      /* 쉬는 자리: 빠르지 않을 때 현재 높이를 천천히 따라간다 (약 1.5초 시정수) — 멈춤 판정 없이도 떨림에 흔들리지 않는다.
-         제스처 뒤 곧바로 되돌아오는 동작은 이 자리 '쪽으로' 움직이므로 긋기로 치지 않는다 */
-      if (slowV < HCFG.restV && !hand.mv) hand.restY += (raw.y - hand.restY) * HCFG.restAlpha;
     }
     function handLost(now){
       if (!hand.lostT) hand.lostT = now;
