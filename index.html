@@ -969,7 +969,7 @@ html.touch-paging .cards{touch-action:pan-x}
     var HCFG = { boxKX: 3.4, boxKY: 3.0, boxGrowMax: 1.6, over: 0.03, calFrames: 6, calStill: 0.02, calMaxMs: 900, sizeAlpha: 0.06,
       smoothMin: 0.14, smoothMax: 0.65, deadZone: 2.0, anchorMs: 120,
       pushOn: 1.3, pushOff: 1.12, pushHoldMax: 1600, baseAlpha: 0.04, dragMove: 22, clickRadius: 20,
-      dwellMs: 1000, dwellMove: 14, strokeDist: 0.18, strokeVel: 1.0, strokeRatio: 1.6, strokeStartV: 0.7, strokeEndV: 0.45, strokeMaxMs: 700, strokeCool: 750, upEase: 0.75, settleV: 0.35, settleMs: 140, restV: 0.25, restMs: 900, awayMin: 0.05, strokeInvert: false,
+      dwellMs: 1000, dwellMove: 14, strokeDist: 0.26, strokeVel: 1.4, strokeRatio: 2.0, strokeStartV: 0.9, strokeEndV: 0.55, strokeMinMs: 90, strokeMaxMs: 700, strokeCool: 900, upEase: 0.8, settleV: 0.35, settleMs: 160, restV: 0.25, restMs: 900, awayMin: 0.08, strokeInvert: false,   /* 긋기 문턱: 사용자 피드백으로 한 단계 둔하게 (확실히 휙 그어야 넘어간다) */
       miniDwellMs: 1200, lostMs: 350, relostMs: 1000, detectGap: 26 };
     var hand = { on: false, loading: false, denied: false, paused: false, stream: null, video: null, lm: null,
       cal: { done: false, samples: [], t0: 0 }, box: null, ext: { l: 0, r: 0, t: 0, b: 0 }, sizeS: 0, calCount: 0,
@@ -1159,7 +1159,7 @@ html.touch-paging .cards{touch-action:pan-x}
     function segOK(m, now){                                                        /* 이 구간이 긋기 기준을 넘는가 */
       var dy = (m.ly - m.sy) / VH(), dx = (m.lx - m.sx) / VW(), ease = dy < 0 ? HCFG.upEase : 1;   /* 위로 긋기는 중력 반대라 느리고 짧다 → 기준 완화 */
       var away = Math.abs(m.ly - hand.restY) >= Math.abs(m.sy - hand.restY) + HCFG.awayMin * VH();
-      var ok = away && Math.abs(dy) > HCFG.strokeDist * ease && m.peak > HCFG.strokeVel * ease && Math.abs(dy) > Math.abs(dx) * HCFG.strokeRatio && (dy > 0 ? 1 : -1) === m.dir && now - m.t0 < HCFG.strokeMaxMs + 400;
+      var ok = away && Math.abs(dy) > HCFG.strokeDist * ease && m.peak > HCFG.strokeVel * ease && Math.abs(dy) > Math.abs(dx) * HCFG.strokeRatio && (dy > 0 ? 1 : -1) === m.dir && now - m.t0 >= HCFG.strokeMinMs && now - m.t0 < HCFG.strokeMaxMs + 400;
       if (hand.trace) hand.trace.push({ dy: +dy.toFixed(3), peak: +m.peak.toFixed(2), away: away, rest: +(hand.restY / VH()).toFixed(2), sy: +(m.sy / VH()).toFixed(2), ly: +(m.ly / VH()).toFixed(2), dir: m.dir, ok: ok });
       return ok ? Math.abs(dy) : 0;
     }
