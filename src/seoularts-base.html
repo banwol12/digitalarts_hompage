@@ -132,6 +132,20 @@ a.card:hover{background:var(--surface-warm);color:var(--text-body)}
 .site-header{position:fixed;inset:0 0 auto 0;z-index:30;height:var(--hdr);border-bottom:1px solid var(--border-hairline);background:var(--surface-page);transition:background-color var(--duration-slow) var(--ease),color var(--duration-slow) var(--ease),opacity .7s var(--ease) .35s,transform .7s var(--ease) .35s}
 html.booting .site-header{opacity:0;transform:translateY(-10px);pointer-events:none}
 .progress{transition:opacity .7s var(--ease) .6s}
+/* 손 조작 (카메라 손 추적) */
+.hdr-actions{display:flex;gap:var(--space-8);align-items:center;justify-self:end}
+.hand-btn .dot{width:6px;height:6px;background:var(--border-strong);display:inline-block;margin-left:8px;transition:background-color .3s}
+.hand-btn[aria-pressed="true"] .dot{background:#F4FF53}
+.hand-btn.is-busy .dot{animation:handblink .9s infinite}
+@keyframes handblink{50%{opacity:.15}}
+.hand-cursor{position:fixed;left:-8px;top:-8px;width:16px;height:16px;border:2px solid #F4FF53;background:rgba(244,255,83,.22);z-index:40;pointer-events:none;opacity:0;transition:opacity .2s,width .15s,height .15s,background-color .15s;will-change:transform}
+.hand-cursor.is-on{opacity:1}
+.hand-cursor.is-pinch{background:#F4FF53;width:11px;height:11px}
+.hand-mini{position:fixed;right:var(--space-24);bottom:var(--space-24);width:120px;height:90px;z-index:30;border:1px solid var(--border-hairline);background:#000;opacity:0;transition:opacity .3s;pointer-events:none}
+html.hand-on .hand-mini{opacity:1}
+.hand-note{position:fixed;left:50%;bottom:var(--space-32);transform:translateX(-50%);z-index:30;max-width:min(92vw,600px);text-align:center;font:500 12px/1.5 var(--font-core);letter-spacing:.02em;color:#F4FF53;background:rgba(0,0,0,.72);padding:8px 14px;opacity:0;transition:opacity .3s;pointer-events:none}
+.hand-note.is-on{opacity:1}
+@media (max-width:799px){.hand-btn,.hand-mini,.hand-note{display:none}}
 html.booting .progress{opacity:0}
 .site-header .row{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:var(--space-24);height:64px}
 .site-header .row>.brand{justify-self:start}
@@ -312,7 +326,7 @@ html.touch-paging .cards{touch-action:pan-x}
     <nav class="site-nav" aria-label="주요 메뉴">
       <a href="#c1" data-ch="1">전공소개</a><a href="#c2" data-ch="2">교육과정</a><a href="#c3" data-ch="3">디지털아트전공</a><a href="#c4" data-ch="4">포트폴리오</a><a href="#c5" data-ch="5">입학안내</a>
     </nav>
-    <a class="btn sm primary" href="https://www.seoularts.ac.kr/web/cop/bbsWeb/selectBoardList.do?bbsId=BBSMSTR_000000000924" target="_blank" rel="noopener">입학안내 <svg class="i"><use href="#arrow-up-right"/></svg></a>
+    <div class="hdr-actions"><button class="btn sm secondary hand-btn" id="handBtn" type="button" aria-pressed="false" title="카메라로 손을 추적해 손끝으로 조작합니다. 영상은 브라우저 밖으로 나가지 않습니다">손 조작<span class="dot" aria-hidden="true"></span></button><a class="btn sm primary" href="https://www.seoularts.ac.kr/web/cop/bbsWeb/selectBoardList.do?bbsId=BBSMSTR_000000000924" target="_blank" rel="noopener">입학안내 <svg class="i"><use href="#arrow-up-right"/></svg></a></div>
   </div>
   <nav class="shell subnav" aria-label="챕터 메뉴">
     <a href="#c1" data-ch="1">전공소개</a><a href="#c2" data-ch="2">교육과정</a><a href="#c3" data-ch="3">디지털아트전공</a><a href="#c4" data-ch="4">포트폴리오</a><a href="#c5" data-ch="5">입학안내</a>
@@ -426,6 +440,9 @@ html.touch-paging .cards{touch-action:pan-x}
     </footer>
   </section>
 </main>
+<div class="hand-cursor" id="handCursor" aria-hidden="true"></div>
+<canvas class="hand-mini" id="handMini" width="240" height="180" aria-hidden="true"></canvas>
+<div class="hand-note" id="handNote" role="status" aria-live="polite"></div>
 
 <script>
 (function(){
@@ -902,6 +919,110 @@ html.touch-paging .cards{touch-action:pan-x}
     document.addEventListener('touchmove', function(e){ if (!play.drag) return; var tt = e.touches[0]; dragMove(tt.clientX, tt.clientY); if (e.cancelable) e.preventDefault(); }, { passive: false });
     document.addEventListener('touchend', function(){ if (play.drag) dragEnd(); }, { passive: true });
     document.addEventListener('touchcancel', function(){ if (play.drag) dragEnd(); }, { passive: true });
+
+    /* ── 손 조작: 카메라로 손을 추적한다 (MediaPipe Hands, 모두 브라우저 안에서 처리 — 영상은 어디로도 보내지 않는다).
+       검지 끝 = 커서, 엄지·검지 집기 = 클릭·잡기(02 챕터 코드 조각 던지기), 펼친 손을 휙 올리고 내리기 = 다음·이전 챕터.
+       들어오자마자 카메라 권한을 묻는다 — "왜 묻지?" 하는 호기심이 입구 (사용자 요청). 거절하면 조용히 넘어가고 헤더의 '손 조작' 버튼으로 나중에 켤 수 있다 ── */
+    var hand = { on: false, loading: false, denied: false, stream: null, video: null, lm: null, cur: { x: -100, y: -100 }, seen: false, lostT: 0,
+      pinch: false, pinchAt: 0, pinchMove: 0, px: 0, py: 0, drag: false, palmY: null, palmT: 0, lastSwipe: 0, lastDetect: -1 };
+    var handBtn = document.getElementById('handBtn'), handCursor = document.getElementById('handCursor'), handNote = document.getElementById('handNote'), handMini = document.getElementById('handMini');
+    var HAND_OK = !STATIC && !MOBILE() && !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+    var MP = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.21', MP_MODEL = 'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task';
+    var BONES = [[0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],[5,9],[9,10],[10,11],[11,12],[9,13],[13,14],[14,15],[15,16],[13,17],[17,18],[18,19],[19,20],[0,17]];
+    function note(msg, ms){ if (!handNote) return; handNote.textContent = msg; handNote.classList.add('is-on'); clearTimeout(note.t); if (ms) note.t = setTimeout(function(){ handNote.classList.remove('is-on'); }, ms); }
+    function makeLandmarker(mp, delegate){
+      return mp.FilesetResolver.forVisionTasks(MP + '/wasm').then(function(fs){
+        return mp.HandLandmarker.createFromOptions(fs, { baseOptions: { modelAssetPath: MP_MODEL, delegate: delegate }, runningMode: 'VIDEO', numHands: 1, minHandDetectionConfidence: 0.6, minHandPresenceConfidence: 0.5, minTrackingConfidence: 0.5 });
+      });
+    }
+    function handStart(){
+      if (!HAND_OK || hand.on || hand.loading) return;
+      hand.loading = true; if (handBtn) handBtn.classList.add('is-busy');
+      navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } }, audio: false }).then(function(stream){
+        hand.stream = stream; var v = document.createElement('video'); v.setAttribute('playsinline', ''); v.muted = true; v.autoplay = true; v.srcObject = stream; hand.video = v;
+        return v.play().then(function(){ return import(MP + '/vision_bundle.mjs'); });
+      }).then(function(mp){
+        return makeLandmarker(mp, 'GPU').catch(function(){ return makeLandmarker(mp, 'CPU'); });
+      }).then(function(lm){
+        hand.lm = lm; hand.on = true; hand.loading = false; document.documentElement.classList.add('hand-on');
+        if (handBtn) { handBtn.classList.remove('is-busy'); handBtn.setAttribute('aria-pressed', 'true'); }
+        note('카메라를 향해 손을 들어 보세요. 검지 끝이 커서가 되고, 엄지와 검지를 집으면 클릭, 펼친 손을 휙 올리고 내리면 챕터가 넘어갑니다. 영상은 이 브라우저 밖으로 나가지 않습니다.', 10000);
+        requestAnimationFrame(handLoop);
+      }).catch(function(err){
+        hand.loading = false; if (handBtn) handBtn.classList.remove('is-busy');
+        if (err && (err.name === 'NotAllowedError' || err.name === 'SecurityError' || err.name === 'NotFoundError')) hand.denied = true; else if (window.console) console.warn('hand mode', err);
+        handStop();
+      });
+    }
+    function handStop(){
+      if (hand.stream) hand.stream.getTracks().forEach(function(tr){ tr.stop(); });
+      hand.stream = null; hand.on = false; hand.seen = false; document.documentElement.classList.remove('hand-on');
+      if (handBtn) handBtn.setAttribute('aria-pressed', 'false'); if (handCursor) handCursor.classList.remove('is-on');
+      if (hand.drag) { dragEnd(); hand.drag = false; } hand.pinch = false;
+    }
+    function handLoop(now){
+      if (!hand.on) return;
+      var v = hand.video;
+      if (introDone && !document.hidden && v && v.readyState >= 2 && now - hand.lastDetect > 28) {
+        hand.lastDetect = now;
+        var res = null; try { res = hand.lm.detectForVideo(v, now); } catch (e) {}
+        var L = res && res.landmarks && res.landmarks[0];
+        if (L) handUpdate(L, now); else handLost(now);
+        drawMini(L);
+      }
+      requestAnimationFrame(handLoop);
+    }
+    function handUpdate(L, now){
+      var tip = L[8], thumb = L[4], palm = L[9], wrist = L[0], mid = L[12];
+      var nx = Math.max(0, Math.min(1, (1 - tip.x - 0.15) / 0.7)), ny = Math.max(0, Math.min(1, (tip.y - 0.12) / 0.7));   /* 거울 좌표, 프레임 가운데 70% 가 화면 전체 */
+      var tx = nx * VW(), ty = ny * VH();
+      if (!hand.seen) { hand.seen = true; hand.cur.x = tx; hand.cur.y = ty; }
+      hand.cur.x += (tx - hand.cur.x) * 0.45; hand.cur.y += (ty - hand.cur.y) * 0.45; hand.lostT = 0;
+      if (handCursor) { handCursor.style.transform = 'translate(' + hand.cur.x.toFixed(1) + 'px,' + hand.cur.y.toFixed(1) + 'px)'; handCursor.classList.add('is-on'); }
+      var size = Math.hypot(L[5].x - L[17].x, L[5].y - L[17].y) || 0.1;                 /* 손바닥 너비 = 거리 기준 */
+      var pd = Math.hypot(thumb.x - tip.x, thumb.y - tip.y) / size;
+      var pinching = hand.pinch ? pd < 0.6 : pd < 0.42;
+      if (pinching && !hand.pinch) {
+        hand.pinch = true; hand.pinchAt = now; hand.pinchMove = 0; hand.px = hand.cur.x; hand.py = hand.cur.y;
+        if (dragStart(hand.cur.x, hand.cur.y)) hand.drag = true;
+        if (handCursor) handCursor.classList.add('is-pinch');
+      } else if (pinching) {
+        hand.pinchMove = Math.max(hand.pinchMove, Math.hypot(hand.cur.x - hand.px, hand.cur.y - hand.py));
+        if (hand.drag) dragMove(hand.cur.x, hand.cur.y);
+      } else if (hand.pinch) {
+        hand.pinch = false; if (handCursor) handCursor.classList.remove('is-pinch');
+        if (hand.drag) { dragEnd(); hand.drag = false; }
+        else if (hand.pinchMove < 28 && now - hand.pinchAt < 900) { var el = document.elementFromPoint(hand.cur.x, hand.cur.y); var a = el && el.closest ? el.closest('a, button') : null; if (a) a.click(); }
+      }
+      if (hand.palmY !== null) {
+        var dt = Math.max(0.016, (now - hand.palmT) / 1000), vy = (palm.y - hand.palmY) / dt;      /* 프레임 높이/초 */
+        var open = pd > 0.7 && Math.hypot(mid.x - wrist.x, mid.y - wrist.y) > size * 1.5;
+        if (open && !hand.pinch && now - hand.lastSwipe > 900 && Math.abs(vy) > 1.7) { hand.lastSwipe = now; goTo(active + (vy < 0 ? 1 : -1)); }
+      }
+      hand.palmY = palm.y; hand.palmT = now;
+    }
+    function handLost(now){
+      if (!hand.seen) return;
+      if (!hand.lostT) hand.lostT = now;
+      if (now - hand.lostT > 350) { hand.seen = false; hand.palmY = null; if (handCursor) { handCursor.classList.remove('is-on'); handCursor.classList.remove('is-pinch'); } if (hand.pinch) { hand.pinch = false; if (hand.drag) { dragEnd(); hand.drag = false; } } }
+    }
+    var miniCtx = handMini && handMini.getContext ? handMini.getContext('2d') : null;
+    function drawMini(L){
+      if (!miniCtx) return; var w = handMini.width, h = handMini.height;
+      miniCtx.fillStyle = '#000'; miniCtx.fillRect(0, 0, w, h);
+      if (!L) { miniCtx.fillStyle = 'rgba(243,243,243,.25)'; for (var gx = 8; gx < w; gx += 24) for (var gy = 8; gy < h; gy += 24) miniCtx.fillRect(gx, gy, 2, 2); return; }
+      miniCtx.strokeStyle = 'rgba(244,255,83,.8)'; miniCtx.lineWidth = 2; miniCtx.beginPath();
+      for (var b2 = 0; b2 < BONES.length; b2++) { var A = L[BONES[b2][0]], B = L[BONES[b2][1]]; miniCtx.moveTo((1 - A.x) * w, A.y * h); miniCtx.lineTo((1 - B.x) * w, B.y * h); }
+      miniCtx.stroke(); miniCtx.fillStyle = '#F4FF53';
+      for (var q = 0; q < L.length; q++) { var sz2 = (q === 4 || q === 8) ? 6 : 3; miniCtx.fillRect((1 - L[q].x) * w - sz2 / 2, L[q].y * h - sz2 / 2, sz2, sz2); }
+    }
+    if (handBtn) handBtn.addEventListener('click', function(){
+      if (hand.on) { handStop(); note('손 조작을 껐습니다.', 2500); return; }
+      if (hand.denied) note('브라우저 주소창의 카메라 아이콘에서 이 사이트를 허용으로 바꾼 뒤 다시 눌러 주세요.', 6000);
+      hand.denied = false; handStart();
+    });
+    if (HAND_OK) handStart();                                                       /* 들어오자마자 권한을 묻는다 */
+    if (/[?&]debug=1/.test(location.search)) window.__hand = hand;
 
     /* ── 챕터 활성화: 뷰포트 중심선이 들어 있는 챕터 ── */
     var body = document.body, links = document.querySelectorAll('[data-ch]');
