@@ -140,12 +140,20 @@ html.booting .site-header{opacity:0;transform:translateY(-10px);pointer-events:n
 .hand-btn[aria-pressed="true"] .dot{background:#F4FF53}
 .hand-btn.is-busy .dot{animation:handblink .9s infinite}
 @keyframes handblink{50%{opacity:.15}}
-.hand-cursor{position:fixed;left:-8px;top:-8px;width:16px;height:16px;border:2px solid #F4FF53;background:rgba(244,255,83,.22);box-shadow:0 0 0 1px rgba(0,0,0,.55);z-index:40;pointer-events:none;opacity:0;transition:opacity .2s,width .15s,height .15s,background-color .15s;will-change:transform}
+.hand-cursor{position:fixed;left:-8px;top:-8px;width:16px;height:16px;border:2px solid #F4FF53;background:rgba(244,255,83,.22);box-shadow:0 0 0 1px rgba(0,0,0,.55);z-index:40;pointer-events:none;opacity:0;transition:opacity .2s,background-color .15s;will-change:transform;--depth:0;--grip:0}
 .hand-cursor.is-on{opacity:1}
-.hand-cursor.is-hover{width:22px;height:22px;left:-11px;top:-11px;background:rgba(244,255,83,.4)}
-.hand-cursor.is-pinch{background:#F4FF53;width:11px;height:11px;left:-5.5px;top:-5.5px}
+.hand-cursor::before{content:"";position:absolute;left:50%;top:50%;width:calc(44px - 28px * var(--depth));height:calc(44px - 28px * var(--depth));transform:translate(-50%,-50%);border:1px solid rgba(244,255,83,.55);pointer-events:none}   /* 깊이 링: 손을 밀수록 작아진다 */
+.hand-cursor.is-hover{background:rgba(244,255,83,.45)}
+.hand-cursor.is-press{background:#fff;border-color:#fff}
+.hand-cursor.is-press::before{display:none}
+.hand-cursor.is-dwell::after{content:"";position:absolute;left:50%;top:50%;width:30px;height:30px;transform:translate(-50%,-50%);border-radius:50%;background:conic-gradient(#F4FF53 0 var(--a,0%),transparent 0);-webkit-mask:radial-gradient(circle,transparent 11px,#000 12px);mask:radial-gradient(circle,transparent 11px,#000 12px);animation:handdwell 1s linear forwards}   /* 머무름 링 */
+@property --a{syntax:'<percentage>';inherits:false;initial-value:0%}
+@keyframes handdwell{from{--a:0%}to{--a:100%}}
 .hand-cursor.is-click{animation:handclick .35s ease-out}
 @keyframes handclick{0%{box-shadow:0 0 0 1px rgba(0,0,0,.55),0 0 0 0 rgba(244,255,83,.9)}100%{box-shadow:0 0 0 1px rgba(0,0,0,.55),0 0 0 22px rgba(244,255,83,0)}}
+.hand-cursor.is-grip{width:22px;height:22px;left:-11px;top:-11px;border-radius:50%;background:rgba(244,255,83,.15)}
+.hand-cursor.is-grip::before{display:none}
+.hand-cursor.is-grip::after{content:"";position:absolute;left:50%;top:50%;width:4px;height:calc(60px * max(var(--grip), -1 * var(--grip)));transform:translate(-50%,calc(-50% - 30px * var(--grip)));background:#F4FF53;pointer-events:none}   /* 쥐고 움직인 거리 */
 .hand-hover{outline:2px solid #F4FF53!important;outline-offset:3px}
 .hand-mini{position:fixed;right:var(--space-24);bottom:var(--space-24);width:120px;height:90px;z-index:30;border:1px solid var(--border-hairline);background:#000;opacity:0;transition:opacity .3s;pointer-events:none}
 html.hand-on .hand-mini{opacity:1}
@@ -569,6 +577,13 @@ html.touch-paging .cards{touch-action:pan-x}
   if (canvas && canvas.getContext) {
     var ctxMain = canvas.getContext('2d'), ctx = ctxMain, off = document.createElement('canvas'), octx = off.getContext('2d');
     var HS = 0.47;
+    /* 프레임마다 다시 만들지 않는 버퍼: 꼭짓점·면 조명·정렬 순서·상자 기록 */
+    var PX = new Float32Array(8), PY = new Float32Array(8), RX = new Float32Array(8), RY = new Float32Array(8), RZ = new Float32Array(8);
+    var FNX = new Float32Array(6), FNY = new Float32Array(6), FNZ = new Float32Array(6), FR = new Float32Array(6), FG = new Float32Array(6), FB = new Float32Array(6);
+    var RECS = [], ORDER; for (var ri0 = 0; ri0 < N; ri0++) RECS.push({ z: 0, a: 1, px: 0, py: 0, pz: 0, dep: 1, szf: 1 }); ORDER = new Uint16Array(N);
+    var colCache = new Map();                                                     /* 색 문자열 캐시 (채널 64단계): 프레임마다 수천 개 문자열을 만들지 않는다 */
+    function colStr(r, g2, b2){ var ri = (r + 2) >> 2, gi = (g2 + 2) >> 2, bi = (b2 + 2) >> 2; if (ri > 63) ri = 63; if (gi > 63) gi = 63; if (bi > 63) bi = 63; if (ri < 0) ri = 0; if (gi < 0) gi = 0; if (bi < 0) bi = 0; var key = (ri << 12) | (gi << 6) | bi; var st = colCache.get(key); if (!st) { st = 'rgb(' + (ri << 2) + ',' + (gi << 2) + ',' + (bi << 2) + ')'; colCache.set(key, st); } return st; }
+    var textW = new Map();                                                        /* 코드 조각 글자 폭 캐시 */
     /* 큐브 꼭짓점 8개: k 비트 → (x,y,z) 부호. 면과 모서리는 꼭짓점 인덱스로 정의 */
     var CORN = []; for (var k = 0; k < 8; k++) CORN.push([(k & 1) ? 1 : -1, (k & 2) ? 1 : -1, (k & 4) ? 1 : -1]);
     var FACES = [ { n:[0,0,-1], v:[0,1,3,2] }, { n:[0,0,1], v:[4,5,7,6] }, { n:[1,0,0], v:[1,5,7,3] }, { n:[-1,0,0], v:[0,4,6,2] }, { n:[0,-1,0], v:[0,1,5,4] }, { n:[0,1,0], v:[2,3,7,6] } ];
@@ -581,9 +596,9 @@ html.touch-paging .cards{touch-action:pan-x}
     function easeOut(p){ return 1 - Math.pow(1 - p, 3); }
 
     var W = 0, H = 0, DPR = 1, SHELL = 0;
-    var dprCap = Math.min(window.devicePixelRatio || 1, 3), fAcc = 0, fN = 0, fLast = 0;
+    var dprCap = Math.min(window.devicePixelRatio || 1, 2), fAcc = 0, fN = 0, fLast = 0, lowRes = false;
     function resize(){
-      DPR = Math.min(window.devicePixelRatio || 1, dprCap);
+      DPR = Math.min(window.devicePixelRatio || 1, dprCap, lowRes ? 1.5 : 9);
       var sc = canvas.parentNode.getBoundingClientRect();
       W = Math.max(1, Math.round(sc.width || VW())); H = Math.max(1, Math.round(sc.height || VH()));
       canvas.width = Math.round(W * DPR); canvas.height = Math.round(H * DPR); canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
@@ -765,14 +780,10 @@ html.touch-paging .cards{touch-action:pan-x}
         var fpx = Math.max(11, sz * 1.9) * (b.held ? 1.18 : 1);
         ctx.font = '500 ' + fpx + 'px ui-monospace, Menlo, Consolas, monospace'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
         var parts = b.parts || [[b.token, VS.vari]], total = 0, widths = [];
-        for (var pi = 0; pi < parts.length; pi++) { var pw = ctx.measureText(parts[pi][0]).width; widths.push(pw); total += pw; }
+        var fk = (fpx * 2 | 0); for (var pi = 0; pi < parts.length; pi++) { var wkey = parts[pi][0] + '|' + fk, pw = textW.get(wkey); if (pw === undefined) { pw = ctx.measureText(parts[pi][0]).width; textW.set(wkey, pw); } widths.push(pw); total += pw; }
         b.sx = X; b.sy = Y; b.sw = total; b.sh = fpx * 1.15; b.pox = b.ox || 0; b.poy = b.oy || 0; if (alpha > 0.5) b.seenT = sceneT;
         var cx2 = X - total / 2;
         for (var pj = 0; pj < parts.length; pj++) { ctx.fillStyle = parts[pj][1]; ctx.fillText(parts[pj][0], cx2, Y); cx2 += widths[pj]; }
-      } else if (b.kind === 'wire') {
-        ctx.strokeStyle = rgb(pal.light); ctx.beginPath();
-        for (var e = 0; e < 12; e++) { var A = P[EDGES[e][0]], B = P[EDGES[e][1]]; ctx.moveTo(A[0], A[1]); ctx.lineTo(B[0], B[1]); }
-        ctx.stroke();
       } else if (b.kind === 'tri') {
         ctx.strokeStyle = rgb(pal.light); ctx.beginPath();
         for (var q = 0; q < 3; q++) { var an = b.rot + q * 2.094, rr = sz * (1.1 + (q === 1 ? 0.5 : 0)); var px = X + Math.cos(an) * rr, py = Y + Math.sin(an) * rr; if (q) ctx.lineTo(px, py); else ctx.moveTo(px, py); }
@@ -794,12 +805,17 @@ html.touch-paging .cards{touch-action:pan-x}
       }
     }
 
-    var PERF = /[?&]perf=1/.test(location.search), perfLog = [];
+    var PERF = /[?&]perf=1/.test(location.search), perfLog = [], frameNo = 0;
     if (PERF) window.__perf = perfLog;
     function render(now){
       var p0 = PERF ? performance.now() : 0;
       watchFrames(now);
       var t = (now - start) / 1000; sceneT = t;
+      /* 바쁠 때(챕터 전환·인트로)는 캔버스 해상도를 1.5배로 낮추고, 조용한 챕터는 초당 30장만 그린다 */
+      var busy = !!(gFrom && gTo) || !introDone, wantLow = busy && dprCap > 1.5;
+      if (wantLow !== lowRes) { lowRes = wantLow; resize(); }
+      var calm = !STATIC && !busy && !play.on && !(hand.on && hand.seen) && active !== 0 && g.flow < 0.01;
+      frameNo++; if (calm && (frameNo & 1)) { requestAnimationFrame(render); return; }
       if (play.on) updatePlay(t);
       if (gFrom && gTo) { var gp = Math.min(1, (t - gT0) / gDur), ge = easeOut(gp); for (var key in gTo) g[key] = gFrom[key] + (gTo[key] - gFrom[key]) * ge; if (gp >= 1) gFrom = gTo = null; }
       spinAcc += g.spin * (t - lastSpin); lastSpin = t;
@@ -842,12 +858,20 @@ html.touch-paging .cards{touch-action:pan-x}
         ctx.globalAlpha = 1;
       } else if (introDone && dots.length) { dots = []; }
 
-      var list = [];
+      /* 프레임 상수: 면 6개의 회전된 법선과 조명은 모든 상자에 같다 → 한 번만 계산 (전에는 상자마다 6번, 3,000번 넘게 반복) */
+      for (var f0 = 0; f0 < 6; f0++) {
+        var fnn = FACES[f0].n, fnx1 = fnn[0] * cy + fnn[2] * sy, fnz1 = -fnn[0] * sy + fnn[2] * cy, fny2 = fnn[1] * cp - fnz1 * sp, fnz2 = fnn[1] * sp + fnz1 * cp;
+        FNX[f0] = fnx1; FNY[f0] = fny2; FNZ[f0] = fnz2;
+        var flam = Math.max(0, fnx1 * L[0] + fny2 * L[1] + fnz2 * L[2]);
+        var fc = mix(pal.dark, pal.mid, Math.min(1, 0.25 + flam * 0.9)); fc = mix(fc, pal.light, Math.pow(flam, 3) * 0.75); fc = mix(fc, pal.light, Math.max(0, -fny2) * 0.12);
+        FR[f0] = fc[0]; FG[f0] = fc[1]; FB[f0] = fc[2];
+      }
+      var nVis = 0, hasLive = g.live > 0.01, hasFlow = g.flow > 0.01;
       for (var i = 0; i < N; i++) {
         var b = boxes[i];
         var p = Math.max(0, Math.min(1, (t - b.t0) / b.dur));
         if (b.from && b.to) { var e = b.back ? (p < 0.5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2) : easeOut(p); b.cur.x = b.from.x + (b.to.x - b.from.x) * e; b.cur.y = b.from.y + (b.to.y - b.from.y) * e; b.cur.z = b.from.z + (b.to.z - b.from.z) * e; b.m = b.mFrom + (b.mTo - b.mFrom) * e; }
-        var alpha = 1, dep = 1, szf = 1;
+        var alpha = 1, dep = 1, szf = 1, lx = 0, ly = 0, lz = 0;
         if (!introDone && b.back) {
           if (t < b.tw) alpha = 0;
           else if (t < b.t0) alpha = Math.min(0.9, (t - b.tw) * 2.2) * (0.8 + 0.2 * Math.sin(t * 5 + b.seed * 20));   /* 떠오르며 반짝인다 */
@@ -858,87 +882,95 @@ html.touch-paging .cards{touch-action:pan-x}
           if (fl > 0) { lx += Math.sin(t * 0.9 + b.seed * 6.283) * 0.8 * fl; ly += Math.cos(t * 0.7 + b.seed2 * 6.283) * 0.8 * fl; lz += Math.sin(t * 1.1 + b.seed * 3) * 1.6 * fl; }
           if (alpha <= 0) continue;
         }
-        var bob = g.flow > 0.01 ? Math.sin(t * 1.4 + b.fc * 0.35 + b.fr * 0.6) * 0.5 * g.flow : 0;
-        var lv = g.live, lx = 0, ly = 0, lz = 0;
-        if (lv > 0.01) { lz = (Math.sin(t * 0.9 + b.seed * 6.283) * 0.06 + Math.sin(t * 0.45 + b.gx * 0.3 + b.gy * 0.18) * 0.06) * lv; lx = Math.sin(t * 0.7 + b.seed2 * 6.283) * 0.018 * lv; ly = Math.cos(t * 0.8 + b.seed * 6.283) * 0.018 * lv; }
+        var bob = hasFlow ? Math.sin(t * 1.4 + b.fc * 0.35 + b.fr * 0.6) * 0.5 * g.flow : 0;
+        if (hasLive) { var lv = g.live; lz += (Math.sin(t * 0.9 + b.seed * 6.283) * 0.06 + Math.sin(t * 0.45 + b.gx * 0.3 + b.gy * 0.18) * 0.06) * lv; lx += Math.sin(t * 0.7 + b.seed2 * 6.283) * 0.018 * lv; ly += Math.cos(t * 0.8 + b.seed * 6.283) * 0.018 * lv; }
         var px = (b.cur.x + lx) * S, py = (b.cur.y + ly) * S, pz = (b.cur.z + bob + lz) * S;
         var z1 = -px * sy + pz * cy; var z2 = py * sp + z1 * cp;
-        list.push({ b: b, z: (b.held || b.thrown) ? -1e9 : z2, a: alpha, px: px, py: py, pz: pz, i: i, dep: dep, szf: szf });   /* 잡은·던진 조각은 맨 위에 */
+        var rc = RECS[i]; rc.z = (b.held || b.thrown) ? -1e9 : z2; rc.a = alpha; rc.px = px; rc.py = py; rc.pz = pz; rc.dep = dep; rc.szf = szf;   /* 잡은·던진 조각은 맨 위에 */
+        ORDER[nVis++] = i;
       }
-      list.sort(function(a, b){ return b.z - a.z; });
-      for (var k2 = 0; k2 < list.length; k2++) {
-        var it = list[k2], bx = it.b, hz = bx.h * S * it.dep, hs = HS * S * it.szf;
-        /* 꼭짓점 8개 회전·투영 */
-        var P = new Array(8), RZ = new Array(8), RX = new Array(8), RY = new Array(8);
-        for (var q = 0; q < 8; q++) {
-          var v = CORN[q], vx = it.px + v[0] * hs, vy = it.py + v[1] * hs, vz = it.pz + v[2] * hz;
-          var ax = vx * cy + vz * sy, az = -vx * sy + vz * cy, ay = vy * cp - az * sp, az2 = vy * sp + az * cp;
-          var sc = F / (az2 + D); P[q] = [OX + ax * sc, OY + ay * sc]; RX[q] = ax; RY[q] = ay; RZ[q] = az2;
-        }
+      var ordArr = ORDER.subarray(0, nVis); ordArr.sort(function(a, b2){ return RECS[b2].z - RECS[a].z; });
+      var margin = 60, fogA = pal.fog[0], fogB = pal.fog[1], fogC = pal.fog[2], liA = pal.light[0], liB = pal.light[1], liC = pal.light[2], skA = pal.sky[0], skB = pal.sky[1], skC = pal.sky[2];
+      var lastStyle = null;
+      for (var k2 = 0; k2 < nVis; k2++) {
+        var it = RECS[ordArr[k2]], bx = boxes[ordArr[k2]], hz = bx.h * S * it.dep, hs = HS * S * it.szf;
         var cx0 = it.px * cy + it.pz * sy, cz0 = -it.px * sy + it.pz * cy, cy0 = it.py * cp - cz0 * sp, cz1 = it.py * sp + cz0 * cp;
         var scC = F / (cz1 + D), X = OX + cx0 * scC, Y = OY + cy0 * scC, sz = hs * scC;
-        var m = bx.m, glow = boost[it.i] * g.flow;
+        if (X < -margin || X > W + margin || Y < -margin || Y > H + margin) continue;              /* 화면 밖은 그리지 않는다 */
+        var m = bx.m, glow = boost[ordArr[k2]] * g.flow;
         if (m < 0.999) {
+          /* 꼭짓점 8개 회전·투영 (재사용 버퍼) */
+          for (var q = 0; q < 8; q++) {
+            var v = CORN[q], vx = it.px + v[0] * hs, vy = it.py + v[1] * hs, vz = it.pz + v[2] * hz;
+            var ax = vx * cy + vz * sy, az = -vx * sy + vz * cy, ay = vy * cp - az * sp, az2 = vy * sp + az * cp;
+            var sc = F / (az2 + D); PX[q] = OX + ax * sc; PY[q] = OY + ay * sc; RX[q] = ax; RY[q] = ay; RZ[q] = az2;
+          }
+          /* 상자 단위 색 보정: 안개(깊이)·빛 띠·데이터 패킷·살아있는 반짝임 */
+          var fog = Math.max(0, Math.min(1, (cz1 + 18) / 40)) * 0.3;
+          var sd = (bx.cur.x * sweepC + bx.cur.y * sweepS) - sweepPos; var band = Math.exp(-sd * sd / 26) * 0.16; if (band < 0.01) band = 0;
+          var flk = 0; if (hasLive) { flk = Math.pow(Math.max(0, Math.sin(t * 1.1 + bx.seed * 40 + bx.gx * 0.5 - bx.gy * 0.3)), 22) * 0.32 * g.live; if (flk < 0.01) flk = 0; }
           ctx.globalAlpha = it.a * (1 - m) * GA;
           for (var f = 0; f < 6; f++) {
-            var face = FACES[f], nx = face.n[0], ny = face.n[1], nz = face.n[2];
-            var nx1 = nx * cy + nz * sy, nz1 = -nx * sy + nz * cy, ny2 = ny * cp - nz1 * sp, nz2 = ny * sp + nz1 * cp;
-            var fv = face.v, fcx = (RX[fv[0]] + RX[fv[1]] + RX[fv[2]] + RX[fv[3]]) / 4, fcy = (RY[fv[0]] + RY[fv[1]] + RY[fv[2]] + RY[fv[3]]) / 4, fcz = (RZ[fv[0]] + RZ[fv[1]] + RZ[fv[2]] + RZ[fv[3]]) / 4;
-            if (nx1 * fcx + ny2 * fcy + nz2 * (fcz + D) >= 0) continue;
-            var lam = Math.max(0, nx1 * L[0] + ny2 * L[1] + nz2 * L[2]);
-            var col = mix(pal.dark, pal.mid, Math.min(1, 0.25 + lam * 0.9));
-            col = mix(col, pal.light, Math.pow(lam, 3) * 0.75);
-            col = mix(col, pal.light, Math.max(0, -ny2) * 0.12);
-            var fog = Math.max(0, Math.min(1, (fcz + 18) / 40));
-            col = mix(col, pal.fog, fog * 0.3);
-            var sd = (bx.cur.x * sweepC + bx.cur.y * sweepS) - sweepPos; var band = Math.exp(-sd * sd / 26) * 0.16; if (band > 0.01) col = mix(col, pal.light, band);
-            if (glow > 0.02) col = mix(col, pal.sky, Math.min(0.85, glow * (f === 1 || f === 0 ? 1 : 0.6)));
-            if (g.live > 0.01) { var fl = Math.pow(Math.max(0, Math.sin(t * 1.1 + bx.seed * 40 + bx.gx * 0.5 - bx.gy * 0.3)), 22) * 0.32 * g.live; if (fl > 0.01) col = mix(col, pal.light, fl); }
-            ctx.fillStyle = rgb(col); ctx.strokeStyle = ctx.fillStyle; ctx.lineWidth = 0.6;
-            ctx.beginPath(); ctx.moveTo(P[fv[0]][0], P[fv[0]][1]); ctx.lineTo(P[fv[1]][0], P[fv[1]][1]); ctx.lineTo(P[fv[2]][0], P[fv[2]][1]); ctx.lineTo(P[fv[3]][0], P[fv[3]][1]); ctx.closePath(); ctx.fill(); ctx.stroke();
+            var fv = FACES[f].v, i0 = fv[0], i1 = fv[1], i2 = fv[2], i3 = fv[3];
+            var fcx = (RX[i0] + RX[i1] + RX[i2] + RX[i3]) * 0.25, fcy = (RY[i0] + RY[i1] + RY[i2] + RY[i3]) * 0.25, fcz = (RZ[i0] + RZ[i1] + RZ[i2] + RZ[i3]) * 0.25;
+            if (FNX[f] * fcx + FNY[f] * fcy + FNZ[f] * (fcz + D) >= 0) continue;                    /* 뒷면 제거 */
+            var r = FR[f], gg = FG[f], bb = FB[f];
+            if (fog > 0) { r += (fogA - r) * fog; gg += (fogB - gg) * fog; bb += (fogC - bb) * fog; }
+            if (band > 0) { r += (liA - r) * band; gg += (liB - gg) * band; bb += (liC - bb) * band; }
+            if (glow > 0.02) { var gk = Math.min(0.85, glow * (f <= 1 ? 1 : 0.6)); r += (skA - r) * gk; gg += (skB - gg) * gk; bb += (skC - bb) * gk; }
+            if (flk > 0) { r += (liA - r) * flk; gg += (liB - gg) * flk; bb += (liC - bb) * flk; }
+            var st = colStr(r, gg, bb); if (st !== lastStyle) { ctx.fillStyle = st; lastStyle = st; }
+            /* 면을 0.35px 만큼 바깥으로 넓혀 이음새를 지운다 (전에는 면마다 stroke 를 한 번 더 그렸다) */
+            var mx = (PX[i0] + PX[i1] + PX[i2] + PX[i3]) * 0.25, my = (PY[i0] + PY[i1] + PY[i2] + PY[i3]) * 0.25;
+            ctx.beginPath();
+            for (var vq = 0; vq < 4; vq++) { var vi = fv[vq], ex = PX[vi] - mx, ey = PY[vi] - my, el = Math.max(2, Math.sqrt(ex * ex + ey * ey)), kk = 1 + 0.35 / el; if (vq) ctx.lineTo(mx + ex * kk, my + ey * kk); else ctx.moveTo(mx + ex * kk, my + ey * kk); }
+            ctx.closePath(); ctx.fill();
           }
         }
-        if (m > 0.001) { bx.drawK = k2; drawFragment(bx, X + (bx.ox || 0), Y + (bx.oy || 0), sz, P, it.a * m * GA, pal); }
+        if (m > 0.001) { bx.drawK = k2; drawFragment(bx, X + (bx.ox || 0), Y + (bx.oy || 0), sz, null, it.a * m * GA, pal); lastStyle = null; }
       }
       ctx.globalAlpha = 1;
       if (usingOff) { ctxMain.globalAlpha = g.alpha; ctxMain.drawImage(off, 0, 0); ctxMain.globalAlpha = 1; }
-      if (PERF && perfLog.length < 600) perfLog.push(+(performance.now() - p0).toFixed(2));
+      if (PERF) { perfLog.push(+(performance.now() - p0).toFixed(2)); if (perfLog.length > 600) perfLog.shift(); }   /* 검수용: 최근 600 프레임의 그리기 비용(ms) */
       if (!introDone && t > INTRO_T) introFinish();
       requestAnimationFrame(render);
     }
     function introFinish(){
       if (introDone) return;
       introDone = true; chapters[0].classList.add('is-ready'); document.documentElement.classList.remove('booting');
+      window.removeEventListener('wheel', lockWheel); window.removeEventListener('keydown', lockKeys);   /* 이제부터 스크롤은 브라우저가 알아서 (JS 를 기다리지 않는다) */
       if (pendingHash !== null) { var ph = pendingHash; pendingHash = null; setTimeout(function(){ goTo(ph); }, 450); }   /* #c3 같은 주소로 들어와도 인트로를 본 뒤에 그 챕터로 */
     }
     if (introReduce) introFinish(); else setTimeout(introFinish, 8000);   /* 탭이 가려져 프레임이 멈춰도 8초 뒤엔 풀린다 */
     /* 인트로가 끝나기 전에는 휠·키보드·터치로 넘어갈 수 없다 */
-    window.addEventListener('wheel', function(e){ if (!introDone && e.cancelable) e.preventDefault(); }, { passive: false });
-    window.addEventListener('keydown', function(e){ if (!introDone && [' ', 'PageDown', 'PageUp', 'ArrowDown', 'ArrowUp', 'End', 'Home'].indexOf(e.key) >= 0) e.preventDefault(); });
+    var lockWheel = function(e){ if (!introDone && e.cancelable) e.preventDefault(); }, lockKeys = function(e){ if (!introDone && [' ', 'PageDown', 'PageUp', 'ArrowDown', 'ArrowUp', 'End', 'Home'].indexOf(e.key) >= 0) e.preventDefault(); };
+    window.addEventListener('wheel', lockWheel, { passive: false });
+    window.addEventListener('keydown', lockKeys);
     requestAnimationFrame(render);
 
     function evOK(e){ var el = e.target && e.target.nodeType === 1 ? e.target : null; return !(el && el.closest && el.closest('a, button, input, textarea, select, .cards')); }
     document.addEventListener('mousedown', function(e){ if (e.button !== 0 || !evOK(e)) return; if (dragStart(e.clientX, e.clientY)) { e.preventDefault(); document.body.style.cursor = 'grabbing'; } });
     document.addEventListener('mousemove', function(e){ if (play.drag) { dragMove(e.clientX, e.clientY); return; } if (active === 2 && introDone && !TOUCH) document.body.style.cursor = codeAt(e.clientX, e.clientY) ? 'grab' : ''; });
     document.addEventListener('mouseup', function(){ if (play.drag) { dragEnd(); document.body.style.cursor = 'grab'; } });
-    document.addEventListener('touchstart', function(e){ if (!evOK(e)) return; var tt = e.touches[0]; dragStart(tt.clientX, tt.clientY); }, { passive: true });
-    document.addEventListener('touchmove', function(e){ if (!play.drag) return; var tt = e.touches[0]; dragMove(tt.clientX, tt.clientY); if (e.cancelable) e.preventDefault(); }, { passive: false });
-    document.addEventListener('touchend', function(){ if (play.drag) dragEnd(); }, { passive: true });
-    document.addEventListener('touchcancel', function(){ if (play.drag) dragEnd(); }, { passive: true });
+    var playTouchMove = function(e){ if (!play.drag) return; var tt = e.touches[0]; dragMove(tt.clientX, tt.clientY); if (e.cancelable) e.preventDefault(); };
+    var playTouchEnd = function(){ if (play.drag) dragEnd(); document.removeEventListener('touchmove', playTouchMove); document.removeEventListener('touchend', playTouchEnd); document.removeEventListener('touchcancel', playTouchEnd); };
+    document.addEventListener('touchstart', function(e){ if (!evOK(e)) return; var tt = e.touches[0]; if (dragStart(tt.clientX, tt.clientY)) { document.addEventListener('touchmove', playTouchMove, { passive: false }); document.addEventListener('touchend', playTouchEnd, { passive: true }); document.addEventListener('touchcancel', playTouchEnd, { passive: true }); } }, { passive: true });   /* 끌 때만 non-passive 리스너 */
 
     /* ── 손 조작: 카메라로 손을 추적한다 (MediaPipe Hands, 모두 브라우저 안에서 처리 — 영상은 어디로도 보내지 않는다).
-       검지 끝 = 커서, 엄지·검지 집기 = 클릭·잡기(02 챕터 코드 조각 던지기), 펼친 손을 휙 올리고 내리기 = 다음·이전 챕터.
        들어오자마자 카메라 권한을 묻는다 — "왜 묻지?" 하는 호기심이 입구 (사용자 요청). 거절하면 조용히 넘어가고 헤더의 '손 조작' 버튼으로 나중에 켤 수 있다.
-       사용성 (시뮬레이션으로 조정): 프레임 가운데 편한 상자만 화면 전체에 대응, 느리면 안정·빠르면 즉답하는 적응 스무딩 + 데드존,
-       집을 때 검지가 움직여 커서가 튀는 것을 막기 위해 집기 직전 위치를 클릭 지점으로 쓰고 집는 동안은 엄지·검지 중점의 이동만 따라간다,
-       휙 넘기기는 펼친 손 + 세로 큰 움직임 + 한 번 넘기면 손이 멈춘 뒤에야 다시 무장(되돌아오는 동작이 반대로 넘기지 않게) ── */
-    var HCFG = { box: { x0: 0.2, x1: 0.8, y0: 0.18, y1: 0.78 }, smoothMin: 0.12, smoothMax: 0.65, anchorMs: 120,
-      pinchOn: 0.38, pinchOff: 0.55, pinchFrames: 2, tapMove: 24, tapMs: 800, clickRadius: 18, deadZone: 1.6,
-      swipeDist: 0.2, swipeWin: 240, swipeRatio: 2.2, swipeCool: 700, settleV: 0.5, settleMs: 180, lostMs: 350, detectGap: 26 };
+       조작 모델 (사용자 녹화를 보고 다시 세움):
+         · 커서 = 검지로 가리키면 허공 트랙패드처럼 "상대 이동" (카메라 어디에 손이 있든 상관없고, 손이 프레임 가장자리에 있어도 닿는다)
+         · 클릭 = 손을 카메라 쪽으로 쑥 밀기 (가상의 z축: 손바닥 크기 변화). 미는 동안 커서는 밀기 직전 자리에 고정돼 튀지 않는다. 밀어 넣은 채 옆으로 끌면 잡아 끌기(02 챕터 조각 던지기)
+         · 링크 위에 1초 머물러도 클릭 (링이 차오른다)
+         · 스크롤 = 손을 펴면 페이지를 쥔 상태. 쥔 채로 올리고 내리는 "거리"만큼 챕터가 넘어간다 (속도·타이밍 무관, 게이지가 얼마나 남았는지 보여준다) ── */
+    var HCFG = { gain: 1.7, smoothMin: 0.14, smoothMax: 0.7, deadZone: 1.4, anchorMs: 120,
+      pushOn: 1.24, pushOff: 1.1, pushHoldMax: 1600, baseAlpha: 0.04, dragMove: 22, clickRadius: 20,
+      dwellMs: 1000, dwellMove: 14, gripSettleMs: 160, gripSettleV: 0.45, pageDist: 0.13, pageGap: 450, lostMs: 350, detectGap: 26 };
     var hand = { on: false, loading: false, denied: false, paused: false, stream: null, video: null, lm: null,
-      cur: { x: -100, y: -100 }, prev: null, target: null, hist: [], lastClick: '', seen: false, lostT: 0, hover: null, hoverT: 0,
-      pinch: false, pinchN: 0, pinchAt: 0, pinchMove: 0, anchor: { x: 0, y: 0 }, mid0: null, drag: false,
-      palm: [], armed: true, lastSwipe: 0, settled: 0, swipes: 0, clicks: 0, flash: 0, flashDir: 0,
+      cur: { x: -100, y: -100 }, prevTip: null, target: null, hist: [], seen: false, lostT: 0, hover: null, hoverT: 0, lastClick: '',
+      size0: 0, sizeR: 1, pressed: false, pressAt: 0, pressMove: 0, anchor: { x: 0, y: 0 }, pressTip: null, drag: false, clicks: 0,
+      dwellEl: null, dwellAt: 0, dwellPos: null, dwellDone: null,
+      grip: false, gripSince: 0, gripY: 0, gripAcc: 0, gripProg: 0, pages: 0, lastPage: 0, palmPrev: null, stillSince: 0, gripArmed: true,
       lastDetect: -1, detectMs: 0, skip: 0, stage: 0, stageT: 0 };
     var handBtn = document.getElementById('handBtn'), handCursor = document.getElementById('handCursor'), handNote = document.getElementById('handNote'), handMini = document.getElementById('handMini');
     var HAND_OK = !STATIC && !MOBILE() && !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
@@ -948,8 +980,8 @@ html.touch-paging .cards{touch-action:pan-x}
     function stage(n){                                                            /* 단계별 안내: 한 번에 한 가지만 */
       if (n <= hand.stage) return; hand.stage = n; hand.stageT = performance.now();
       if (n === 1) note('손을 들어 카메라에 보여 주세요. 영상은 이 브라우저 밖으로 나가지 않습니다.', 0);
-      else if (n === 2) note('검지 끝으로 가리키고, 엄지와 검지를 집으면 클릭입니다.', 7000);
-      else if (n === 3) note('펼친 손을 위로 휙 올리면 다음 챕터, 내리면 이전 챕터.', 7000);
+      else if (n === 2) note('검지로 가리키면 커서가 따라옵니다. 손을 카메라 쪽으로 쑥 밀면 클릭, 링크 위에 1초 머물러도 눌립니다.', 8000);
+      else if (n === 3) note('손을 펴면 페이지를 쥡니다. 쥔 채로 올리고 내리면 챕터가 넘어갑니다.', 8000);
       else if (handNote) handNote.classList.remove('is-on');
     }
     function makeLandmarker(mp, delegate){
@@ -981,7 +1013,7 @@ html.touch-paging .cards{touch-action:pan-x}
       if (hand.stream) hand.stream.getTracks().forEach(function(tr){ tr.stop(); });
       hand.stream = null; hand.on = false; hand.paused = false; hand.seen = false; document.documentElement.classList.remove('hand-on');
       if (handBtn) handBtn.setAttribute('aria-pressed', 'false'); if (handCursor) handCursor.className = 'hand-cursor';
-      setHover(null); if (hand.drag) { dragEnd(); hand.drag = false; } hand.pinch = false; hand.pinchN = 0;
+      setHover(null); if (hand.drag) { dragEnd(); hand.drag = false; } hand.pressed = false; hand.grip = false;
     }
     /* 탭이 20초 넘게 가려지면 카메라를 끈다 (카메라 불이 계속 켜져 있으면 불안하다). 돌아오면 조용히 다시 켠다 */
     document.addEventListener('visibilitychange', function(){
@@ -1004,97 +1036,129 @@ html.touch-paging .cards{touch-action:pan-x}
       }
       requestAnimationFrame(handLoop);
     }
-    function toScreen(pt){ var B = HCFG.box; return { x: Math.max(-0.04, Math.min(1.04, ((1 - pt.x) - B.x0) / (B.x1 - B.x0))) * VW(), y: Math.max(-0.04, Math.min(1.04, (pt.y - B.y0) / (B.y1 - B.y0))) * VH() }; }
     function dist(a, b){ return Math.hypot(a.x - b.x, a.y - b.y); }
     function extended(L, tip, pip){ return dist(L[tip], L[0]) > dist(L[pip], L[0]) * 1.12; }
+    function handSize(L){ return Math.sqrt(Math.max(1e-4, dist(L[5], L[17])) * Math.max(1e-4, dist(L[0], L[9]))); }   /* 손바닥 너비 × 길이의 기하평균: 손이 조금 돌아가도 덜 흔들리는 거리 지표 */
     function setHover(el){
       if (el === hand.hover) return;
       if (hand.hover) hand.hover.classList.remove('hand-hover');
       hand.hover = el; if (el) el.classList.add('hand-hover');
       if (handCursor) handCursor.classList.toggle('is-hover', !!el);
+      if (el !== hand.dwellEl) { hand.dwellEl = el; hand.dwellAt = 0; hand.dwellPos = null; if (handCursor) handCursor.classList.remove('is-dwell'); }
     }
     function clickableAt(x, y){
-      var offs = [[0,0],[HCFG.clickRadius,0],[-HCFG.clickRadius,0],[0,HCFG.clickRadius],[0,-HCFG.clickRadius],[12,12],[-12,12],[12,-12],[-12,-12]];
+      var r = HCFG.clickRadius, offs = [[0,0],[r,0],[-r,0],[0,r],[0,-r],[12,12],[-12,12],[12,-12],[-12,-12]];
       for (var i = 0; i < offs.length; i++) { var el = document.elementFromPoint(x + offs[i][0], y + offs[i][1]); var a = el && el.closest ? el.closest('a, button') : null; if (a && !a.classList.contains('hand-btn')) return a; }
       return null;
     }
+    function fireClick(el){ hand.clicks++; hand.lastClick = (el.outerHTML || '').slice(0, 90); el.click(); if (handCursor) { handCursor.classList.remove('is-click'); void handCursor.offsetWidth; handCursor.classList.add('is-click'); } if (hand.stage === 2) stage(3); }
+    function placeCursor(){ if (handCursor) { handCursor.style.transform = 'translate(' + hand.cur.x.toFixed(1) + 'px,' + hand.cur.y.toFixed(1) + 'px)'; handCursor.classList.add('is-on'); } }
     function handUpdate(L, now){
-      var tip = L[8], thumb = L[4], palm = L[9];
-      var size = dist(L[5], L[17]) || 0.1;                                            /* 손바닥 너비 = 거리의 기준 */
-      var pd = dist(thumb, tip) / size;
-      var open = extended(L, 8, 6) && extended(L, 12, 10) && extended(L, 16, 14) && pd > 0.7;
-      var raw = toScreen(tip);
-      if (!hand.seen) { hand.seen = true; hand.cur.x = raw.x; hand.cur.y = raw.y; hand.prev = raw; hand.target = raw; hand.hist = []; hand.palm = []; hand.armed = true; stage(2); }
+      var tip = L[8], palm = L[9];
+      var size = handSize(L);
+      var idx = extended(L, 8, 6), mid = extended(L, 12, 10), ring = extended(L, 16, 14), pinky = extended(L, 20, 18);
+      var open = idx && mid && ring && pinky, point = idx && !mid && !ring;
+      var tipS = { x: (1 - tip.x) * VW() * HCFG.gain, y: tip.y * VH() * HCFG.gain };            /* 거울 좌표 → 화면 단위 (상대 이동에만 쓴다) */
+      if (!hand.seen) {
+        hand.seen = true; hand.cur.x = VW() / 2; hand.cur.y = VH() / 2; hand.target = { x: hand.cur.x, y: hand.cur.y }; hand.prevTip = tipS; hand.hist = [];
+        hand.size0 = size; hand.sizeR = 1; hand.pressed = false; hand.grip = false; hand.gripArmed = true; hand.palmPrev = null; hand.stillSince = 0; stage(2);
+      }
       hand.lostT = 0;
-      /* 집기 판정 (히스테리시스 + 연속 프레임) */
-      var below = hand.pinch ? pd < HCFG.pinchOff : pd < HCFG.pinchOn;
-      hand.pinchN = below ? Math.min(9, hand.pinchN + 1) : 0;
-      var pinching = hand.pinch ? below : hand.pinchN >= HCFG.pinchFrames;
-      if (!pinching) {
-        /* 커서: 느릴 땐 묵직하게(떨림 억제), 빠를 땐 바로 따라간다 (1€ 필터 정신) */
-        var sp = hand.prev ? dist(raw, hand.prev) : 0; hand.prev = raw;
-        if (!hand.target || dist(raw, hand.target) > HCFG.deadZone) hand.target = raw;           /* 데드존: 떨림만 거르고 목표는 끝까지 따라간다 */
+      /* 거리(가상 z축): 기준 크기 대비 비율. 누르고 있지 않을 때만 기준을 천천히 따라간다 */
+      if (!hand.pressed) hand.size0 += (size - hand.size0) * HCFG.baseAlpha;
+      hand.sizeR = size / (hand.size0 || size);
+      /* ── 쥐기(펼친 손) → 페이지 넘기기 ── */
+      var pv = 0;
+      if (hand.palmPrev) { var pdt = Math.max(0.016, (now - hand.palmPrev.t) / 1000); pv = dist(palm, hand.palmPrev) / pdt; }
+      hand.palmPrev = { x: palm.x, y: palm.y, t: now };
+      if (open && !hand.pressed) {
+        if (!hand.grip) {
+          if (pv < HCFG.gripSettleV) { if (!hand.stillSince) hand.stillSince = now; } else hand.stillSince = 0;
+          if (hand.stillSince && now - hand.stillSince > HCFG.gripSettleMs && hand.gripArmed) {            /* 손을 펴고 잠깐 멈추면 쥔 상태 */
+            hand.grip = true; hand.gripSince = now; hand.gripY = palm.y; hand.gripAcc = 0; hand.gripProg = 0; setHover(null);
+            if (handCursor) handCursor.classList.add('is-grip');
+          }
+        } else {
+          hand.gripAcc = palm.y - hand.gripY;                                        /* 쥔 뒤 움직인 세로 거리 (프레임 높이 기준) */
+          hand.gripProg = Math.max(-1, Math.min(1, hand.gripAcc / HCFG.pageDist));
+          if (Math.abs(hand.gripAcc) >= HCFG.pageDist && now - hand.lastPage > HCFG.pageGap) {
+            hand.pages++; hand.lastPage = now; goTo(active + (hand.gripAcc < 0 ? 1 : -1));     /* 손을 올리면 다음, 내리면 이전 */
+            hand.gripY = palm.y; hand.gripAcc = 0; hand.gripProg = 0; if (hand.stage === 3) stage(4);
+          }
+          if (handCursor) handCursor.style.setProperty('--grip', hand.gripProg.toFixed(2));
+        }
+        placeCursor(); return;                                                       /* 쥔 동안 커서는 제자리 */
+      }
+      if (hand.grip) { hand.grip = false; hand.gripProg = 0; if (handCursor) { handCursor.classList.remove('is-grip'); handCursor.style.setProperty('--grip', '0'); } }
+      hand.stillSince = 0; hand.gripArmed = true;
+      if (!point && !hand.pressed) { hand.prevTip = tipS; placeCursor(); return; }   /* 주먹 등 다른 모양: 아무것도 안 한다 */
+      /* ── 커서: 검지 끝의 "이동량"만 반영 (허공 트랙패드) ── */
+      if (!hand.pressed) {
+        var d = { x: tipS.x - hand.prevTip.x, y: tipS.y - hand.prevTip.y }; hand.prevTip = tipS;
+        var sp = Math.hypot(d.x, d.y);
+        if (sp > HCFG.deadZone && sp < 400) { hand.target.x = Math.max(0, Math.min(VW(), hand.target.x + d.x)); hand.target.y = Math.max(0, Math.min(VH(), hand.target.y + d.y)); }
         var a = Math.max(HCFG.smoothMin, Math.min(HCFG.smoothMax, HCFG.smoothMin + sp / 40));
         hand.cur.x += (hand.target.x - hand.cur.x) * a; hand.cur.y += (hand.target.y - hand.cur.y) * a;
         hand.hist.push({ x: hand.cur.x, y: hand.cur.y, t: now }); while (hand.hist.length && now - hand.hist[0].t > 400) hand.hist.shift();
       }
-      if (pinching && !hand.pinch) {
-        hand.pinch = true; hand.pinchAt = now; hand.pinchMove = 0;
-        var anc = hand.hist[0] || hand.cur; for (var h = hand.hist.length - 1; h >= 0; h--) { if (now - hand.hist[h].t >= HCFG.anchorMs) { anc = hand.hist[h]; break; } }
-        hand.anchor = { x: anc.x, y: anc.y }; hand.cur.x = anc.x; hand.cur.y = anc.y;            /* 집는 순간 검지가 움직여도 커서는 집기 직전 자리에 */
-        hand.mid0 = toScreen({ x: (thumb.x + tip.x) / 2, y: (thumb.y + tip.y) / 2 });
+      /* ── 누르기: 손이 카메라 쪽으로 가까워지면(크기 증가) 클릭. 누르는 동안 커서는 직전 자리에 ── */
+      if (!hand.pressed && hand.sizeR > HCFG.pushOn) {
+        hand.pressed = true; hand.pressAt = now; hand.pressMove = 0; hand.pressTip = tipS;
+        var anc = hand.cur; for (var h = hand.hist.length - 1; h >= 0; h--) { if (now - hand.hist[h].t >= HCFG.anchorMs) { anc = hand.hist[h]; break; } }
+        hand.anchor = { x: anc.x, y: anc.y }; hand.cur.x = anc.x; hand.cur.y = anc.y; hand.target = { x: anc.x, y: anc.y };
+        if (handCursor) handCursor.classList.add('is-press');
         if (dragStart(hand.cur.x, hand.cur.y)) hand.drag = true;
-        if (handCursor) handCursor.classList.add('is-pinch');
-      } else if (pinching) {
-        var mid = toScreen({ x: (thumb.x + tip.x) / 2, y: (thumb.y + tip.y) / 2 });        /* 집은 채 움직이면 중점의 이동만큼 */
-        var mx = hand.anchor.x + (mid.x - hand.mid0.x), my = hand.anchor.y + (mid.y - hand.mid0.y);
-        hand.cur.x += (mx - hand.cur.x) * 0.5; hand.cur.y += (my - hand.cur.y) * 0.5;
-        hand.pinchMove = Math.max(hand.pinchMove, Math.hypot(hand.cur.x - hand.anchor.x, hand.cur.y - hand.anchor.y));
-        if (hand.drag) dragMove(hand.cur.x, hand.cur.y);
-      } else if (hand.pinch) {
-        hand.pinch = false; if (handCursor) handCursor.classList.remove('is-pinch');
-        if (hand.drag) { dragEnd(); hand.drag = false; }
-        else if (hand.pinchMove < HCFG.tapMove && now - hand.pinchAt < HCFG.tapMs) {
-          var a2 = clickableAt(hand.anchor.x, hand.anchor.y);
-          if (a2) { hand.clicks++; hand.lastClick = (a2.outerHTML || '').slice(0, 90); a2.click(); if (handCursor) { handCursor.classList.remove('is-click'); void handCursor.offsetWidth; handCursor.classList.add('is-click'); } if (hand.stage === 2) stage(3); }
+        else { var a1 = clickableAt(hand.cur.x, hand.cur.y); if (a1) fireClick(a1); }        /* 누르는 순간 클릭 (버튼을 누르는 느낌) */
+      } else if (hand.pressed) {
+        var dd = { x: tipS.x - hand.pressTip.x, y: tipS.y - hand.pressTip.y };
+        hand.pressMove = Math.max(hand.pressMove, Math.hypot(dd.x, dd.y));
+        if (hand.drag || hand.pressMove > HCFG.dragMove) {                                   /* 누른 채 옆으로 → 끌기 */
+          hand.cur.x = Math.max(0, Math.min(VW(), hand.anchor.x + dd.x)); hand.cur.y = Math.max(0, Math.min(VH(), hand.anchor.y + dd.y)); hand.target = { x: hand.cur.x, y: hand.cur.y };
+          if (hand.drag) dragMove(hand.cur.x, hand.cur.y);
         }
-        hand.prev = raw; hand.target = raw; hand.hist = [];
+        if (hand.sizeR < HCFG.pushOff || now - hand.pressAt > HCFG.pushHoldMax) {          /* 손을 빼면(또는 너무 오래 밀고 있으면) 놓기 */
+          hand.pressed = false; if (handCursor) handCursor.classList.remove('is-press');
+          if (hand.drag) { dragEnd(); hand.drag = false; }
+          if (now - hand.pressAt > HCFG.pushHoldMax) hand.size0 = size;                       /* 계속 가까이 있으면 그 거리를 새 기준으로 */
+          hand.prevTip = tipS; hand.hist = [];
+        }
       }
-      if (handCursor) { handCursor.style.transform = 'translate(' + hand.cur.x.toFixed(1) + 'px,' + hand.cur.y.toFixed(1) + 'px)'; handCursor.classList.add('is-on'); }
-      if (!hand.pinch && now - hand.hoverT > 80) { hand.hoverT = now; setHover(clickableAt(hand.cur.x, hand.cur.y)); }
-      /* 휙 넘기기: 손바닥(9번)의 최근 240ms 세로 이동 */
-      var pl = hand.palm[hand.palm.length - 1];
-      if (pl && Math.hypot(palm.x - pl.x, palm.y - pl.y) > 0.15) hand.palm = [];                     /* 한 프레임에 크게 튀면 새로 잡힌 손: 이전 이력을 버린다 */
-      hand.palm.push({ y: palm.y, x: palm.x, t: now }); while (hand.palm.length && now - hand.palm[0].t > HCFG.swipeWin) hand.palm.shift();
-      var p0 = hand.palm[0], dy = palm.y - p0.y, dx = palm.x - p0.x, span = Math.max(1, now - p0.t), enough = hand.palm.length >= 3 && span >= 90;
-      var v = Math.abs(dy) / (span / 1000);
-      if (!hand.armed) { if (v < HCFG.settleV) { if (!hand.settled) hand.settled = now; else if (now - hand.settled > HCFG.settleMs && now - hand.lastSwipe > HCFG.swipeCool) hand.armed = true; } else hand.settled = 0; }
-      else if (enough && open && !hand.pinch && Math.abs(dy) > HCFG.swipeDist && Math.abs(dy) > Math.abs(dx) * HCFG.swipeRatio) {
-        hand.armed = false; hand.settled = 0; hand.lastSwipe = now; hand.swipes++; hand.flash = now; hand.flashDir = dy < 0 ? 1 : -1; hand.palm = [];
-        goTo(active + (dy < 0 ? 1 : -1)); if (hand.stage === 3) stage(4);
+      if (handCursor) handCursor.style.setProperty('--depth', Math.max(0, Math.min(1, (hand.sizeR - 1) / (HCFG.pushOn - 1))).toFixed(2));
+      placeCursor();
+      /* ── 링크 위 머무름 클릭 ── */
+      if (!hand.pressed && now - hand.hoverT > 80) {
+        hand.hoverT = now; var el = clickableAt(hand.cur.x, hand.cur.y); setHover(el);
+        if (el && el !== hand.dwellDone) {
+          if (!hand.dwellPos || Math.hypot(hand.cur.x - hand.dwellPos.x, hand.cur.y - hand.dwellPos.y) > HCFG.dwellMove) { hand.dwellPos = { x: hand.cur.x, y: hand.cur.y }; hand.dwellAt = now; if (handCursor) { handCursor.classList.remove('is-dwell'); void handCursor.offsetWidth; handCursor.classList.add('is-dwell'); } }
+          else if (now - hand.dwellAt > HCFG.dwellMs) { hand.dwellDone = el; hand.dwellAt = now; if (handCursor) handCursor.classList.remove('is-dwell'); fireClick(el); }
+        }
+        if (!el) hand.dwellDone = null;
       }
-      if (hand.stage === 2 && now - hand.stageT > 12000) stage(3);
+      if (hand.stage === 2 && now - hand.stageT > 14000) stage(3);
     }
     function handLost(now){
       if (!hand.seen) return;
       if (!hand.lostT) hand.lostT = now;
       if (now - hand.lostT > HCFG.lostMs) {
-        hand.seen = false; hand.palm = []; hand.hist = []; setHover(null);
-        if (handCursor) { handCursor.classList.remove('is-on'); handCursor.classList.remove('is-pinch'); }
-        if (hand.pinch) { hand.pinch = false; hand.pinchN = 0; if (hand.drag) { dragEnd(); hand.drag = false; } }
+        hand.seen = false; hand.hist = []; hand.palmPrev = null; setHover(null);
+        if (handCursor) { handCursor.classList.remove('is-on'); handCursor.classList.remove('is-press'); handCursor.classList.remove('is-grip'); handCursor.classList.remove('is-dwell'); }
+        if (hand.pressed) { hand.pressed = false; if (hand.drag) { dragEnd(); hand.drag = false; } }
+        hand.grip = false; hand.gripProg = 0;
       }
     }
     var miniCtx = handMini && handMini.getContext ? handMini.getContext('2d') : null;
     function drawMini(L, now){
-      if (!miniCtx) return; var w = handMini.width, h = handMini.height, B = HCFG.box;
+      if (!miniCtx) return; var w = handMini.width, h = handMini.height;
       miniCtx.fillStyle = '#000'; miniCtx.fillRect(0, 0, w, h);
-      miniCtx.strokeStyle = 'rgba(243,243,243,.18)'; miniCtx.lineWidth = 1; miniCtx.strokeRect((1 - B.x1) * w, B.y0 * h, (B.x1 - B.x0) * w, (B.y1 - B.y0) * h);   /* 편한 상자 */
       if (!L) { miniCtx.fillStyle = 'rgba(243,243,243,.45)'; miniCtx.font = '500 20px ui-monospace, Menlo, monospace'; miniCtx.textAlign = 'center'; miniCtx.fillText('hand?', w / 2, h / 2 + 7); return; }
-      miniCtx.strokeStyle = hand.pinch ? '#F4FF53' : 'rgba(244,255,83,.75)'; miniCtx.lineWidth = 2; miniCtx.beginPath();
+      miniCtx.strokeStyle = hand.grip ? '#F4FF53' : hand.pressed ? '#fff' : 'rgba(244,255,83,.75)'; miniCtx.lineWidth = 2; miniCtx.beginPath();
       for (var b2 = 0; b2 < BONES.length; b2++) { var A = L[BONES[b2][0]], Bp = L[BONES[b2][1]]; miniCtx.moveTo((1 - A.x) * w, A.y * h); miniCtx.lineTo((1 - Bp.x) * w, Bp.y * h); }
       miniCtx.stroke(); miniCtx.fillStyle = '#F4FF53';
-      for (var q = 0; q < L.length; q++) { var sz2 = (q === 4 || q === 8) ? 7 : 3; miniCtx.fillRect((1 - L[q].x) * w - sz2 / 2, L[q].y * h - sz2 / 2, sz2, sz2); }
-      if (now - hand.flash < 600) { miniCtx.fillStyle = '#F4FF53'; miniCtx.font = '600 28px ui-monospace, Menlo, monospace'; miniCtx.textAlign = 'right'; miniCtx.fillText(hand.flashDir > 0 ? '▲' : '▼', w - 10, hand.flashDir > 0 ? 34 : h - 12); }
+      for (var q = 0; q < L.length; q++) { var sz2 = q === 8 ? 7 : 3; miniCtx.fillRect((1 - L[q].x) * w - sz2 / 2, L[q].y * h - sz2 / 2, sz2, sz2); }
+      /* 아래: 거리 게이지 (밀수록 차오른다) · 오른쪽: 쥐고 움직인 거리 게이지 */
+      var dp = Math.max(0, Math.min(1, (hand.sizeR - 1) / (HCFG.pushOn - 1)));
+      miniCtx.fillStyle = 'rgba(243,243,243,.15)'; miniCtx.fillRect(8, h - 10, w - 16, 4); miniCtx.fillStyle = hand.pressed ? '#fff' : '#F4FF53'; miniCtx.fillRect(8, h - 10, (w - 16) * dp, 4);
+      if (hand.grip) { var gp = hand.gripProg; miniCtx.fillStyle = 'rgba(243,243,243,.15)'; miniCtx.fillRect(w - 12, 10, 4, h - 28); miniCtx.fillStyle = '#F4FF53'; var mid2 = 10 + (h - 28) / 2; miniCtx.fillRect(w - 12, gp < 0 ? mid2 + gp * (h - 28) / 2 : mid2, 4, Math.abs(gp) * (h - 28) / 2); }
     }
     if (handBtn) handBtn.addEventListener('click', function(){
       if (hand.on) { handStop(); note('손 조작을 껐습니다. 카메라도 함께 꺼졌습니다.', 2500); return; }
@@ -1102,7 +1166,7 @@ html.touch-paging .cards{touch-action:pan-x}
       hand.denied = false; handStart();
     });
     if (HAND_OK) handStart();                                                       /* 들어오자마자 권한을 묻는다 */
-    if (/[?&]debug=1/.test(location.search)) window.__hand = { hand: hand, cfg: HCFG, update: handUpdate, lost: handLost, toScreen: toScreen, goTo: goTo, paging: function(){ return paging; } };
+    if (/[?&]debug=1/.test(location.search)) window.__hand = { hand: hand, cfg: HCFG, update: handUpdate, lost: handLost, goTo: goTo, paging: function(){ return paging; } };
 
     /* ── 챕터 활성화: 뷰포트 중심선이 들어 있는 챕터 ── */
     var body = document.body, links = document.querySelectorAll('[data-ch]');
