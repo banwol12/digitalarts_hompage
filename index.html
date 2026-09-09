@@ -965,11 +965,11 @@ html.touch-paging .cards{touch-action:pan-x}
            손을 1초 넘게 잃었다가 다시 잡히면 그 자리로 다시 맞춘다. 오른쪽 아래 미리보기를 1.2초 가리켜도 다시 맞춘다.
          · 커서 = 검지 끝 (절대 좌표, 멀면 서둘러 따라붙고 가까우면 묵직한 스무딩)
          · 클릭 = 링크·버튼 위에 1초 머물기 (링). 손 전체가 보일 때는 카메라 쪽으로 쑥 밀어도 클릭
-         · 챕터 = 검지를 아래로 휙 내리면 다음, 위로 휙 올리면 이전 (이동 벡터). 넘긴 뒤엔 손가락이 잠깐 멈춰야 다시 받는다. 오른쪽 00–05 번호도 된다 ── */
+         · 챕터 = 검지를 위로 휙 올리면 다음, 아래로 휙 내리면 이전 (이동 벡터, strokeInvert). 넘긴 뒤엔 손가락이 잠깐 멈춰야 다시 받는다. 오른쪽 00–05 번호도 된다 ── */
     var HCFG = { boxKX: 3.4, boxKY: 3.0, boxGrowMax: 1.6, over: 0.03, calFrames: 6, calStill: 0.02, calMaxMs: 900, sizeAlpha: 0.06,
       smoothMin: 0.14, smoothMax: 0.65, deadZone: 2.0, anchorMs: 120,
       pushOn: 1.3, pushOff: 1.12, pushHoldMax: 1600, baseAlpha: 0.04, dragMove: 22, clickRadius: 20,
-      dwellMs: 1000, dwellMove: 14, strokeDist: 0.26, strokeVel: 1.4, strokeRatio: 2.0, strokeStartV: 0.9, strokeEndV: 0.55, strokeMinMs: 90, strokeMaxMs: 700, strokeCool: 900, upEase: 0.8, settleV: 0.35, settleMs: 160, restV: 0.25, restMs: 900, awayMin: 0.08, strokeInvert: false,   /* 긋기 문턱: 사용자 피드백으로 한 단계 둔하게 (확실히 휙 그어야 넘어간다) */
+      dwellMs: 1000, dwellMove: 14, strokeDist: 0.26, strokeVel: 1.4, strokeRatio: 2.0, strokeStartV: 0.9, strokeEndV: 0.55, strokeMinMs: 90, strokeMaxMs: 700, strokeCool: 900, upEase: 0.8, settleV: 0.35, settleMs: 160, restV: 0.25, restMs: 900, awayMin: 0.08, strokeInvert: true,     /* true: 위로 올리면 다음, 내리면 이전 (사용자 요청 2026-09-09) */   /* 긋기 문턱: 사용자 피드백으로 한 단계 둔하게 (확실히 휙 그어야 넘어간다) */
       miniDwellMs: 1200, lostMs: 350, relostMs: 1000, detectGap: 26 };
     var hand = { on: false, loading: false, denied: false, paused: false, stream: null, video: null, lm: null,
       cal: { done: false, samples: [], t0: 0 }, box: null, ext: { l: 0, r: 0, t: 0, b: 0 }, sizeS: 0, calCount: 0,
@@ -987,7 +987,7 @@ html.touch-paging .cards{touch-action:pan-x}
       if (n <= hand.stage) return; hand.stage = n; hand.stageT = performance.now();
       if (n === 1) note('손을 들어 카메라에 보여 주세요. 영상은 이 브라우저 밖으로 나가지 않습니다.', 0);
       else if (n === 2) note('지금 손 자리가 화면 가운데입니다. 검지로 가리키고, 링크 위에 1초 머물면 클릭.', 7000);
-      else if (n === 3) note('검지를 아래로 휙 내리면 다음 챕터, 위로 휙 올리면 이전 챕터. 오른쪽 번호를 가리켜도 됩니다.', 8000);
+      else if (n === 3) note('검지를 위로 휙 올리면 다음 챕터, 아래로 휙 내리면 이전 챕터. 오른쪽 번호를 가리켜도 됩니다.', 8000);
       else if (handNote) handNote.classList.remove('is-on');
     }
     function makeLandmarker(mp, delegate){
@@ -1167,7 +1167,7 @@ html.touch-paging .cards{touch-action:pan-x}
       if (!hand.armed || now - hand.lastStroke < HCFG.strokeCool) return;             /* 멈춘 뒤에만, 한 번 넘기고 0.75초 뒤에만 */
       var dir = m.dir * (HCFG.strokeInvert ? -1 : 1);
       hand.armed = false; hand.settled = 0; hand.lastStroke = now; hand.pages++; hand.dwellAt = now; hand.dwellPos = null;
-      flickMark(dir); goTo(active + dir); if (hand.stage === 3) stage(4);               /* 내리면 다음, 올리면 이전 */
+      flickMark(m.dir); goTo(active + dir); if (hand.stage === 3) stage(4);             /* 화살표는 손가락이 움직인 방향, 이동은 strokeInvert 에 따라 (지금: 올리면 다음, 내리면 이전) */
     }
     /* 구간이 끝났을 때. reversed=true 면 방향이 바뀌며 끝난 것 → 바로 판정하지 않고 보류했다가 다음 구간과 비교해 큰 쪽만 쓴다
        (내리기 전 살짝 드는 예비 동작, 올리기 전 살짝 내리는 예비 동작이 먼저 넘기지 않게). 느려지며 끝나면 그 자리에서 판정 */
