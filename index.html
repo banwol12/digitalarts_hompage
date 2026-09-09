@@ -146,7 +146,7 @@ html.booting .site-header{opacity:0;transform:translateY(-10px);pointer-events:n
 .hand-cursor.is-hover{background:rgba(244,255,83,.45)}
 .hand-cursor.is-press{background:#fff;border-color:#fff}
 .hand-cursor.is-press::before{display:none}
-.hand-cursor.is-dwell::after{content:"";position:absolute;left:50%;top:50%;width:30px;height:30px;transform:translate(-50%,-50%);border-radius:50%;background:conic-gradient(#F4FF53 0 var(--a,0%),transparent 0);-webkit-mask:radial-gradient(circle,transparent 11px,#000 12px);mask:radial-gradient(circle,transparent 11px,#000 12px);animation:handdwell 1s linear forwards}   /* 머무름 링 */
+.hand-cursor.is-dwell::after{content:"";position:absolute;left:50%;top:50%;width:30px;height:30px;transform:translate(-50%,-50%);border-radius:50%;background:conic-gradient(#F4FF53 0 var(--a,0%),transparent 0);-webkit-mask:radial-gradient(circle,transparent 11px,#000 12px);mask:radial-gradient(circle,transparent 11px,#000 12px);animation:handdwell var(--dwell,1s) linear forwards}   /* 머무름 링 */
 @property --a{syntax:'<percentage>';inherits:false;initial-value:0%}
 @keyframes handdwell{from{--a:0%}to{--a:100%}}
 .hand-cursor.is-click{animation:handclick .35s ease-out}
@@ -969,14 +969,14 @@ html.touch-paging .cards{touch-action:pan-x}
     var HCFG = { boxKX: 3.4, boxKY: 3.0, boxGrowMax: 1.6, over: 0.03, calFrames: 6, calStill: 0.02, calMaxMs: 900, sizeAlpha: 0.06,
       smoothMin: 0.14, smoothMax: 0.65, deadZone: 2.0, anchorMs: 120,
       pushOn: 1.3, pushOff: 1.12, pushHoldMax: 1600, baseAlpha: 0.04, dragMove: 22, clickRadius: 20,
-      dwellMs: 1000, dwellMove: 14, strokeDist: 0.18, strokeVel: 1.0, strokeRatio: 1.6, strokeStartV: 0.7, strokeEndV: 0.45, strokeMaxMs: 700, strokeCool: 500, settleV: 0.35, settleMs: 140,
+      dwellMs: 1000, dwellMove: 14, strokeDist: 0.18, strokeVel: 1.0, strokeRatio: 1.6, strokeStartV: 0.7, strokeEndV: 0.45, strokeMaxMs: 700, strokeCool: 750, settleV: 0.35, settleMs: 140, restV: 0.25, restMs: 900, awayMin: 0.05, strokeInvert: false,
       miniDwellMs: 1200, lostMs: 350, relostMs: 1000, detectGap: 26 };
     var hand = { on: false, loading: false, denied: false, paused: false, stream: null, video: null, lm: null,
       cal: { done: false, samples: [], t0: 0 }, box: null, ext: { l: 0, r: 0, t: 0, b: 0 }, sizeS: 0, calCount: 0,
       cur: { x: -100, y: -100 }, prevRaw: null, target: null, hist: [], seen: false, lostT: 0, lostSince: 0, hover: null, hoverT: 0, lastClick: '',
       size0: 0, sizeR: 1, pressed: false, pressAt: 0, pressMove: 0, anchor: { x: 0, y: 0 }, pressRaw: null, drag: false, clicks: 0,
       dwellEl: null, dwellAt: 0, dwellPos: null, dwellDone: null,
-      strokes: [], mv: null, armed: true, settled: 0, lastStroke: 0, pages: 0, miniAt: 0,
+      strokes: [], mv: null, armed: true, settled: 0, lastStroke: 0, restY: 0, stillT: 0, pages: 0, miniAt: 0,
       lastDetect: -1, detectMs: 0, skip: 0, stage: 0, stageT: 0 };
     var handBtn = document.getElementById('handBtn'), handCursor = document.getElementById('handCursor'), handNote = document.getElementById('handNote'), handMini = document.getElementById('handMini'), handFlick = document.getElementById('handFlick');
     var HAND_OK = !STATIC && !MOBILE() && !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
@@ -1084,7 +1084,7 @@ html.touch-paging .cards{touch-action:pan-x}
       var n = c.samples.length, mx = 0, my = 0, ms = 0; for (var i = 0; i < n; i++) { mx += c.samples[i].x; my += c.samples[i].y; ms += c.samples[i].s; } mx /= n; my /= n; ms /= n;
       var dev = 0; for (var j = 0; j < n; j++) dev = Math.max(dev, Math.hypot(c.samples[j].x - mx, c.samples[j].y - my));
       if (n >= HCFG.calFrames && (dev < HCFG.calStill || now - c.t0 > HCFG.calMaxMs)) {
-        hand.box = { cx: mx, cy: my }; hand.sizeS = ms; hand.ext = { l: 0, r: 0, t: 0, b: 0 }; c.done = true; hand.calCount++;
+        hand.box = { cx: mx, cy: my }; hand.sizeS = ms; hand.ext = { l: 0, r: 0, t: 0, b: 0 }; c.done = true; hand.calCount++; hand.restY = VH() / 2; hand.stillT = 0;
         hand.seen = false; hand.size0 = ms; hand.sizeR = 1;
         if (hand.calCount > 1) note('다시 맞췄습니다. 지금 손 자리가 화면 가운데입니다.', 2200); else stage(2);
       }
@@ -1096,7 +1096,7 @@ html.touch-paging .cards{touch-action:pan-x}
       if (!hand.cal.done) { calUpdate(L, tip, size, now); return; }
       if (whole && !hand.pressed) hand.sizeS += (size - hand.sizeS) * HCFG.sizeAlpha;      /* 거리가 바뀌면 상자도 같이 (손이 다 보일 때만 믿는다) */
       var raw = mapTip(tip);
-      if (!hand.seen) { hand.seen = true; hand.cur.x = raw.x; hand.cur.y = raw.y; hand.target = raw; hand.prevRaw = raw; hand.hist = []; hand.strokes = []; hand.mv = null; hand.armed = true; hand.pressed = false; }
+      if (!hand.seen) { hand.seen = true; hand.cur.x = raw.x; hand.cur.y = raw.y; hand.target = raw; hand.prevRaw = raw; hand.hist = []; hand.strokes = []; hand.mv = null; hand.armed = true; hand.pressed = false; hand.restY = raw.y; hand.stillT = 0; }
       /* 거리(가상 z축) — 손 전체가 보일 때만 믿는다 */
       if (!hand.pressed && whole) hand.size0 += (size - hand.size0) * HCFG.baseAlpha;
       hand.sizeR = whole ? size / (hand.size0 || size) : 1;
@@ -1139,7 +1139,9 @@ html.touch-paging .cards{touch-action:pan-x}
         hand.hoverT = now; var el = clickableAt(hand.cur.x, hand.cur.y); setHover(el);
         if (el && el !== hand.dwellDone) {
           if (!hand.dwellPos || Math.hypot(hand.cur.x - hand.dwellPos.x, hand.cur.y - hand.dwellPos.y) > HCFG.dwellMove) { hand.dwellPos = { x: hand.cur.x, y: hand.cur.y }; hand.dwellAt = now; if (handCursor) { handCursor.classList.remove('is-dwell'); void handCursor.offsetWidth; handCursor.classList.add('is-dwell'); } }
-          else if (now - hand.dwellAt > HCFG.dwellMs) { hand.dwellDone = el; hand.dwellAt = now; if (handCursor) handCursor.classList.remove('is-dwell'); fireClick(el); }
+          else { var rb = el.getBoundingClientRect(), big = rb.width * rb.height > 120000;                    /* 카드처럼 큰 링크는 손이 잠깐 얹히기 쉬우니 1.6초 */
+            if (handCursor) handCursor.style.setProperty('--dwell', (big ? HCFG.dwellMs * 1.6 : HCFG.dwellMs) + 'ms');
+            if (now - hand.dwellAt > (big ? HCFG.dwellMs * 1.6 : HCFG.dwellMs)) { hand.dwellDone = el; hand.dwellAt = now; if (handCursor) handCursor.classList.remove('is-dwell'); fireClick(el); } }
         }
         if (!el) hand.dwellDone = null;
       }
@@ -1156,9 +1158,12 @@ html.touch-paging .cards{touch-action:pan-x}
     function strokeEval(now){
       var m = hand.mv; if (!m) return; hand.mv = null;
       var dy = (m.ly - m.sy) / VH(), dx = (m.lx - m.sx) / VW();
-      if (hand.armed && Math.abs(dy) > HCFG.strokeDist && m.peak > HCFG.strokeVel && Math.abs(dy) > Math.abs(dx) * HCFG.strokeRatio && now - m.t0 < HCFG.strokeMaxMs + 200) {
-        var dir = dy > 0 ? 1 : -1;
-        if (dir === m.dir) {                                                          /* 순변위 방향과 속도 방향이 같을 때만 */
+      if (hand.trace) hand.trace.push({ dy: +dy.toFixed(3), peak: +m.peak.toFixed(2), armed: hand.armed, refr: now - hand.lastStroke < HCFG.strokeCool, away: Math.abs(m.ly - hand.restY) >= Math.abs(m.sy - hand.restY) + HCFG.awayMin * VH(), rest: +(hand.restY / VH()).toFixed(2), sy: +(m.sy / VH()).toFixed(2), ly: +(m.ly / VH()).toFixed(2), dir: m.dir });
+      var away = Math.abs(m.ly - hand.restY) >= Math.abs(m.sy - hand.restY) + HCFG.awayMin * VH();   /* 쉬던 자리에서 멀어지는 동작만 긋기. 쉬던 자리로 돌아오는 동작은 '복귀' 라 무시 */
+      var refractory = now - hand.lastStroke < HCFG.strokeCool;                        /* 한 번 넘긴 뒤 0.75초는 아무 제스처도 받지 않는다 */
+      if (hand.armed && !refractory && away && Math.abs(dy) > HCFG.strokeDist && m.peak > HCFG.strokeVel && Math.abs(dy) > Math.abs(dx) * HCFG.strokeRatio && now - m.t0 < HCFG.strokeMaxMs + 200) {
+        var dir = (dy > 0 ? 1 : -1) * (HCFG.strokeInvert ? -1 : 1);
+        if ((dy > 0 ? 1 : -1) === m.dir) {                                           /* 순변위 방향과 속도 방향이 같을 때만 */
           hand.armed = false; hand.settled = 0; hand.lastStroke = now; hand.pages++; hand.dwellAt = now; hand.dwellPos = null;
           flickMark(dir); goTo(active + dir); if (hand.stage === 3) stage(4);           /* 내리면 다음, 올리면 이전 */
         }
@@ -1181,14 +1186,16 @@ html.touch-paging .cards{touch-action:pan-x}
           if (!same && av > HCFG.strokeStartV) hand.mv = { dir: vy > 0 ? 1 : -1, sx: sr.x, sy: sr.y, lx: raw.x, ly: raw.y, t0: sr.t, peak: av };   /* 예비 동작 뒤 본동작: 바로 새 구간 */
         }
       }
-      if (!hand.armed) { if (av < HCFG.settleV) { if (!hand.settled) hand.settled = now; else if (now - hand.settled > HCFG.settleMs && now - hand.lastStroke > HCFG.strokeCool) hand.armed = true; } else hand.settled = 0; }
+      if (!hand.armed) { if (av < HCFG.settleV) { if (!hand.settled) hand.settled = now; else if (now - hand.settled > HCFG.settleMs) hand.armed = true; } else hand.settled = 0; }
+      /* 쉬는 자리: 0.9초 넘게 거의 멈춰 있으면 거기가 새 기준. (제스처 뒤 곧바로 되돌아오는 동작은 이 기준 '쪽으로' 움직이므로 긋기로 치지 않는다) */
+      if (av < HCFG.restV) { if (!hand.stillT) hand.stillT = now; else if (now - hand.stillT > HCFG.restMs) hand.restY = raw.y; } else hand.stillT = 0;
     }
     function handLost(now){
       if (!hand.lostT) hand.lostT = now;
       if (!hand.lostSince) hand.lostSince = now;
       if (hand.mv && hand.cal.done && hand.seen) strokeEval(now);                       /* 프레임 밖으로 나가며 끝난 긋기 */
       if (now - hand.lostT > HCFG.lostMs) {
-        hand.seen = false; hand.hist = []; hand.strokes = []; hand.mv = null; hand.armed = true; setHover(null); hand.miniAt = 0;
+        hand.seen = false; hand.hist = []; hand.strokes = []; hand.mv = null; hand.armed = true; hand.stillT = 0; setHover(null); hand.miniAt = 0;
         if (handCursor) { handCursor.classList.remove('is-on'); handCursor.classList.remove('is-press'); handCursor.classList.remove('is-dwell'); }
         if (hand.pressed) { hand.pressed = false; if (hand.drag) { dragEnd(); hand.drag = false; } }
         if (!hand.cal.done) hand.cal.samples = [];
