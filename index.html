@@ -969,14 +969,14 @@ html.touch-paging .cards{touch-action:pan-x}
     var HCFG = { boxKX: 3.4, boxKY: 3.0, boxGrowMax: 1.6, over: 0.03, calFrames: 6, calStill: 0.02, calMaxMs: 900, sizeAlpha: 0.06,
       smoothMin: 0.14, smoothMax: 0.65, deadZone: 2.0, anchorMs: 120,
       pushOn: 1.3, pushOff: 1.12, pushHoldMax: 1600, baseAlpha: 0.04, dragMove: 22, clickRadius: 20,
-      dwellMs: 1000, dwellMove: 14, strokeDist: 0.22, strokeWin: 320, strokeVel: 1.1, strokeRatio: 1.8, strokeCool: 600, settleV: 0.35, settleMs: 140,
+      dwellMs: 1000, dwellMove: 14, strokeDist: 0.18, strokeVel: 1.0, strokeRatio: 1.6, strokeStartV: 0.7, strokeEndV: 0.45, strokeMaxMs: 700, strokeCool: 500, settleV: 0.35, settleMs: 140,
       miniDwellMs: 1200, lostMs: 350, relostMs: 1000, detectGap: 26 };
     var hand = { on: false, loading: false, denied: false, paused: false, stream: null, video: null, lm: null,
       cal: { done: false, samples: [], t0: 0 }, box: null, ext: { l: 0, r: 0, t: 0, b: 0 }, sizeS: 0, calCount: 0,
       cur: { x: -100, y: -100 }, prevRaw: null, target: null, hist: [], seen: false, lostT: 0, lostSince: 0, hover: null, hoverT: 0, lastClick: '',
       size0: 0, sizeR: 1, pressed: false, pressAt: 0, pressMove: 0, anchor: { x: 0, y: 0 }, pressRaw: null, drag: false, clicks: 0,
       dwellEl: null, dwellAt: 0, dwellPos: null, dwellDone: null,
-      strokes: [], armed: true, settled: 0, lastStroke: 0, pages: 0, miniAt: 0,
+      strokes: [], mv: null, armed: true, settled: 0, lastStroke: 0, pages: 0, miniAt: 0,
       lastDetect: -1, detectMs: 0, skip: 0, stage: 0, stageT: 0 };
     var handBtn = document.getElementById('handBtn'), handCursor = document.getElementById('handCursor'), handNote = document.getElementById('handNote'), handMini = document.getElementById('handMini'), handFlick = document.getElementById('handFlick');
     var HAND_OK = !STATIC && !MOBILE() && !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
@@ -1096,7 +1096,7 @@ html.touch-paging .cards{touch-action:pan-x}
       if (!hand.cal.done) { calUpdate(L, tip, size, now); return; }
       if (whole && !hand.pressed) hand.sizeS += (size - hand.sizeS) * HCFG.sizeAlpha;      /* 거리가 바뀌면 상자도 같이 (손이 다 보일 때만 믿는다) */
       var raw = mapTip(tip);
-      if (!hand.seen) { hand.seen = true; hand.cur.x = raw.x; hand.cur.y = raw.y; hand.target = raw; hand.prevRaw = raw; hand.hist = []; hand.strokes = []; hand.armed = true; hand.pressed = false; }
+      if (!hand.seen) { hand.seen = true; hand.cur.x = raw.x; hand.cur.y = raw.y; hand.target = raw; hand.prevRaw = raw; hand.hist = []; hand.strokes = []; hand.mv = null; hand.armed = true; hand.pressed = false; }
       /* 거리(가상 z축) — 손 전체가 보일 때만 믿는다 */
       if (!hand.pressed && whole) hand.size0 += (size - hand.size0) * HCFG.baseAlpha;
       hand.sizeR = whole ? size / (hand.size0 || size) : 1;
@@ -1143,26 +1143,52 @@ html.touch-paging .cards{touch-action:pan-x}
         }
         if (!el) hand.dwellDone = null;
       }
-      /* ── 검지 휙 긋기: 최근 320ms 의 이동 벡터가 세로로 길고 빠르면 챕터가 넘어간다. 넘긴 뒤엔 손가락이 잠깐 멈춰야 다시 받는다 (되돌아오는 동작 무시) ── */
-      var sl = hand.strokes[hand.strokes.length - 1]; if (sl && Math.hypot(raw.x - sl.x, raw.y - sl.y) > VH() * 0.15) hand.strokes = [];   /* 한 프레임에 크게 튀면(다시 잡힌 손) 이력을 버린다 */
-      hand.strokes.push({ x: raw.x, y: raw.y, t: now }); while (hand.strokes.length && now - hand.strokes[0].t > HCFG.strokeWin) hand.strokes.shift();
-      var s0 = hand.strokes[0], sdy = (raw.y - s0.y) / VH(), sdx = (raw.x - s0.x) / VW();
-      var sn = hand.strokes.length, sr = hand.strokes[Math.max(0, sn - 4)], svel = sn > 1 ? Math.abs(raw.y - sr.y) / VH() / (Math.max(16, now - sr.t) / 1000) : 0;   /* 속도는 최근 ~100ms 로 */
-      if (!hand.armed) { if (svel < HCFG.settleV) { if (!hand.settled) hand.settled = now; else if (now - hand.settled > HCFG.settleMs && now - hand.lastStroke > HCFG.strokeCool) hand.armed = true; } else hand.settled = 0; }
-      else if (sn >= 3 && Math.abs(sdy) > HCFG.strokeDist && svel > HCFG.strokeVel && Math.abs(sdy) > Math.abs(sdx) * HCFG.strokeRatio) {
-        hand.armed = false; hand.settled = 0; hand.lastStroke = now; hand.pages++; hand.strokes = []; hand.dwellAt = now; hand.dwellPos = null;
-        flickMark(sdy > 0 ? 1 : -1); goTo(active + (sdy > 0 ? 1 : -1)); if (hand.stage === 3) stage(4);       /* 내리면 다음, 올리면 이전 */
-      }
+      strokeStep(raw, now);
       /* ── 오른쪽 아래 손 미리보기를 가리키면 다시 맞추기 ── */
       if (handMini) { var r = handMini.getBoundingClientRect(); var inMini = hand.cur.x >= r.left && hand.cur.x <= r.right && hand.cur.y >= r.top && hand.cur.y <= r.bottom;
         if (inMini) { if (!hand.miniAt) hand.miniAt = now; else if (now - hand.miniAt > HCFG.miniDwellMs) { hand.miniAt = 0; startCal(); } } else hand.miniAt = 0; }
       if (hand.stage === 2 && now - hand.stageT > 14000) stage(3);
     }
+    /* ── 검지 휙 긋기 = 움직임 "구간" 으로 판단한다 (사용자 피드백: 위·아래 방향이 헷갈렸다).
+       속도가 붙는 순간 구간이 시작되고, 방향이 바뀌거나 느려지는 순간 구간이 끝난다. 끝난 구간의 순변위·최고 속도·세로/가로 비율로 한 번만 판정한다.
+       내리기 전에 살짝 들어 올리는 "예비 동작" 은 작은 구간으로 따로 끝나 버려서(기준 미달) 무시되고, 뒤따르는 큰 구간이 방향을 정한다.
+       한 번 넘긴 뒤엔 손가락이 잠깐 멈춰야 다시 받으므로 되돌아오는 동작은 넘기지 않는다. 손이 프레임 밖으로 나가며 끝난 구간도 그 자리에서 판정한다 ── */
+    function strokeEval(now){
+      var m = hand.mv; if (!m) return; hand.mv = null;
+      var dy = (m.ly - m.sy) / VH(), dx = (m.lx - m.sx) / VW();
+      if (hand.armed && Math.abs(dy) > HCFG.strokeDist && m.peak > HCFG.strokeVel && Math.abs(dy) > Math.abs(dx) * HCFG.strokeRatio && now - m.t0 < HCFG.strokeMaxMs + 200) {
+        var dir = dy > 0 ? 1 : -1;
+        if (dir === m.dir) {                                                          /* 순변위 방향과 속도 방향이 같을 때만 */
+          hand.armed = false; hand.settled = 0; hand.lastStroke = now; hand.pages++; hand.dwellAt = now; hand.dwellPos = null;
+          flickMark(dir); goTo(active + dir); if (hand.stage === 3) stage(4);           /* 내리면 다음, 올리면 이전 */
+        }
+      }
+    }
+    function strokeStep(raw, now){
+      var sl = hand.strokes[hand.strokes.length - 1];
+      if (sl && Math.hypot(raw.x - sl.x, raw.y - sl.y) > VH() * 0.15) { hand.strokes = []; hand.mv = null; }   /* 한 프레임에 크게 튀면(다시 잡힌 손) 이력을 버린다 */
+      hand.strokes.push({ x: raw.x, y: raw.y, t: now }); while (hand.strokes.length > 8) hand.strokes.shift();
+      var sn = hand.strokes.length; if (sn < 3) return;
+      var sr = hand.strokes[sn - 3], vy = (raw.y - sr.y) / VH() / (Math.max(16, now - sr.t) / 1000), av = Math.abs(vy);   /* 최근 ~66ms 세로 속도 (화면 높이/초) */
+      var m = hand.mv;
+      if (!m) {
+        if (av > HCFG.strokeStartV) hand.mv = { dir: vy > 0 ? 1 : -1, sx: sr.x, sy: sr.y, lx: raw.x, ly: raw.y, t0: sr.t, peak: av };
+      } else {
+        var same = (vy > 0 ? 1 : -1) === m.dir;
+        if (same && av >= HCFG.strokeEndV) { m.lx = raw.x; m.ly = raw.y; if (av > m.peak) m.peak = av; if (now - m.t0 > HCFG.strokeMaxMs) strokeEval(now); }
+        else {                                                                          /* 느려졌거나 방향이 바뀜 → 구간 끝, 판정 */
+          strokeEval(now);
+          if (!same && av > HCFG.strokeStartV) hand.mv = { dir: vy > 0 ? 1 : -1, sx: sr.x, sy: sr.y, lx: raw.x, ly: raw.y, t0: sr.t, peak: av };   /* 예비 동작 뒤 본동작: 바로 새 구간 */
+        }
+      }
+      if (!hand.armed) { if (av < HCFG.settleV) { if (!hand.settled) hand.settled = now; else if (now - hand.settled > HCFG.settleMs && now - hand.lastStroke > HCFG.strokeCool) hand.armed = true; } else hand.settled = 0; }
+    }
     function handLost(now){
       if (!hand.lostT) hand.lostT = now;
       if (!hand.lostSince) hand.lostSince = now;
+      if (hand.mv && hand.cal.done && hand.seen) strokeEval(now);                       /* 프레임 밖으로 나가며 끝난 긋기 */
       if (now - hand.lostT > HCFG.lostMs) {
-        hand.seen = false; hand.hist = []; hand.strokes = []; hand.armed = true; setHover(null); hand.miniAt = 0;
+        hand.seen = false; hand.hist = []; hand.strokes = []; hand.mv = null; hand.armed = true; setHover(null); hand.miniAt = 0;
         if (handCursor) { handCursor.classList.remove('is-on'); handCursor.classList.remove('is-press'); handCursor.classList.remove('is-dwell'); }
         if (hand.pressed) { hand.pressed = false; if (hand.drag) { dragEnd(); hand.drag = false; } }
         if (!hand.cal.done) hand.cal.samples = [];
