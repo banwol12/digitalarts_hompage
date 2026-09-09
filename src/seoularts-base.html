@@ -961,8 +961,8 @@ html.touch-paging .cards{touch-action:pan-x}
          · 클릭 = 손을 카메라 쪽으로 쑥 밀기 (가상의 z축: 손바닥 크기 변화). 미는 동안 커서는 밀기 직전 자리에 고정돼 튀지 않는다. 밀어 넣은 채 옆으로 끌면 잡아 끌기(02 챕터 조각 던지기)
          · 링크 위에 1초 머물러도 클릭 (링이 차오른다)
          · 스크롤 = 손을 펴면 페이지를 쥔 상태. 쥔 채로 올리고 내리는 "거리"만큼 챕터가 넘어간다 (속도·타이밍 무관, 게이지가 얼마나 남았는지 보여준다) ── */
-    var HCFG = { gain: 1.7, smoothMin: 0.14, smoothMax: 0.7, deadZone: 1.4, anchorMs: 120,
-      pushOn: 1.24, pushOff: 1.1, pushHoldMax: 1600, baseAlpha: 0.04, dragMove: 22, clickRadius: 20,
+    var HCFG = { gain: 1.25, smoothMin: 0.12, smoothMax: 0.6, deadZone: 2.0, anchorMs: 120,                 /* 감도: 사용자 피드백으로 한 단계 낮춤 */
+      pushOn: 1.28, pushOff: 1.12, pushHoldMax: 1600, baseAlpha: 0.04, dragMove: 22, clickRadius: 20,
       dwellMs: 1000, dwellMove: 14, gripSettleMs: 160, gripSettleV: 0.45, pageDist: 0.13, pageGap: 450, lostMs: 350, detectGap: 26 };
     var hand = { on: false, loading: false, denied: false, paused: false, stream: null, video: null, lm: null,
       cur: { x: -100, y: -100 }, prevTip: null, target: null, hist: [], seen: false, lostT: 0, hover: null, hoverT: 0, lastClick: '',
@@ -979,7 +979,7 @@ html.touch-paging .cards{touch-action:pan-x}
       if (n <= hand.stage) return; hand.stage = n; hand.stageT = performance.now();
       if (n === 1) note('손을 들어 카메라에 보여 주세요. 영상은 이 브라우저 밖으로 나가지 않습니다.', 0);
       else if (n === 2) note('검지로 가리키면 커서가 따라옵니다. 손을 카메라 쪽으로 쑥 밀면 클릭, 링크 위에 1초 머물러도 눌립니다.', 8000);
-      else if (n === 3) note('손을 펴면 페이지를 쥡니다. 쥔 채로 올리고 내리면 챕터가 넘어갑니다.', 8000);
+      else if (n === 3) note('손을 펴면 페이지를 쥡니다. 쥔 채로 내리면 다음 챕터, 올리면 이전 챕터.', 8000);
       else if (handNote) handNote.classList.remove('is-on');
     }
     function makeLandmarker(mp, delegate){
@@ -1080,7 +1080,7 @@ html.touch-paging .cards{touch-action:pan-x}
           hand.gripAcc = palm.y - hand.gripY;                                        /* 쥔 뒤 움직인 세로 거리 (프레임 높이 기준) */
           hand.gripProg = Math.max(-1, Math.min(1, hand.gripAcc / HCFG.pageDist));
           if (Math.abs(hand.gripAcc) >= HCFG.pageDist && now - hand.lastPage > HCFG.pageGap) {
-            hand.pages++; hand.lastPage = now; goTo(active + (hand.gripAcc < 0 ? 1 : -1));     /* 손을 올리면 다음, 내리면 이전 */
+            hand.pages++; hand.lastPage = now; goTo(active + (hand.gripAcc > 0 ? 1 : -1));     /* 손을 내리면 다음, 올리면 이전 (사용자 요청으로 방향 반전) */
             hand.gripY = palm.y; hand.gripAcc = 0; hand.gripProg = 0; if (hand.stage === 3) stage(4);
           }
           if (handCursor) handCursor.style.setProperty('--grip', hand.gripProg.toFixed(2));
