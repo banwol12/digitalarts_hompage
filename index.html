@@ -968,18 +968,19 @@ html.touch-paging .cards{touch-action:pan-x}
            손을 1초 넘게 잃었다가 다시 잡히면 그 자리로 다시 맞춘다. 오른쪽 아래 미리보기를 1.2초 가리켜도 다시 맞춘다.
          · 커서 = 검지 끝 (절대 좌표, 멀면 서둘러 따라붙고 가까우면 묵직한 스무딩)
          · 클릭 = 링크·버튼 위에 1초 머물기 (링). 손 전체가 보일 때는 카메라 쪽으로 쑥 밀어도 클릭
-         · 챕터 = 검지를 위로 휙 올리면 다음, 아래로 휙 내리면 이전 (이동 벡터, strokeInvert). 넘긴 뒤엔 손가락이 잠깐 멈춰야 다시 받는다. 오른쪽 00–05 번호도 된다 ── */
+         · 챕터 = 검지를 위로 휙 올리면 다음, 아래로 휙 내리면 이전 (이동 벡터, strokeInvert). 넘긴 뒤엔 손가락이 잠깐 멈춰야 다시 받는다.
+           넘긴 뒤 손을 출발 자리로 되돌리는 동작은 (얼마나 멈췄다 오든) 절대 넘기지 않는다 — 반대로 가려면 출발 자리에서 다시 긋는다. 오른쪽 00–05 번호도 된다 ── */
     var HCFG = { boxKX: 3.4, boxKY: 3.0, boxGrowMax: 1.6, over: 0.03, calFrames: 6, calStill: 0.02, calMaxMs: 900, sizeAlpha: 0.06,
       smoothMin: 0.14, smoothMax: 0.65, deadZone: 2.0, anchorMs: 120,
       pushOn: 1.3, pushOff: 1.12, pushFrames: 4, pushStillV: 1.0, pushHoldMax: 1600, baseAlpha: 0.04, dragMove: 22, clickRadius: 20,
-      dwellMs: 1000, dwellMove: 40, strokeDist: 0.26, strokeVel: 1.4, strokeRatio: 1.3, strokeStartV: 0.9, strokeEndV: 0.55, strokeMinMs: 60, strokeMaxMs: 700, strokeCool: 900, upEase: 0.8, exitDist: 0.09, exitVel: 0.8, settleV: 0.5, settleMs: 160, armMaxMs: 1500, returnMs: 1500, returnMsExit: 2500, returnTol: 0.14, returnRestMs: 600, edgeIn: 0.02, exitZone: 0.25, edgeHintMs: 2000, followMs: 1500, strokeInvert: true,     /* true: 위로 올리면 다음, 내리면 이전 (사용자 요청 2026-09-09) */   /* 긋기 문턱: 사용자 피드백으로 한 단계 둔하게 (확실히 휙 그어야 넘어간다) */
+      dwellMs: 1000, dwellMove: 40, strokeDist: 0.26, strokeVel: 1.4, strokeRatio: 1.3, strokeStartV: 0.9, strokeEndV: 0.55, strokeMinMs: 60, strokeMaxMs: 700, strokeCool: 900, upEase: 0.8, exitDist: 0.09, exitVel: 0.8, settleV: 0.5, settleMs: 160, armMaxMs: 1500, raisedMaxMs: 8000, returnTol: 0.14, edgeIn: 0.02, exitZone: 0.25, edgeHintMs: 2000, followMs: 1500, strokeInvert: true,     /* true: 위로 올리면 다음, 내리면 이전 (사용자 요청 2026-09-09) */   /* 긋기 문턱: 사용자 피드백으로 한 단계 둔하게 (확실히 휙 그어야 넘어간다) */
       miniDwellMs: 1200, lostMs: 350, relostMs: 1500, recalMaxMs: 1500, warmMs: 60, detectGap: 26 };
     var hand = { on: false, loading: false, denied: false, paused: false, stream: null, video: null, lm: null,
       cal: { done: false, samples: [], t0: 0 }, recal: null, box: null, ext: { l: 0, r: 0, t: 0, b: 0 }, sizeS: 0, calCount: 0, seenAt: 0,
       cur: { x: -100, y: -100 }, prevRaw: null, target: null, hist: [], seen: false, lostT: 0, lostSince: 0, hover: null, hoverT: 0, lastClick: '',
       size0: 0, sizeR: 1, pushN: 0, tipV: 0, pressed: false, pressAt: 0, pressMove: 0, anchor: { x: 0, y: 0 }, pressRaw: null, drag: false, clicks: 0,
       dwellEl: null, dwellAt: 0, dwellPos: null, dwellDone: null,
-      strokes: [], mv: null, pending: null, pendingM: null, pendingScore: 0, pendingT: 0, rawU: null, armed: true, settled: 0, lastStroke: 0, lastDir: 0, lastStartY: 0, stillRun: 0, stillRunT: 0, stillMax: 0, tipIn: true, lastTip: null, partialSince: 0, hintAt: 0, clampedSince: 0, pages: 0, miniAt: 0,
+      strokes: [], mv: null, pending: null, pendingM: null, pendingScore: 0, pendingT: 0, rawU: null, armed: true, settled: 0, lastStroke: 0, lastDir: 0, lastStartY: 0, raisedAt: 0, tipIn: true, lastTip: null, partialSince: 0, hintAt: 0, clampedSince: 0, pages: 0, miniAt: 0,
       lastDetect: -1, detectMs: 0, skip: 0, stage: 0, stageT: 0 };
     var handBtn = document.getElementById('handBtn'), handCursor = document.getElementById('handCursor'), handNote = document.getElementById('handNote'), handMini = document.getElementById('handMini'), handFlick = document.getElementById('handFlick');
     var handDbg = /[?&]debug=1/.test(location.search) ? document.getElementById('handDbg') : null; hand.dbgLog = [];   /* ?debug=1: 화면 왼쪽 아래 진단 패널 */
@@ -1179,7 +1180,7 @@ html.touch-paging .cards{touch-action:pan-x}
       /* 커서가 화면 가장자리에 1.5초 넘게 눌려 있으면 (손이 편한 상자 밖에 머문다) 손이 멈출 때 그 자리로 상자를 옮긴다 */
       var clamped = hand.rawU && (hand.rawU.y < -0.03 * VH() || hand.rawU.y > 1.03 * VH() || hand.rawU.x < -0.03 * VW() || hand.rawU.x > 1.03 * VW());
       if (clamped) { if (!hand.clampedSince) hand.clampedSince = now; else if (now - hand.clampedSince > HCFG.followMs && !hand.recal) { hand.clampedSince = 0; startCal(false); } } else hand.clampedSince = 0;
-      if (handDbg) handDbg.textContent = 'armed ' + hand.armed + ' · refr ' + (now - hand.lastStroke < HCFG.strokeCool) + ' · sizeR ' + hand.sizeR.toFixed(2) + (hand.pressed ? ' PRESSED' : '') + ' · seg ' + (hand.mv ? (hand.mv.dir < 0 ? '↑' : '↓') : '-') + ' · pages ' + hand.pages + '\n' + hand.dbgLog.join('\n');
+      if (handDbg) handDbg.textContent = 'armed ' + hand.armed + ' · refr ' + (now - hand.lastStroke < HCFG.strokeCool) + ' · sizeR ' + hand.sizeR.toFixed(2) + (hand.pressed ? ' PRESSED' : '') + ' · seg ' + (hand.mv ? (hand.mv.dir < 0 ? '↑' : '↓') : '-') + ' · raised ' + (hand.raisedAt > 0 && now - hand.raisedAt < HCFG.raisedMaxMs ? (hand.lastDir < 0 ? '↑' : '↓') : '-') + ' · pages ' + hand.pages + '\n' + hand.dbgLog.join('\n');
       /* ── 오른쪽 아래 손 미리보기를 가리키면 다시 맞추기 ── */
       if (handMini) { var r = handMini.getBoundingClientRect(); var inMini = hand.cur.x >= r.left && hand.cur.x <= r.right && hand.cur.y >= r.top && hand.cur.y <= r.bottom;
         if (inMini) { if (!hand.miniAt) hand.miniAt = now; else if (now - hand.miniAt > HCFG.miniDwellMs) { hand.miniAt = 0; startCal(true); } } else hand.miniAt = 0; }
@@ -1192,30 +1193,31 @@ html.touch-paging .cards{touch-action:pan-x}
     function segOK(m, now){                                                        /* 이 구간이 긋기 기준을 넘는가 */
       var dy = (m.ly - m.sy) / VH(), dx = (m.lx - m.sx) / VH(), ease = dy < 0 ? HCFG.upEase : 1;
       var distReq = m.exited ? HCFG.exitDist : HCFG.strokeDist * ease, velReq = m.exited ? HCFG.exitVel : HCFG.strokeVel * ease;   /* 프레임 밖으로 나가며 잘린 긋기: 짧아도 빠르면 인정 (손이 프레임 아래쪽에 있을 때 아래로 긋기) */   /* 위로 긋기는 중력 반대라 느리고 짧다 → 기준 완화. dx 도 화면 높이 기준(픽셀 비율) */
-      /* 복귀: 직전 긋기 뒤 1.5초 안에, 반대 방향으로, 그 긋기의 출발점 근처로 돌아오는 동작 → 넘기지 않는다 (그 밖의 동작은 어디서 시작하든 긋기) */
-      /* 복귀 = 직전 긋기의 반대 방향으로, 그 긋기가 끝난 쪽(먼 쪽)에서 출발해 출발점까지(또는 그 너머로) 돌아온 동작. 출발점 근처에서 시작한 반대 긋기는 의도한 긋기다.
-         프레임을 나가며 끝난 동작은 3초까지 복귀로 본다 (느긋하게 손을 내려놓는 동작) */
+      /* 복귀 = 직전 긋기의 반대 방향으로, 그 긋기가 끝난 쪽(먼 쪽)에서 출발해 출발점까지(또는 그 너머로) 돌아온 동작 → 절대 넘기지 않는다.
+         얼마나 멈췄다가 돌아오든, 얼마나 빠르든 상관없다 (넘긴 뒤 화면을 보다가 손을 툭 내리는 동작이 "이전" 으로 잡히던 문제 — 사용자가 방향이 뒤집힌 것처럼 느꼈다).
+         출발점 근처에서 시작한 반대 긋기는 의도한 긋기다. 반대로 가고 싶으면 출발 자리로 돌아온 뒤 다시 그으면 된다. 직전 긋기 뒤 8초가 지나면 잊는다 */
       var tol = HCFG.returnTol * VH(), farSide = (m.sy - hand.lastStartY) * (-m.dir) > tol, cameBack = (m.ly - hand.lastStartY) * m.dir >= -tol;
-      var paused = hand.stillMax >= HCFG.returnRestMs;                                  /* 두 동작 사이에 0.6초 넘게 멈췄다면 복귀가 아니라 의도한 긋기 */
-      var isReturn = !paused && now - hand.lastStroke < (m.exited ? HCFG.returnMsExit : HCFG.returnMs) && m.dir === -hand.lastDir && farSide && cameBack;
-      var away = !isReturn;
+      var isReturn = hand.raisedAt > 0 && now - hand.raisedAt < HCFG.raisedMaxMs && m.dir === -hand.lastDir && farSide && cameBack;
+      m.isReturn = isReturn; var away = !isReturn;
       var ok = away && Math.abs(dy) > distReq && m.peak > velReq && Math.abs(dy) > Math.abs(dx) * HCFG.strokeRatio && (dy > 0 ? 1 : -1) === m.dir && now - m.t0 >= (m.exited ? 40 : HCFG.strokeMinMs) && now - m.t0 < HCFG.strokeMaxMs + 400;
       if (hand.trace) hand.trace.push({ dy: +dy.toFixed(3), peak: +m.peak.toFixed(2), away: away, sy: +(m.sy / VH()).toFixed(2), ly: +(m.ly / VH()).toFixed(2), dir: m.dir, ok: ok });
       if (handDbg) { hand.dbgLog.unshift((m.dir < 0 ? '↑' : '↓') + ' dy ' + Math.abs(dy).toFixed(2) + ' v ' + m.peak.toFixed(1) + ' dx ' + Math.abs(dx).toFixed(2) + (away ? '' : ' RETURN') + (m.exited ? ' exit' : '') + ' ' + Math.round(now - m.t0) + 'ms → ' + (ok ? 'OK' : 'no')); hand.dbgLog.length = Math.min(hand.dbgLog.length, 6); }
       return ok ? Math.abs(dy) : 0;
     }
     function strokeFire(m, now){
-      if (!hand.armed || now - hand.lastStroke < HCFG.strokeCool) return;             /* 멈춘 뒤에만, 한 번 넘기고 0.75초 뒤에만 */
+      hand.lastDir = m.dir; hand.lastStartY = m.sy; hand.raisedAt = now;              /* 넘기지 못해도(재무장 전·쿨다운) 이 긋기의 되돌림 역시 넘기면 안 되므로 먼저 기억한다 */
+      if (!hand.armed || now - hand.lastStroke < HCFG.strokeCool) return;             /* 멈춘 뒤에만, 한 번 넘기고 0.9초 뒤에만 */
       var dir = m.dir * (HCFG.strokeInvert ? -1 : 1);
-      hand.armed = false; hand.settled = 0; hand.lastStroke = now; hand.lastDir = m.dir; hand.lastStartY = m.sy; hand.stillMax = 0; hand.stillRunT = 0; hand.pages++; hand.dwellAt = now; hand.dwellPos = null;
+      hand.armed = false; hand.settled = 0; hand.lastStroke = now; hand.pages++; hand.dwellAt = now; hand.dwellPos = null;
       flickMark(m.dir); goTo(active + dir); if (hand.stage === 3) stage(4);             /* 화살표는 손가락이 움직인 방향, 이동은 strokeInvert 에 따라 (지금: 올리면 다음, 내리면 이전) */
     }
     /* 구간이 끝났을 때. reversed=true 면 방향이 바뀌며 끝난 것 → 바로 판정하지 않고 보류했다가 다음 구간과 비교해 큰 쪽만 쓴다
        (내리기 전 살짝 드는 예비 동작, 올리기 전 살짝 내리는 예비 동작이 먼저 넘기지 않게). 느려지며 끝나면 그 자리에서 판정 */
     function strokeEval(now, reversed){
       var m = hand.mv; if (!m) return; hand.mv = null;
-      if (reversed) { if (!hand.pending || segOK(m, now) >= (hand.pendingScore || 0)) { hand.pending = m; hand.pendingScore = segOK(m, now); } return; }
-      var cur = segOK(m, now), pen = hand.pending ? hand.pendingScore : 0; hand.pending = null; hand.pendingScore = 0;
+      var cur = segOK(m, now); if (m.isReturn) hand.raisedAt = 0;                     /* 되돌아왔다: 이제 어느 방향이든 다시 긋기 */
+      if (reversed) { if (!hand.pending || cur >= (hand.pendingScore || 0)) { hand.pending = m; hand.pendingScore = cur; } return; }
+      var pen = hand.pending ? hand.pendingScore : 0; hand.pending = null; hand.pendingScore = 0;
       if (cur >= pen && cur > 0) strokeFire(m, now); else if (pen > 0) strokeFire(hand.pendingM || m, now);
     }
     function strokeStep(raw, now){
@@ -1244,8 +1246,6 @@ html.touch-paging .cards{touch-action:pan-x}
         }
         else strokeEval(now, false);                                                     /* 느려짐: 구간 끝, 판정 */
       }
-      /* 긋기 사이의 멈춤: 가장 길게 멈춘 시간을 기억한다 (복귀 판정에 씀) */
-      if (slowV < HCFG.settleV) { if (!hand.stillRunT) hand.stillRunT = now; hand.stillMax = Math.max(hand.stillMax, now - hand.stillRunT); } else hand.stillRunT = 0;
       /* 재무장: 200ms 속도가 낮아지면 (손 떨림으로 영영 재무장이 안 되던 문제). 어떤 경우든 1.5초가 지나면 다시 받는다 */
       if (!hand.armed) { if (slowV < HCFG.settleV) { if (!hand.settled) hand.settled = now; else if (now - hand.settled > HCFG.settleMs) hand.armed = true; } else hand.settled = 0; if (now - hand.lastStroke > HCFG.armMaxMs) hand.armed = true; }
     }
@@ -1253,9 +1253,10 @@ html.touch-paging .cards{touch-action:pan-x}
        (아래 가장자리로 나갔으면 아래 긋기만, 위로 나갔으면 위 긋기만 — 가장자리에서 손이 깜빡이며 튀는 좌표가 반대 방향 긋기로 둔갑하지 않게) */
     function strokeExit(now){
       if (!hand.cal.done || !hand.seen) return;
-      var lt = hand.lastTip; if (!lt) { hand.mv = null; return; }
-      if (!hand.mv && hand.strokes.length >= 3) {                                        /* 구간이 열리기도 전에 나갔다: 마지막 표본들이 한 방향으로 빠르면 구간으로 */
-        var q = hand.strokes, qn = q.length, qa = q[qn - 3], qb = q[qn - 1], qv = (qb.y - qa.y) / VH() / (Math.max(16, qb.t - qa.t) / 1000);
+      var lt = hand.lastTip, q = hand.strokes; hand.strokes = [];                       /* 한 번 판정하면 이력은 버린다 (프레임을 나간 뒤 손을 잃은 첫 프레임에 같은 동작을 또 판정하지 않게) */
+      if (!lt) { hand.mv = null; return; }
+      if (!hand.mv && q.length >= 3) {                                                  /* 구간이 열리기도 전에 나갔다: 마지막 표본들이 한 방향으로 빠르면 구간으로 */
+        var qn = q.length, qa = q[qn - 3], qb = q[qn - 1], qv = (qb.y - qa.y) / VH() / (Math.max(16, qb.t - qa.t) / 1000);
         if (Math.abs(qv) > HCFG.strokeStartV) { var qd = qv > 0 ? 1 : -1, qk = qn - 1; while (qk > 0 && qb.t - q[qk - 1].t <= 400 && (q[qk].y - q[qk - 1].y) * qd > -2) qk--; hand.mv = { dir: qd, sx: q[qk].x, sy: q[qk].y, lx: qb.x, ly: qb.y, t0: q[qk].t, peak: Math.abs(qv) }; }
       }
       var m = hand.mv; if (!m) return;
