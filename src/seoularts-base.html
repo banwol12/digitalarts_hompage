@@ -273,8 +273,9 @@ html.touch-paging .cards{touch-action:pan-x}
   .tools .col{padding-top:var(--space-12);gap:var(--space-8)}
   .tools .h3{font-size:13px;line-height:calc(1.3em + 5px)}
   .set li{grid-template-columns:40px minmax(0,1fr);padding:var(--space-12) 0}
-  .set.two li{grid-template-columns:40px minmax(0,1fr)}
+  .set.two li{grid-template-columns:40px minmax(0,1fr);padding:var(--space-8) 0}
   .set.two li p{display:none}
+  .set.two li .h3{font-size:14px}
   .set li .h3{font-size:15px}
   .works{align-content:end;padding-bottom:var(--space-32)}
   .cards{display:flex;gap:var(--space-16);overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;margin:0 calc(-1 * var(--space-20));padding:0 var(--space-20) var(--space-8);scrollbar-width:none}
@@ -533,7 +534,7 @@ html.touch-paging .cards{touch-action:pan-x}
   /* 포메이션: 각 픽셀의 목표 위치(로고 단위) */
   var FORM = {
     logo:  function(b){ return { x: b.gx, y: b.gy, z: 0 }; },
-    burst: function(b){ return { x: b.gx * (MOBILE() ? 1.7 : 1.25) + (b.seed - 0.5) * 6, y: b.gy * 1.15 + (b.seed2 - 0.5) * 5, z: (b.seed - 0.5) * 26 }; },
+    burst: function(b){ return { x: b.gx * (MOBILE() ? 1.5 : 1.25) + (b.seed - 0.5) * 6, y: b.gy * (MOBILE() ? 1.8 : 1.15) + (b.seed2 - 0.5) * 5, z: (b.seed - 0.5) * 26 }; },   /* 폰: 세로로 더 퍼뜨려 좁고 긴 영역을 채운다 */
     field: function(b){ return { x: (b.fc - (FCOLS - 1) / 2) * 1.3, y: (b.fr - (FROWS - 1) / 2) * 1.3, z: 0 }; }
   };
   /* 챕터별 회전·동작 설정. 위치와 크기는 frameFor() 가 화면과 텍스트를 실측해 "빈 영역"에 맞춘다 */
@@ -640,13 +641,18 @@ html.touch-paging .cards{touch-action:pan-x}
     var gFrom = null, gTo = null, gT0 = 0, gDur = 0.9;
     var active = 0, start = performance.now(), lastSpin = 0, spinAcc = 0;
 
-    /* ── 첫 입장 연출: 밤하늘 (사용자 요청 2026-09-17: 돌리지 말고, 촘촘하게 / 우주의 별 컨셉으로. 번쩍임 없이 담백하게)
-       0.1~1.2초   화면 모든 곳에서 촘촘한 별이 촤라락 켜진다 — 하나하나는 0.12초 만에 또렷이 켜지고, 순서는 완전히 무작위 (대부분 아주 작고, 몇 개만 조금 크고 밝다)
-       1.4~1.75초  가만히 떠 있다 — 카메라가 아주 천천히 움직여 깊이에 따라 시차가 생긴다
-       1.75~3.5초  별 일부가 중력에 끌리듯 직선으로 모여 로고가 된다 (먼 별이 먼저 출발, 가까운 별이 먼저 도착). 나머지 별은 서서히 꺼진다
-       4.3초       전공명·SCROLL 힌트 등장 ── */
-    var INTRO_ZOOM = 1.14, IN_WAKE0 = 0.1, IN_WAKE_SPAN = 1.1, IN_GATHER = 1.75, introT0 = 0;
+    /* ── 첫 입장 연출: 화면 해상도 격자 (사용자 요청 2026-09-17: 픽셀 개수가 진짜 화면 해상도에 맞게, 카메라를 기울이지 말고 평평하게,
+       z 만 노이즈처럼 앞뒤로 들락날락하며 입체감을 주다가, 로고로 촤라락 흡입력 있게 모이게. 회전·번쩍임 없음)
+       화면을 4px 칸으로 나눈 격자 하나하나가 픽셀이다 (1440×900 이면 약 8만 개). 저해상도 캔버스에 픽셀 단위로 찍은 뒤 확대해 또렷한 정사각형으로 보인다.
+       0.05~1.3초  우웅: 칸들이 무작위 순서로 켜지고 전체 밝기가 차오른다. 켜진 뒤엔 느린 깊이 파도를 타고 앞뒤로 움직인다 (가까우면 밝고 크게, 멀면 어둡고 작게)
+       1.75~3.3초  촤라락: 바깥 칸부터 로고 픽셀 자리로 가속하며 빨려 들어가 닿기 전에 흡수된다
+       4.3초       전공명·SCROLL 힌트 등장
+       (참고: 전에는 이 층을 담는 변수가 인트로 시작 뒤에 다시 선언되어 한 번도 그려지지 않았다 — 로고 픽셀 530개만 움직였다) ── */
+    var field = null, INTRO_ZOOM = 1, IN_WAKE0 = 0.05, IN_WAKE_SPAN = 1.15, IN_GATHER = 1.75, introT0 = 0;
     function easeInOut3(p){ return p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2; }
+    function easeSuck(p){ return p < 0.8 ? 0.8 * Math.pow(p / 0.8, 2.6) : 0.8 + 0.2 * (1 - Math.pow(1 - (p - 0.8) / 0.2, 2)); }   /* 흡입: 천천히 출발해 계속 가속, 마지막 20% 에서 사뿐히 */
+    var SINT = new Float32Array(1024); for (var si0 = 0; si0 < 1024; si0++) SINT[si0] = Math.sin(si0 / 1024 * 6.2831853);
+    function SIN(a){ return SINT[((a * 162.97466) | 0) & 1023]; }                       /* 표로 만든 사인 (8만 칸 × 3번 / 프레임) */
     function setFormation(i, initial, instant){
       var c = CHAPTERS[i] || CHAPTERS[0], fr = frameFor(i), now = (performance.now() - start) / 1000, fn = FORM[c.form];
       /* 첫 진입: 화면 전체 격자에 숨어 있던 픽셀들 — 왼쪽에서 오른쪽으로 하나씩 켜진 뒤 로고 자리로 모인다 */
@@ -660,8 +666,8 @@ html.touch-paging .cards{touch-action:pan-x}
           b.cur = { x: (X - fr.cx) / unit0, y: (Y - fr.cy) / unit0, z: (Math.random() - 0.5) * 36 };
           var rn = Math.min(1, Math.hypot(X - fr.cx, Y - fr.cy) / (Math.hypot(W, H) * 0.5));   /* 로고 중심에서의 거리 0~1 */
           b.tw = now + IN_WAKE0 + Math.random() * IN_WAKE_SPAN;                        /* 화면 어디서든 완전히 무작위로 */
-          b.t0 = now + IN_GATHER + Math.random() * 0.3 + (1 - rn) * 0.25;  /* 먼 것이 먼저 출발 */
-          b.dur = 0.9 + rn * 0.7 + Math.random() * 0.15;                   /* 먼 것은 오래 날아온다 */
+          b.t0 = now + IN_GATHER + Math.random() * 0.25 + (1 - rn) * 0.45; /* 바깥 것이 먼저 출발 */
+          b.dur = 0.7 + rn * 0.5 + Math.random() * 0.15;                   /* 바깥 것은 오래 날아온다 */
         } else {
           b.t0 = now + Math.random() * 0.45;
           b.dur = 0.75 + Math.random() * 0.35;
@@ -676,7 +682,7 @@ html.touch-paging .cards{touch-action:pan-x}
       gFrom.yaw = g.yaw + spinAcc; spinAcc = 0;
       var dyaw = gTo.yaw - gFrom.yaw; dyaw = Math.atan2(Math.sin(dyaw), Math.cos(dyaw)); gFrom.yaw = gTo.yaw - dyaw;
       gT0 = now; gDur = (initial || reduce || instant) ? 0.01 : 0.9;
-      if (initial && !introReduce) { gFrom.yaw = 0.32; gFrom.pitch = -0.2; gFrom.sway = 0; gFrom.s = fr.s * INTRO_ZOOM; gT0 = now + IN_GATHER; gDur = 2.3; introT0 = now; seedDots(fr, now); }
+      if (initial && !introReduce) { gFrom.yaw = 0; gFrom.pitch = c.pitch; gFrom.sway = 0; gFrom.s = fr.s; gT0 = now + IN_GATHER; gDur = 2.0; introT0 = now; seedDots(fr, now); }   /* 카메라는 평평하게 고정 (기울이면 화면 모서리가 틀어져 보인다) */
     }
     setFormation(0, true);
     var introDone = false, INTRO_T = 4.3, sceneT = 0;
@@ -725,23 +731,23 @@ html.touch-paging .cards{touch-action:pan-x}
       for (var i = 0; i < N; i++) { var b = boxes[i]; if (b.kind !== 'code') continue; b.ox = 0; b.oy = 0; b.vx = 0; b.vy = 0; b.held = false; b.thrown = false; b.launched = false; b.hitT = 0; b.drawK = 0; }
       play.on = false; play.drag = null; document.body.style.cursor = '';
     }
-    var dots = [];
     function seedDots(fr, now){
-      /* 밤하늘: 화면 가득 촘촘한 별 (1440×900 에서 약 1만 개). 대부분 아주 작고 어둡고, 12% 는 조금 크고, 3% 는 밝다. 서로 다른 깊이(z)에 있어 카메라가 돌 때 시차가 난다.
-         35% 는 로고 픽셀 자리로 직선으로 끌려가며 닿기 전에 흡수되고, 나머지는 제자리에서 서서히 꺼진다 */
-      var unit = fr.s * INTRO_ZOOM * (Math.min(W, H) * 1.45) / 72, hdr1 = (document.querySelector('.site-header') || {}).offsetHeight || 64;
-      var count = Math.round(W * (H - hdr1) / (MOBILE() ? 170 : 105)); dots = [];
-      for (var q = 0; q < count; q++) {
-        var X = 6 + Math.random() * (W - 12), Y = hdr1 + 4 + Math.random() * (H - hdr1 - 10), z = (Math.random() - 0.5) * 40;
-        var k = Math.random(), sz = k < 0.85 ? 0.045 + Math.random() * 0.035 : k < 0.97 ? 0.09 + Math.random() * 0.05 : 0.15 + Math.random() * 0.08;
-        var base = k < 0.85 ? 0.22 + Math.random() * 0.2 : k < 0.97 ? 0.45 + Math.random() * 0.2 : 0.75 + Math.random() * 0.2;
-        var sc = (z + 72) / 72, sx = (X - fr.cx) / unit * sc, sy = (Y - fr.cy) / unit * sc;   /* 화면 자리가 맞도록 깊이만큼 되돌려 놓는다 */
-        var rn = Math.min(1, Math.hypot(X - fr.cx, Y - fr.cy) / (Math.hypot(W, H) * 0.5)), pull = Math.random() < 0.35, tb = pull ? (boxes[Math.floor(Math.random() * N)].to || { x: 0, y: 0 }) : null;
-        dots.push({ sx: sx, sy: sy, z: z, tx: tb ? tb.x + (Math.random() - 0.5) * 2 : sx, ty: tb ? tb.y + (Math.random() - 0.5) * 2 : sy, pull: pull,
-          tw: now + IN_WAKE0 + Math.random() * IN_WAKE_SPAN,
-          t0: now + IN_GATHER + (pull ? Math.random() * 0.35 + (1 - rn) * 0.25 : 0.5 + Math.random() * 0.8), dur: pull ? 0.85 + rn * 0.7 + Math.random() * 0.2 : 1.1 + Math.random() * 0.5,
-          sz: sz, base: base, bright: k >= 0.85 });
+      /* 화면 해상도 격자: 4px 칸 하나가 픽셀 하나. 칸마다 켜지는 시각·밝기·출발 시각·날아가는 시간·목표 로고 픽셀을 미리 뽑아 둔다 (타입 배열 → 8만 개도 가볍다) */
+      var cs = 4, cw = Math.ceil(W / cs), ch = Math.ceil(H / cs), n = cw * ch, hdr1 = (document.querySelector('.site-header') || {}).offsetHeight || 64;
+      var f = { cs: cs, cw: cw, ch: ch, n: n, cv: document.createElement('canvas'), tw: new Float32Array(n), base: new Float32Array(n), ph: new Float32Array(n), t0: new Float32Array(n), dur: new Float32Array(n), tgt: new Uint16Array(n), tx: new Float32Array(N), ty: new Float32Array(N) };
+      f.cv.width = cw; f.cv.height = ch; f.g = f.cv.getContext('2d'); f.img = f.g.createImageData(cw, ch); f.buf = f.img.data;
+      var diag = Math.hypot(W, H) * 0.5;
+      for (var q = 0; q < n; q++) {
+        var X = (q % cw + 0.5) * cs, Y = (Math.floor(q / cw) + 0.5) * cs;
+        if (Y < hdr1 + 2) { f.tw[q] = 1e9; continue; }                                        /* 헤더 뒤는 비워 둔다 */
+        var r = Math.random(), rn = Math.min(1, Math.hypot(X - fr.cx, Y - fr.cy) / diag);
+        f.tw[q] = now + IN_WAKE0 + Math.random() * IN_WAKE_SPAN; f.ph[q] = Math.random() * 6.2831853;
+        f.base[q] = r < 0.8 ? 0.22 + r * 0.32 : r < 0.97 ? 0.55 + Math.random() * 0.25 : 0.9 + Math.random() * 0.1;   /* 80% 어둡게(회색 40~95), 17% 중간, 3% 밝게 — 화면 전체가 픽셀 질감으로 보인다 */
+        f.t0[q] = now + IN_GATHER + Math.random() * 0.2 + (1 - rn) * 0.55;                    /* 바깥 칸이 먼저 출발 → 바깥에서 안쪽으로 촤라락 */
+        f.dur[q] = 0.5 + rn * 0.4 + Math.random() * 0.15;
+        f.tgt[q] = Math.floor(Math.random() * N);
       }
+      field = f;
     }
 
     /* 03 챕터: 픽셀 필드 위를 오가는 데이터 패킷 (행·열을 따라 빛이 옮겨 다닌다) */
@@ -770,7 +776,8 @@ html.touch-paging .cards{touch-action:pan-x}
       if (b.kind === 'none') return;
       ctx.globalAlpha = alpha; ctx.lineWidth = 1; ctx.strokeStyle = rgb(pal.mid); ctx.fillStyle = rgb(pal.light);
       if (b.kind === 'code') {
-        var fpx = Math.max(11, sz * 1.9) * (b.held ? 1.18 : 1);
+        if (MOBILE() && b.seed2 > 0.5) return;                                       /* 폰: 영역이 작아 조각을 절반만 (75 → 약 37개) — 겹쳐서 깨져 보이던 문제 */
+        var fpx = Math.max(MOBILE() ? 10 : 11, sz * 1.9) * (b.held ? 1.18 : 1);
         ctx.font = '500 ' + fpx + 'px ui-monospace, Menlo, Consolas, monospace'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
         var parts = b.parts || [[b.token, VS.vari]], total = 0, widths = [];
         var fk = (fpx * 2 | 0); for (var pi = 0; pi < parts.length; pi++) { var wkey = parts[pi][0] + '|' + fk, pw = textW.get(wkey); if (pw === undefined) { pw = ctx.measureText(parts[pi][0]).width; textW.set(wkey, pw); } widths.push(pw); total += pw; }
@@ -828,27 +835,39 @@ html.touch-paging .cards{touch-action:pan-x}
       ctx.setTransform(DPR, 0, 0, DPR, 0, 0); ctx.clearRect(0, 0, W, H);
       var GA = usingOff ? 1 : g.alpha;
 
-      if (!introDone && dots.length) {
-        /* 보조 점: 색 2종 × 불투명도 4단계 = 8개 경로로 묶어 한 번에 채움 (수천 개여도 가볍게) */
-        var buckets = [], bk; for (bk = 0; bk < 8; bk++) buckets.push([]);
-        for (var di = 0; di < dots.length; di++) {
-          var dd = dots[di], wt = t - dd.tw; if (wt < 0) continue;
-          var dp = Math.max(0, Math.min(1, (t - dd.t0) / dd.dur)), de = easeInOut3(dp);
-          var da = t < dd.t0 ? Math.min(dd.base, wt * 8) : dd.base * Math.pow(1 - dp, dd.pull ? 1.4 : 0.9);   /* 0.12초 만에 또렷이 켜지고(촤라락), 끌려가는 별은 닿기 전에 흡수되고, 나머지는 서서히 꺼진다 */
-          if (da <= 0.02) continue;
-          var dx = (dd.sx + (dd.tx - dd.sx) * de) * S, dy = (dd.sy + (dd.ty - dd.sy) * de) * S, dz = dd.z * (1 - de) * S;   /* 직선으로, 깊이도 0 으로 */
-          var dax = dx * cy + dz * sy, daz = -dx * sy + dz * cy, day = dy * cp - daz * sp, daz2 = dy * sp + daz * cp, dsc = F / (daz2 + D);
-          var DX = OX + dax * dsc, DY = OY + day * dsc, dsz = Math.max(0.75, dd.sz * S * dsc * (1 - 0.35 * dp));
-          buckets[(dd.bright ? 4 : 0) + Math.min(3, Math.floor(da / 0.95 * 4))].push(DX - dsz, DY - dsz, dsz * 2);
+      if (!introDone && field) {
+        var fd = field, fcs = fd.cs, fcw = fd.cw, fch = fd.ch, fb = fd.buf; fb.fill(0);
+        /* 이번 프레임의 로고 픽셀 화면 위치 (칸 단위) — 카메라가 움직여도 칸들이 제자리로 따라간다 */
+        for (var tk0 = 0; tk0 < N; tk0++) { var tb = boxes[tk0].to, tpx = tb.x * S, tpy = tb.y * S, tpz = tb.z * S;
+          var tax = tpx * cy + tpz * sy, taz = -tpx * sy + tpz * cy, tay = tpy * cp - taz * sp, taz2 = tpy * sp + taz * cp, tsc = F / (taz2 + D);
+          fd.tx[tk0] = (OX + tax * tsc) / fcs; fd.ty[tk0] = (OY + tay * tsc) / fcs; }
+        var gain = Math.min(1, Math.max(0, (t - introT0) / 1.4)); gain = 1 - Math.pow(1 - gain, 2);   /* 우웅 — 전체 밝기가 부드럽게 차오른다 */
+        var ccx = OX / fcs, ccy = OY / fcs, ZA = 6, tA = t * 0.9, tB = t * 0.7, tC = t * 1.5;         /* 깊이 파도: 두 개의 느린 파도(파장 약 140·200px) + 칸마다 다른 위상의 잔물결 */
+        for (var q = 0, qn = fd.n; q < qn; q++) {
+          var qw = t - fd.tw[q]; if (qw < 0) continue;
+          var qa = fd.base[q] * Math.min(1, qw * 3) * gain, hx = (q % fcw) + 0.5, hy = ((q / fcw) | 0) + 0.5;
+          var zn = (SIN(hx * 0.045 + hy * 0.031 + tA) + SIN(hx * 0.02 - hy * 0.045 + tB)) * 0.35 + SIN(tC + fd.ph[q]) * 0.3;   /* -1(가깝다) ~ +1(멀다) */
+          var kz = D / (zn * ZA + D), qg = t - fd.t0[q], qx, qy, big = zn < -0.55;                  /* 원근: 가까우면 중심에서 바깥으로, 멀면 안쪽으로 */
+          if (qg > 0) {
+            var qp = qg / fd.dur[q]; if (qp >= 1) continue;
+            var qe = easeSuck(qp), qt = fd.tgt[q]; kz = 1 + (kz - 1) * (1 - qe);
+            var sx0 = ccx + (hx - ccx) * kz, sy0 = ccy + (hy - ccy) * kz;
+            qx = (sx0 + (fd.tx[qt] - sx0) * qe) | 0; qy = (sy0 + (fd.ty[qt] - sy0) * qe) | 0; qa *= Math.pow(1 - qp, 1.2); big = false;   /* 닿기 전에 흡수된다 */
+          } else { qx = (ccx + (hx - ccx) * kz) | 0; qy = (ccy + (hy - ccy) * kz) | 0; }
+          if (qx < 0 || qy < 0 || qx >= fcw || qy >= fch) continue;
+          var qv = (qa * (1 - 0.4 * zn) * (fd.base[q] > 0.5 ? 245 : 178)) | 0; if (qv > 255) qv = 255;   /* 가까울수록 밝게 */
+          var qo = (qy * fcw + qx) << 2;
+          if (qv > fb[qo]) { fb[qo] = qv; fb[qo + 1] = qv; fb[qo + 2] = qv; fb[qo + 3] = 255; }
+          if (big && qx + 1 < fcw && qy + 1 < fch) {                                                /* 아주 가까운 칸은 2×2 로 크게 */
+            var o2 = qo + 4, o3 = qo + (fcw << 2), o4 = o3 + 4;
+            if (qv > fb[o2]) { fb[o2] = qv; fb[o2 + 1] = qv; fb[o2 + 2] = qv; fb[o2 + 3] = 255; }
+            if (qv > fb[o3]) { fb[o3] = qv; fb[o3 + 1] = qv; fb[o3 + 2] = qv; fb[o3 + 3] = 255; }
+            if (qv > fb[o4]) { fb[o4] = qv; fb[o4 + 1] = qv; fb[o4 + 2] = qv; fb[o4 + 3] = 255; }
+          }
         }
-        for (bk = 0; bk < 8; bk++) {
-          var arr = buckets[bk]; if (!arr.length) continue;
-          ctx.globalAlpha = ((bk % 4) + 0.5) / 4 * 0.95; ctx.fillStyle = rgb(bk >= 4 ? pal.light : pal.mid); ctx.beginPath();
-          for (var ri = 0; ri < arr.length; ri += 3) ctx.rect(arr[ri], arr[ri + 1], arr[ri + 2], arr[ri + 2]);
-          ctx.fill();
-        }
-        ctx.globalAlpha = 1;
-      } else if (introDone && dots.length) { dots = []; }
+        fd.g.putImageData(fd.img, 0, 0);
+        ctx.imageSmoothingEnabled = false; ctx.drawImage(fd.cv, 0, 0, fcw * fcs, fch * fcs); ctx.imageSmoothingEnabled = true;
+      } else if (introDone && field) field = null;
 
       /* 프레임 상수: 면 6개의 회전된 법선과 조명은 모든 상자에 같다 → 한 번만 계산 (전에는 상자마다 6번, 3,000번 넘게 반복) */
       for (var f0 = 0; f0 < 6; f0++) {
@@ -865,7 +884,7 @@ html.touch-paging .cards{touch-action:pan-x}
         var e = 0;
         if (b.from && b.to) {
           if (b.back && !introDone) {                                                          /* 첫 입장: 중력에 끌리듯 직선으로 (천천히 출발해 빨라졌다가 사뿐히 멈춘다) */
-            e = easeInOut3(p); b.cur.x = b.from.x + (b.to.x - b.from.x) * e; b.cur.y = b.from.y + (b.to.y - b.from.y) * e; b.cur.z = b.from.z + (b.to.z - b.from.z) * e; b.m = 0;
+            e = easeSuck(p); b.cur.x = b.from.x + (b.to.x - b.from.x) * e; b.cur.y = b.from.y + (b.to.y - b.from.y) * e; b.cur.z = b.from.z + (b.to.z - b.from.z) * e; b.m = 0;
           } else { e = easeOut(p); b.cur.x = b.from.x + (b.to.x - b.from.x) * e; b.cur.y = b.from.y + (b.to.y - b.from.y) * e; b.cur.z = b.from.z + (b.to.z - b.from.z) * e; b.m = b.mFrom + (b.mTo - b.mFrom) * e; }
         }
         var alpha = 1, dep = 1, szf = 1, lx = 0, ly = 0, lz = 0;
@@ -877,7 +896,7 @@ html.touch-paging .cards{touch-action:pan-x}
           szf = t < b.t0 ? 0.28 : 0.28 + 0.72 * e;                                              /* 작은 큐브 → 픽셀 크기 */
           var cube = Math.min(1, 0.5 / b.h); dep = t < b.t0 ? cube : cube + (1 - cube) * e;        /* 떠 있을 땐 정육면체, 모이며 로고 두께로 */
           var fl = t < b.t0 ? 1 : Math.max(0, 1 - p * 1.6);                                     /* 모이기 시작하면 떠다님이 잦아든다 */
-          if (fl > 0) { lx += Math.sin(t * 0.5 + b.seed * 6.283) * 0.2 * fl; ly += Math.cos(t * 0.4 + b.seed2 * 6.283) * 0.2 * fl; }   /* 별처럼 거의 가만히 */
+          if (fl > 0) { lz += (SIN(b.cur.x * 0.5 + b.cur.y * 0.35 + t * 0.9) + SIN(b.cur.x * 0.22 - b.cur.y * 0.5 + t * 0.7)) * 3.5 * fl; }   /* 격자와 같은 깊이 파도를 탄다 (x·y 는 가만히, z 만 앞뒤로) */
           if (alpha <= 0) continue;
         }
         var bob = hasFlow ? Math.sin(t * 1.4 + b.fc * 0.35 + b.fr * 0.6) * 0.5 * g.flow : 0;
