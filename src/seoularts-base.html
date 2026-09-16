@@ -539,7 +539,7 @@ html.touch-paging .cards{touch-action:pan-x}
   };
   /* 챕터별 회전·동작 설정. 위치와 크기는 frameFor() 가 화면과 텍스트를 실측해 "빈 영역"에 맞춘다 */
   var CHAPTERS = [
-    { form: 'logo',  yaw: 0,    pitch: -0.08, sway: 0.22, spin: 0,    morph: 0, flow: 0, live: 1,   sMax: 1.0,  sMin: 0.2,  fit: 0.9  },
+    { form: 'logo',  yaw: 0,    pitch: -0.08, sway: 0,    spin: 0,    morph: 0, flow: 0, live: 1,   sMax: 1.0,  sMin: 0.2,  fit: 0.9  },   /* sway 0: 첫 챕터는 카메라가 전혀 돌지 않는다 (인트로 끝에 흔들림이 시작되는 게 회전처럼 보였다) */
     { form: 'logo',  yaw: -0.25, pitch: -0.06, sway: 0.10, spin: 0,   morph: 0, flow: 0, live: 0.5, sMax: 0.85, sMin: 0.2,  fit: 0.9  },
     { form: 'burst', yaw: 0.15, pitch: -0.1,  sway: 0.20, spin: 0,    morph: 1, flow: 0, live: 0,   sMax: 0.85, sMin: 0.2,  fit: 0.86 },
     { form: 'field', yaw: 0,    pitch: -1.1,  sway: 0.02, spin: 0,    morph: 0, flow: 1, live: 0,   sMax: 1.0,  sMin: 0.3,  fit: 0.9  },
@@ -720,7 +720,7 @@ html.touch-paging .cards{touch-action:pan-x}
     }
     function seedDots(fr, now){
       /* 로고 픽셀(530개) 사이를 채우는 작은 보조 점 — 같은 타이밍으로 나타나 같이 모이며 사라진다. 원래 있던 층인데 선언 순서 때문에 그려지지 않았던 것을 살리고, 개수는 조금만 (사용자: 픽셀 수 조금 더) */
-      var unit = fr.s * (Math.min(W, H) * 1.45) / 72, count = MOBILE() ? 450 : 800; dots = [];
+      var unit = fr.s * (Math.min(W, H) * 1.45) / 72, count = MOBILE() ? 540 : 960; dots = [];
       for (var q = 0; q < count; q++) {
         var hdr1 = (document.querySelector('.site-header') || {}).offsetHeight || 64, X = 12 + Math.random() * (W - 24), Y = hdr1 + 6 + Math.random() * (H - hdr1 - 16), tb = boxes[Math.floor(Math.random() * N)].to || { x: 0, y: 0 };
         dots.push({ sx: (X - fr.cx) / unit, sy: (Y - fr.cy) / unit, tx: tb.x + (Math.random() - 0.5) * 3, ty: tb.y + (Math.random() - 0.5) * 3,
