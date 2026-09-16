@@ -671,7 +671,7 @@ html.touch-paging .cards{touch-action:pan-x}
       gFrom.yaw = g.yaw + spinAcc; spinAcc = 0;
       var dyaw = gTo.yaw - gFrom.yaw; dyaw = Math.atan2(Math.sin(dyaw), Math.cos(dyaw)); gFrom.yaw = gTo.yaw - dyaw;
       gT0 = now; gDur = (initial || reduce || instant) ? 0.01 : 0.9;
-      if (initial && !introReduce) { gFrom.yaw = 0.3; gFrom.pitch = -0.22; gFrom.sway = 0; gFrom.s = fr.s; gT0 = now + 1.3; gDur = 1.9; seedDots(fr, now); }
+      if (initial && !introReduce) { gFrom.yaw = c.yaw; gFrom.pitch = c.pitch; gFrom.sway = 0; gFrom.s = fr.s; gT0 = now + 1.3; gDur = 1.9; seedDots(fr, now); }   /* 카메라 회전 없음 (사용자 요청): 처음부터 정면, 흔들림만 서서히 */
     }
     setFormation(0, true);
     var introDone = false, INTRO_T = 3.7, sceneT = 0;
@@ -797,7 +797,7 @@ html.touch-paging .cards{touch-action:pan-x}
       var calm = !STATIC && !busy && !play.on && active !== 0 && g.flow < 0.01;
       frameNo++; if (calm && (frameNo & 1)) { requestAnimationFrame(render); return; }
       if (play.on) updatePlay(t);
-      if (gFrom && gTo) { var gp = Math.min(1, (t - gT0) / gDur), ge = easeOut(gp); for (var key in gTo) g[key] = gFrom[key] + (gTo[key] - gFrom[key]) * ge; if (gp >= 1) gFrom = gTo = null; }
+      if (gFrom && gTo) { var gp = Math.max(0, Math.min(1, (t - gT0) / gDur)), ge = easeOut(gp); for (var key in gTo) g[key] = gFrom[key] + (gTo[key] - gFrom[key]) * ge; if (gp >= 1) gFrom = gTo = null; }
       spinAcc += g.spin * (t - lastSpin); lastSpin = t;
       if (g.flow > 0.01 && !reduce) updateFlow(t); else lastT = t;
       var yaw = g.yaw + Math.sin(t * 0.22) * g.sway + spinAcc;
