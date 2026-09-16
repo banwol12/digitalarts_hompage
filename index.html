@@ -644,12 +644,12 @@ html.touch-paging .cards{touch-action:pan-x}
     var active = 0, start = performance.now(), lastSpin = 0, spinAcc = 0;
 
     /* ── 첫 입장 연출 "4D" (사용자 요청 2026-09-17): 검정 화면을 이루고 있던 숨은 픽셀들이 앞으로 튀어나왔다가, 촤라락 로고로 모인다.
-       화면을 4px 칸으로 나눈 격자 하나하나가 픽셀이다 (1440×900 이면 약 8만 개). 저해상도 캔버스에 픽셀 단위로 찍은 뒤 확대해 또렷한 정사각형으로 보인다.
+       화면을 2px 칸으로 나눈 격자 하나하나가 픽셀이다 (1440×900 이면 약 32만 개 — 사용자: 더 작고 촘촘하게, 랜덤 폭은 좁게). 저해상도 캔버스에 픽셀 단위로 찍은 뒤 확대한다.
        0.05~1.8초  튀어나옴: 전체가 0 → 100 으로 떠오르면서, 칸마다 화면 면(z=0)에서 카메라 쪽으로 저마다 다른 깊이만큼 빠르게 튀어나와 멈춘다
                   (원근: 가까울수록 중심에서 바깥으로 밀리고, 크고(2×2·3×3), 밝다 → 평평한 화면이 입체로 일어선다). 흐름·노이즈·깜빡임 없음
        1.9~3.4초   촤라락: 바깥 칸부터 로고 픽셀 자리로 가속하며 빨려 들어가 닿기 전에 흡수된다
        4.3초       전공명·SCROLL 힌트 등장 ── */
-    var field = null, INTRO_ZOOM = 1, IN_WAKE0 = 0.05, IN_WAKE_SPAN = 0.12, IN_FADE = 1.6, IN_GATHER = 1.9, IN_ZPOP = 16, introT0 = 0;   /* IN_FADE: 전체가 떠오르는 시간, IN_ZPOP: 튀어나오는 최대 깊이 */
+    var field = null, INTRO_ZOOM = 1, IN_WAKE0 = 0.05, IN_WAKE_SPAN = 0.12, IN_FADE = 1.6, IN_GATHER = 1.9, IN_ZPOP = 14, introT0 = 0;   /* IN_FADE: 전체가 떠오르는 시간, IN_ZPOP: 튀어나오는 최대 깊이 */
     function easeInOut3(p){ return p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2; }
     function easeSuck(p){ return p < 0.8 ? 0.8 * Math.pow(p / 0.8, 2.6) : 0.8 + 0.2 * (1 - Math.pow(1 - (p - 0.8) / 0.2, 2)); }   /* 흡입: 천천히 출발해 계속 가속, 마지막 20% 에서 사뿐히 */
     function setFormation(i, initial, instant){
@@ -663,7 +663,7 @@ html.touch-paging .cards{touch-action:pan-x}
           var hdr0 = (document.querySelector('.site-header') || {}).offsetHeight || 64, X = 16 + Math.random() * (W - 32), Y = hdr0 + 8 + Math.random() * (H - hdr0 - 20);
           var unit0 = unit * INTRO_ZOOM;                                    /* 카메라가 살짝 당겨진 채 시작하므로 그 배율로 흩뿌린다 */
           b.cur = { x: (X - fr.cx) / unit0, y: (Y - fr.cy) / unit0, z: 0 };                 /* 화면 면에서 시작 */
-          b.zpop = -IN_ZPOP / fr.s * Math.pow(Math.random(), 1.5); b.tp = now + 0.05 + Math.random() * 0.9; b.dp = 0.8 + Math.random() * 0.4;   /* 튀어나올 깊이·시각·시간 */
+          b.zpop = -IN_ZPOP / fr.s * (0.5 + 0.5 * Math.random()); b.tp = now + 0.05 + Math.random() * 0.5; b.dp = 0.9 + Math.random() * 0.2;   /* 튀어나올 깊이·시각·시간 — 랜덤 폭 좁게 */
           var rn = Math.min(1, Math.hypot(X - fr.cx, Y - fr.cy) / (Math.hypot(W, H) * 0.5));   /* 로고 중심에서의 거리 0~1 */
           b.tw = now + IN_WAKE0 + Math.random() * IN_WAKE_SPAN;                        /* 거의 동시에 — 밝기는 전체 페이드(introGain)를 따른다 */
           b.t0 = now + IN_GATHER + Math.random() * 0.25 + (1 - rn) * 0.45; /* 바깥 것이 먼저 출발 */
@@ -733,7 +733,7 @@ html.touch-paging .cards{touch-action:pan-x}
     }
     function seedDots(fr, now){
       /* 화면 해상도 격자: 4px 칸 하나가 픽셀 하나. 칸마다 켜지는 시각·밝기·출발 시각·날아가는 시간·목표 로고 픽셀을 미리 뽑아 둔다 (타입 배열 → 8만 개도 가볍다) */
-      var cs = 4, cw = Math.ceil(W / cs), ch = Math.ceil(H / cs), n = cw * ch, hdr1 = (document.querySelector('.site-header') || {}).offsetHeight || 64;
+      var cs = 2, cw = Math.ceil(W / cs), ch = Math.ceil(H / cs), n = cw * ch, hdr1 = (document.querySelector('.site-header') || {}).offsetHeight || 64;
       var f = { cs: cs, cw: cw, ch: ch, n: n, cv: document.createElement('canvas'), tw: new Float32Array(n), base: new Float32Array(n), zt: new Float32Array(n), tp: new Float32Array(n), dp: new Float32Array(n), t0: new Float32Array(n), dur: new Float32Array(n), tgt: new Uint16Array(n), tx: new Float32Array(N), ty: new Float32Array(N) };
       f.cv.width = cw; f.cv.height = ch; f.g = f.cv.getContext('2d'); f.img = f.g.createImageData(cw, ch); f.buf = f.img.data;
       var diag = Math.hypot(W, H) * 0.5;
@@ -742,8 +742,8 @@ html.touch-paging .cards{touch-action:pan-x}
         if (Y < hdr1 + 2) { f.tw[q] = 1e9; continue; }                                        /* 헤더 뒤는 비워 둔다 */
         var r = Math.random(), rn = Math.min(1, Math.hypot(X - fr.cx, Y - fr.cy) / diag);
         f.tw[q] = now + IN_WAKE0 + Math.random() * IN_WAKE_SPAN;
-        f.zt[q] = -IN_ZPOP * Math.pow(Math.random(), 1.5); f.tp[q] = now + 0.05 + Math.random() * 0.9; f.dp[q] = 0.8 + Math.random() * 0.4;   /* 튀어나올 깊이(대부분 조금, 몇은 멀리)·시각·시간 */
-        f.base[q] = r < 0.97 ? 0.36 + Math.random() * 0.08 : 0.8 + Math.random() * 0.2;    /* 고른 밝기 (편차 작게), 3% 만 밝은 점. 명암은 깊이(가까울수록 밝게)로만 */
+        f.zt[q] = -IN_ZPOP * (0.5 + 0.5 * Math.random()); f.tp[q] = now + 0.05 + Math.random() * 0.5; f.dp[q] = 0.9 + Math.random() * 0.2;   /* 튀어나올 깊이·시각·시간 — 랜덤 폭 좁게 */
+        f.base[q] = r < 0.985 ? 0.38 + Math.random() * 0.05 : 0.8 + Math.random() * 0.15;  /* 고른 밝기 (편차 아주 작게), 1.5% 만 밝은 점. 명암은 깊이(가까울수록 밝게)로만 */
         f.t0[q] = now + IN_GATHER + Math.random() * 0.2 + (1 - rn) * 0.55;                    /* 바깥 칸이 먼저 출발 → 바깥에서 안쪽으로 촤라락 */
         f.dur[q] = 0.5 + rn * 0.4 + Math.random() * 0.15;
         f.tgt[q] = Math.floor(Math.random() * N);
@@ -856,8 +856,7 @@ html.touch-paging .cards{touch-action:pan-x}
             var sx0 = ccx + (hx - ccx) * kz, sy0 = ccy + (hy - ccy) * kz;
             qx = (sx0 + (fd.tx[qt] - sx0) * qe) | 0; qy = (sy0 + (fd.ty[qt] - sy0) * qe) | 0; qa *= Math.pow(1 - qp, 1.2);   /* 닿기 전에 흡수된다 */
           } else { qx = (ccx + (hx - ccx) * kz) | 0; qy = (ccy + (hy - ccy) * kz) | 0; }
-          var near = (kz - 1) / 0.29, sz = near > 0.75 ? 3 : near > 0.35 ? 2 : 1;                     /* 가까울수록 크고 밝게 */
-          if (sz === 3) { qx--; qy--; }
+          var near = (kz - 1) / 0.29, sz = near > 0.7 ? 2 : 1;                                        /* 가장 가까운 것만 2×2 (4px), 나머지 2px */
           if (qx < 0 || qy < 0 || qx + sz > fcw || qy + sz > fch) continue;
           var qv = (qa * (0.75 + 0.6 * near) * (fd.base[q] > 0.6 ? 245 : 190)) | 0; if (qv > 255) qv = 255;
           for (var yy = 0; yy < sz; yy++) { var qo = ((qy + yy) * fcw + qx) << 2; for (var xx = 0; xx < sz; xx++, qo += 4) { if (qv > fb[qo]) { fb[qo] = qv; fb[qo + 1] = qv; fb[qo + 2] = qv; fb[qo + 3] = 255; } } }
