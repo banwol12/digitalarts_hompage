@@ -646,11 +646,11 @@ html.touch-paging .cards{touch-action:pan-x}
     /* ── 첫 입장 연출: 화면 해상도 격자 (사용자 요청 2026-09-17: 픽셀 개수가 진짜 화면 해상도에 맞게, 카메라를 기울이지 말고 평평하게,
        z 만 노이즈처럼 앞뒤로 들락날락하며 입체감을 주다가, 로고로 촤라락 흡입력 있게 모이게. 회전·번쩍임 없음)
        화면을 4px 칸으로 나눈 격자 하나하나가 픽셀이다 (1440×900 이면 약 8만 개). 저해상도 캔버스에 픽셀 단위로 찍은 뒤 확대해 또렷한 정사각형으로 보인다.
-       0.05~1.3초  우웅: 칸들이 무작위 순서로 켜지고 전체 밝기가 차오른다. 켜진 뒤엔 느린 깊이 파도를 타고 앞뒤로 움직인다 (가까우면 밝고 크게, 멀면 어둡고 작게)
-       1.75~3.3초  촤라락: 바깥 칸부터 로고 픽셀 자리로 가속하며 빨려 들어가 닿기 전에 흡수된다
+       0.05~1.8초  스르륵: 검정 화면에서 격자 전체가 함께 0 → 100 으로 천천히 떠오른다. 떠오르는 동안에도 깊이 파도를 타고 앞뒤로 살아 움직인다 (가까우면 밝고 크게, 멀면 어둡고 작게)
+       1.9~3.4초   촤라락: 바깥 칸부터 로고 픽셀 자리로 가속하며 빨려 들어가 닿기 전에 흡수된다
        4.3초       전공명·SCROLL 힌트 등장
        (참고: 전에는 이 층을 담는 변수가 인트로 시작 뒤에 다시 선언되어 한 번도 그려지지 않았다 — 로고 픽셀 530개만 움직였다) ── */
-    var field = null, INTRO_ZOOM = 1, IN_WAKE0 = 0.05, IN_WAKE_SPAN = 1.15, IN_GATHER = 1.75, introT0 = 0;
+    var field = null, INTRO_ZOOM = 1, IN_WAKE0 = 0.05, IN_WAKE_SPAN = 0.12, IN_FADE = 1.7, IN_GATHER = 1.9, introT0 = 0;   /* IN_FADE: 전체가 함께 떠오르는 시간 */
     function easeInOut3(p){ return p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2; }
     function easeSuck(p){ return p < 0.8 ? 0.8 * Math.pow(p / 0.8, 2.6) : 0.8 + 0.2 * (1 - Math.pow(1 - (p - 0.8) / 0.2, 2)); }   /* 흡입: 천천히 출발해 계속 가속, 마지막 20% 에서 사뿐히 */
     var SINT = new Float32Array(1024); for (var si0 = 0; si0 < 1024; si0++) SINT[si0] = Math.sin(si0 / 1024 * 6.2831853);
@@ -667,7 +667,7 @@ html.touch-paging .cards{touch-action:pan-x}
           var unit0 = unit * INTRO_ZOOM;                                    /* 카메라가 살짝 당겨진 채 시작하므로 그 배율로 흩뿌린다 */
           b.cur = { x: (X - fr.cx) / unit0, y: (Y - fr.cy) / unit0, z: (Math.random() - 0.5) * 36 };
           var rn = Math.min(1, Math.hypot(X - fr.cx, Y - fr.cy) / (Math.hypot(W, H) * 0.5));   /* 로고 중심에서의 거리 0~1 */
-          b.tw = now + IN_WAKE0 + Math.random() * IN_WAKE_SPAN;                        /* 화면 어디서든 완전히 무작위로 */
+          b.tw = now + IN_WAKE0 + Math.random() * IN_WAKE_SPAN;                        /* 거의 동시에 — 밝기는 전체 페이드(introGain)를 따른다 */
           b.t0 = now + IN_GATHER + Math.random() * 0.25 + (1 - rn) * 0.45; /* 바깥 것이 먼저 출발 */
           b.dur = 0.7 + rn * 0.5 + Math.random() * 0.15;                   /* 바깥 것은 오래 날아온다 */
         } else {
@@ -837,13 +837,14 @@ html.touch-paging .cards{touch-action:pan-x}
       ctx.setTransform(DPR, 0, 0, DPR, 0, 0); ctx.clearRect(0, 0, W, H);
       var GA = usingOff ? 1 : g.alpha;
 
+      var introGain = introDone ? 1 : easeInOut3(Math.max(0, Math.min(1, (t - introT0 - IN_WAKE0) / IN_FADE)));   /* 스르륵: 검정에서 전체가 함께 0 → 100 */
       if (!introDone && field) {
         var fd = field, fcs = fd.cs, fcw = fd.cw, fch = fd.ch, fb = fd.buf; fb.fill(0);
         /* 이번 프레임의 로고 픽셀 화면 위치 (칸 단위) — 카메라가 움직여도 칸들이 제자리로 따라간다 */
         for (var tk0 = 0; tk0 < N; tk0++) { var tb = boxes[tk0].to, tpx = tb.x * S, tpy = tb.y * S, tpz = tb.z * S;
           var tax = tpx * cy + tpz * sy, taz = -tpx * sy + tpz * cy, tay = tpy * cp - taz * sp, taz2 = tpy * sp + taz * cp, tsc = F / (taz2 + D);
           fd.tx[tk0] = (OX + tax * tsc) / fcs; fd.ty[tk0] = (OY + tay * tsc) / fcs; }
-        var gain = Math.min(1, Math.max(0, (t - introT0) / 1.4)); gain = 1 - Math.pow(1 - gain, 2);   /* 우웅 — 전체 밝기가 부드럽게 차오른다 */
+        var gain = introGain;
         var ccx = OX / fcs, ccy = OY / fcs, ZA = 6, tA = t * 0.9, tB = t * 0.7, tC = t * 1.5;         /* 깊이 파도: 두 개의 느린 파도(파장 약 140·200px) + 칸마다 다른 위상의 잔물결 */
         for (var q = 0, qn = fd.n; q < qn; q++) {
           var qw = t - fd.tw[q]; if (qw < 0) continue;
@@ -893,7 +894,7 @@ html.touch-paging .cards{touch-action:pan-x}
         if (!introDone && b.back) {
           var wt = t - b.tw;
           if (wt < 0) alpha = 0;
-          else if (t < b.t0) alpha = Math.min(0.92, wt * 8);                                     /* 또렷이 켜진다 */
+          else if (t < b.t0) alpha = 0.92 * Math.min(1, wt * 8) * introGain;                     /* 스르륵 — 전체와 함께 떠오른다 */
           else alpha = 0.92 + 0.08 * e;
           szf = t < b.t0 ? 0.28 : 0.28 + 0.72 * e;                                              /* 작은 큐브 → 픽셀 크기 */
           var cube = Math.min(1, 0.5 / b.h); dep = t < b.t0 ? cube : cube + (1 - cube) * e;        /* 떠 있을 땐 정육면체, 모이며 로고 두께로 */
