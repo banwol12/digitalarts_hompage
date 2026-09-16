@@ -213,7 +213,9 @@ html.touch-paging .cards{touch-action:pan-x}
 .set li{display:grid;grid-template-columns:56px minmax(0,1fr);gap:var(--space-16);padding:var(--space-16) 0;border-bottom:1px solid var(--border-hairline);align-items:baseline}
 .set li .h3{font-size:clamp(15px,1.2vw,21px)}
 .set li p{color:var(--text-secondary);max-width:44ch}
-.set.two li{grid-template-columns:56px minmax(0,1fr) minmax(0,1.2fr)}
+.set.two li{grid-template-columns:56px minmax(0,1fr) minmax(0,1.25fr)}
+.set.two li p{font-size:clamp(12px,0.9vw,14px);line-height:1.5}
+@media (min-width:800px) and (max-height:860px){.set li{padding:var(--space-12) 0}.set.two li p{font-size:12.5px}.right .stack{gap:var(--space-16)}}
 .cols3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--gutter)}
 .cols3 .col{border-top:1px solid var(--border-strong);padding-top:var(--space-16);display:flex;flex-direction:column;gap:var(--space-8)}
 .rowhead{display:flex;justify-content:space-between;align-items:flex-end;gap:var(--space-24);flex-wrap:wrap;width:100%}
@@ -314,12 +316,12 @@ html.touch-paging .cards{touch-action:pan-x}
       <span class="brand-text"><small>Seoul Institute of the Arts</small><strong>Digital Arts</strong></span>
     </a>
     <nav class="site-nav" aria-label="주요 메뉴">
-      <a href="#c1" data-ch="1">전공소개</a><a href="#c2" data-ch="2">교육과정</a><a href="#c3" data-ch="3">디지털아트전공</a><a href="#c4" data-ch="4">포트폴리오</a><a href="#c5" data-ch="5">입학안내</a>
+      <a href="#c1" data-ch="1">전공소개</a><a href="#c2" data-ch="2">교육과정</a><a href="#c3" data-ch="3">진로</a><a href="#c4" data-ch="4">포트폴리오</a><a href="#c5" data-ch="5">입학안내</a>
     </nav>
     <div class="hdr-actions"><a class="btn sm primary" href="https://www.seoularts.ac.kr/web/cop/bbsWeb/selectBoardList.do?bbsId=BBSMSTR_000000000924" target="_blank" rel="noopener">입학안내 <svg class="i"><use href="#arrow-up-right"/></svg></a></div>
   </div>
   <nav class="shell subnav" aria-label="챕터 메뉴">
-    <a href="#c1" data-ch="1">전공소개</a><a href="#c2" data-ch="2">교육과정</a><a href="#c3" data-ch="3">디지털아트전공</a><a href="#c4" data-ch="4">포트폴리오</a><a href="#c5" data-ch="5">입학안내</a>
+    <a href="#c1" data-ch="1">전공소개</a><a href="#c2" data-ch="2">교육과정</a><a href="#c3" data-ch="3">진로</a><a href="#c4" data-ch="4">포트폴리오</a><a href="#c5" data-ch="5">입학안내</a>
   </nav>
 </header>
 
@@ -349,14 +351,14 @@ html.touch-paging .cards{touch-action:pan-x}
     <div class="shell">
       <div class="stack">
         <div class="kicker reveal" style="--i:0"><span class="cs-caption">01</span><i></i><span class="cs-caption">전공소개</span></div>
-        <h2 class="h2 reveal" style="--i:1">감각에 엔진을 달다</h2>
-        <p class="lead reveal" style="--i:2">코드와 데이터, 센서, 빛과 소리를 재료로 다루는 예술가를 기릅니다. 화면 안의 이미지에서 출발해 공간과 관객, 인공지능과 함께 작동하는 작품으로 나아갑니다.</p>
+        <h2 class="h2 reveal" style="--i:1">과학기술과 예술의 융합으로<br>미래형 예술가를 기른다</h2>
+        <p class="lead reveal" style="--i:2">2003년에 문을 연 영상학부 디지털아트전공은 과학기술을 바탕으로 ‘새로운 형태의 예술(New Form Art)’을 만드는 3년 전문학사 과정입니다. 3D와 애니메이션, 비주얼 이펙트, 인스톨레이션에서 인터랙션 프로그래밍과 인공지능까지, 도구와 코드를 예술의 재료로 배웁니다.</p>
         <ol class="set reveal" style="--i:3">
-          <li><span class="cs-caption">01</span><span class="h3">인터랙티브 미디어</span></li>
-          <li><span class="cs-caption">02</span><span class="h3">제너러티브 &amp; AI 아트</span></li>
-          <li><span class="cs-caption">03</span><span class="h3">공간 영상 &amp; XR</span></li>
+          <li><span class="cs-caption">01</span><span class="h3">미디어아트 · 실감미디어</span></li>
+          <li><span class="cs-caption">02</span><span class="h3">3D · 애니메이션 · VFX</span></li>
+          <li><span class="cs-caption">03</span><span class="h3">인터랙션 · 게임엔진 · AI</span></li>
         </ol>
-        <span class="cs-caption reveal" style="--i:4">TouchDesigner · Max/MSP · Unreal Engine · Resolume Arena · Maya</span>
+        <span class="cs-caption reveal" style="--i:4">Maya · Blender · Unreal Engine · Unity · TouchDesigner · Arduino · Python</span>
       </div>
     </div>
   </section>
@@ -366,30 +368,32 @@ html.touch-paging .cards{touch-action:pan-x}
     <div class="shell">
       <div class="stack">
         <div class="kicker reveal" style="--i:0"><span class="cs-caption">02</span><i></i><span class="cs-caption">교육과정</span></div>
-        <h2 class="h2 reveal" style="--i:1">화면에서 공간으로,<br>도구에서 매체로</h2>
+        <h2 class="h2 reveal" style="--i:1">3년 42과목 128학점,<br>기초에서 캡스톤까지</h2>
         <ol class="set two">
-          <li class="reveal" style="--i:2"><span class="cs-caption">Code</span><span class="h3">코드로 그리는 이미지</span><p>크리에이티브 코딩, 제너러티브 아트</p></li>
-          <li class="reveal" style="--i:3"><span class="cs-caption">Touch</span><span class="h3">관객이 완성하는 작품</span><p>센서, 카메라, 피지컬 컴퓨팅</p></li>
-          <li class="reveal" style="--i:4"><span class="cs-caption">Space</span><span class="h3">빛으로 건축하는 영상</span><p>프로젝션 맵핑, 미디어 파사드</p></li>
-          <li class="reveal" style="--i:5"><span class="cs-caption">AI</span><span class="h3">인공지능과 함께 만드는 방법</span><p>생성형 모델을 재료이자 협업자로</p></li>
-          <li class="reveal" style="--i:6"><span class="cs-caption">Stage</span><span class="h3">무대·영상·음악과의 협업</span><p>서울예대 공연·영상·음악 전공과 한 작품을</p></li>
+          <li class="reveal" style="--i:2"><span class="cs-caption">Code</span><span class="h3">코드를 매체로 배운다</span><p>크리에이티브 컴퓨팅 · 디지털아트 프로그래밍 · 뉴미디어 프로그래밍</p></li>
+          <li class="reveal" style="--i:3"><span class="cs-caption">3D</span><span class="h3">모델링에서 렌더링, VFX까지</span><p>3D 테크닉 I·II · 캐릭터 애니메이션 · 비주얼 이펙트 · 디지털 머티리얼</p></li>
+          <li class="reveal" style="--i:4"><span class="cs-caption">Touch</span><span class="h3">센서와 장치가 관객에 반응한다</span><p>피지컬 컴퓨팅 · 디지털 기반의 인스톨레이션 · 피지컬 시스템 디자인</p></li>
+          <li class="reveal" style="--i:5"><span class="cs-caption">Space</span><span class="h3">공간과 무대를 미디어로 연출한다</span><p>미디어와 공간연출 · 모션 기반 미디어아트 · 미디어 퍼포먼스 &amp; 익스프레션</p></li>
+          <li class="reveal" style="--i:6"><span class="cs-caption">Engine</span><span class="h3">실시간 엔진과 XR</span><p>게임엔진 테크놀로지 I·II · 가상현실 콘텐츠 · 리얼타임 영상 제작 · 유니티 프로그래밍</p></li>
+          <li class="reveal" style="--i:7"><span class="cs-caption">AI</span><span class="h3">발상부터 데이터, 창업까지</span><p>인공지능과 크리에이티브 씽킹 · 데이터 분석 및 AI 활용 · 창업과 AI 비즈니스</p></li>
+          <li class="reveal" style="--i:8"><span class="cs-caption">Studio</span><span class="h3">캡스톤 디자인 4과목</span><p>디지털아트 창작실습 I·II · 산학 프로젝트 스튜디오 · 포트폴리오 워크숍</p></li>
         </ol>
       </div>
     </div>
   </section>
 
-  <!-- 03 · 디지털아트전공 · 도구 (상단 중앙 텍스트, 아래에 데이터가 흐르는 픽셀 필드) -->
+  <!-- 03 · 진로와 역량 (상단 중앙 텍스트, 아래에 데이터가 흐르는 픽셀 필드) -->
   <section class="chapter top center" id="c3" data-mode="paper">
     <div class="shell">
       <div class="stack">
-        <div class="kicker reveal" style="--i:0"><span class="cs-caption">03</span><i></i><span class="cs-caption">디지털아트전공</span></div>
-        <h2 class="h2 reveal" style="--i:1">신호가 영상이 되고,<br>영상이 소리가 되는 디지털아트전공</h2>
-        <p class="lead reveal" style="--i:2">센서와 카메라의 데이터가 실시간으로 빛과 소리로 바뀝니다. 수업에서 매일 쓰는 도구들입니다.</p>
+        <div class="kicker reveal" style="--i:0"><span class="cs-caption">03</span><i></i><span class="cs-caption">진로와 역량</span></div>
+        <h2 class="h2 reveal" style="--i:1">두 가지 역량,<br>다섯 갈래의 진로</h2>
+        <p class="lead reveal" style="--i:2">확장 미디어 크리에이션과 테크 크리에이션, 두 역량을 축으로 모든 과목을 설계했습니다. 전공이 목표로 삼는 인재상은 다섯 가지입니다.</p>
         <div class="tools reveal" style="--i:3">
-          <div class="col"><span class="cs-caption">01 · 실시간 영상</span><span class="h3">TouchDesigner<br>Resolume Arena</span></div>
-          <div class="col"><span class="cs-caption">02 · 사운드 · 인터랙션</span><span class="h3">Max/MSP<br>Arduino · Kinect</span></div>
-          <div class="col"><span class="cs-caption">03 · 3D · XR</span><span class="h3">Unreal Engine<br>Maya</span></div>
-          <div class="col"><span class="cs-caption">04 · 코드 · AI</span><span class="h3">p5.js · Python<br>생성형 모델</span></div>
+          <div class="col"><span class="cs-caption">01 · 기획 · 연출</span><span class="h3">융복합 콘텐츠 기획자<br>실감미디어 디렉터</span></div>
+          <div class="col"><span class="cs-caption">02 · 그래픽 · 영상</span><span class="h3">컴퓨터 그래픽 아티스트<br>모션그래픽 · VFX</span></div>
+          <div class="col"><span class="cs-caption">03 · 인터랙션 · 테크</span><span class="h3">인터랙션 프로그래머<br>테크니컬 아티스트 · XR</span></div>
+          <div class="col"><span class="cs-caption">04 · 미디어아트</span><span class="h3">미디어 아티스트<br>오디오비주얼 · 설치 · 퍼포먼스</span></div>
         </div>
       </div>
     </div>
@@ -416,7 +420,7 @@ html.touch-paging .cards{touch-action:pan-x}
       <div class="stack">
         <div class="kicker reveal" style="--i:0;justify-content:center"><span class="cs-caption">05</span><i></i><span class="cs-caption">입학안내</span></div>
         <h2 class="h2 reveal" style="--i:1">만드는 사람이 곧 매체가 된다.</h2>
-        <p class="lead reveal" style="--i:2">다음 학년도 모집 일정과 실기 안내는 서울예술대학교 입학처에서 확인할 수 있습니다.</p>
+        <p class="lead reveal" style="--i:2">영상학부 디지털아트전공은 3년 전문학사 과정입니다. 모집 시기와 전형 방법, 실기 안내는 서울예술대학교 입학처 공지에서 확인할 수 있습니다.</p>
         <div class="actions reveal" style="--i:3">
           <a class="btn lg primary" href="https://www.seoularts.ac.kr/web/cop/bbsWeb/selectBoardList.do?bbsId=BBSMSTR_000000000924" target="_blank" rel="noopener">입학처 바로가기 <svg class="i i-20"><use href="#arrow-up-right"/></svg></a>
         </div>
