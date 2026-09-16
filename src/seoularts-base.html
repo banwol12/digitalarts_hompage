@@ -641,12 +641,11 @@ html.touch-paging .cards{touch-action:pan-x}
     var active = 0, start = performance.now(), lastSpin = 0, spinAcc = 0;
 
     /* ── 첫 입장 연출 (사용자 요청 2026-09-17: 화면의 픽셀들이 촤라락 살아나서 호로록 로고로 모이는 느낌)
-       0.15~1.3초  깨어남: 화면 전체 격자의 픽셀이 왼쪽 위에서 오른쪽 아래로 파도처럼 켜진다 (켜지는 순간 하얗게 번쩍, 잠깐 커졌다 작아짐)
-       1.3~1.75초  떠 있음: 제자리에서 숨 쉬듯 흔들린다
-       1.75~3.5초  모임: 로고 가운데를 축으로 소용돌이치며 빨려 들어간다 (먼 것이 먼저 출발, 가까운 것이 먼저 도착 → 안쪽부터 채워진다)
-       3.35~3.9초  완성: 빛 띠가 로고를 한 번 훑고 살짝 커졌다 제자리 (펀치)
+       0.15~1.3초  깨어남: 화면 전체 격자의 픽셀이 왼쪽에서 오른쪽으로 파도처럼 조용히 켜진다 (번쩍임 없음 — 사용자: 담백하고 깔끔하게)
+       1.3~1.75초  떠 있음: 제자리에서 아주 느리게 흔들린다
+       1.75~3.5초  모임: 로고 가운데를 축으로 완만한 곡선을 그리며 빨려 들어간다 (먼 것이 먼저 출발, 가까운 것이 먼저 도착 → 안쪽부터 채워진다)
        4.3초       전공명·SCROLL 힌트 등장 ── */
-    var INTRO_ZOOM = 1.14, IN_WAKE0 = 0.15, IN_WAKE_SPAN = 1.15, IN_GATHER = 1.75, IN_FLASH = 3.35, introT0 = 0;
+    var INTRO_ZOOM = 1.14, IN_WAKE0 = 0.15, IN_WAKE_SPAN = 1.15, IN_GATHER = 1.75, introT0 = 0;
     function introWave(X, Y){ return Math.max(0, Math.min(1, (X / W) * 0.8 + ((Y - 64) / Math.max(1, H - 64)) * 0.2)); }   /* 켜지는 순서: 왼쪽→오른쪽, 살짝 위→아래 */
     function wrapPi(a){ return Math.atan2(Math.sin(a), Math.cos(a)); }
     function vortex(o, e){                                                          /* 소용돌이 경로: 반지름·각도를 따로 보간하고, 중간에 각도를 더 감았다 푼다 */
@@ -671,7 +670,7 @@ html.touch-paging .cards{touch-action:pan-x}
           b.dur = 0.85 + rn * 0.7 + Math.random() * 0.15;                  /* 먼 것은 오래 날아온다 */
           b.ra = Math.hypot(b.cur.x, b.cur.y); b.aa = Math.atan2(b.cur.y, b.cur.x);
           b.rb = Math.hypot(t.x, t.y); b.ab = b.aa + wrapPi(Math.atan2(t.y, t.x) - b.aa);
-          b.sw = (0.8 + 1.0 * rn) * (0.75 + 0.25 * b.seed); b.wg = 0;      /* 감기는 각도: 멀수록 크게 */
+          b.sw = (0.45 + 0.6 * rn) * (0.75 + 0.25 * b.seed);              /* 감기는 각도: 멀수록 크게, 완만하게 */
         } else {
           b.t0 = now + Math.random() * 0.45;
           b.dur = 0.75 + Math.random() * 0.35;
@@ -743,7 +742,7 @@ html.touch-paging .cards{touch-action:pan-x}
         var X = gx + (Math.random() - 0.5) * 6, Y = gy + (Math.random() - 0.5) * 6, tb = boxes[Math.floor(Math.random() * N)].to || { x: 0, y: 0 };
         var sx = (X - fr.cx) / unit, sy = (Y - fr.cy) / unit, tx = tb.x + (Math.random() - 0.5) * 2.5, ty = tb.y + (Math.random() - 0.5) * 2.5;
         var rn = Math.min(1, Math.hypot(X - fr.cx, Y - fr.cy) / (Math.hypot(W, H) * 0.5)), aa = Math.atan2(sy, sx);
-        dots.push({ ra: Math.hypot(sx, sy), aa: aa, rb: Math.hypot(tx, ty), ab: aa + wrapPi(Math.atan2(ty, tx) - aa), sw: (0.8 + 1.0 * rn) * (0.7 + 0.3 * Math.random()),
+        dots.push({ ra: Math.hypot(sx, sy), aa: aa, rb: Math.hypot(tx, ty), ab: aa + wrapPi(Math.atan2(ty, tx) - aa), sw: (0.45 + 0.6 * rn) * (0.7 + 0.3 * Math.random()),
           tw: now + IN_WAKE0 + introWave(X, Y) * IN_WAKE_SPAN + Math.random() * 0.12, t0: now + IN_GATHER + Math.random() * 0.35 + (1 - rn) * 0.2, dur: 0.8 + rn * 0.7 + Math.random() * 0.2,
           sz: 0.07 + Math.random() * 0.12, sh: Math.random(), ph: Math.random() * 6.283 });
       }
@@ -816,19 +815,16 @@ html.touch-paging .cards{touch-action:pan-x}
       frameNo++; if (calm && (frameNo & 1)) { requestAnimationFrame(render); return; }
       if (play.on) updatePlay(t);
       if (gFrom && gTo) { var gp = Math.max(0, Math.min(1, (t - gT0) / gDur)), ge = easeOut(gp); for (var key in gTo) g[key] = gFrom[key] + (gTo[key] - gFrom[key]) * ge; if (gp >= 1) gFrom = gTo = null; }
-      /* 인트로 완성 순간: 빛 띠가 로고를 훑고 살짝 커졌다 돌아온다 */
-      var fs = introDone ? -1 : (t - introT0 - IN_FLASH) / 0.55, flashK = (fs > 0 && fs < 1) ? Math.sin(Math.PI * fs) : 0;
       spinAcc += g.spin * (t - lastSpin); lastSpin = t;
       if (g.flow > 0.01 && !reduce) updateFlow(t); else lastT = t;
       var yaw = g.yaw + Math.sin(t * 0.22) * g.sway + spinAcc;
       yaw = Math.max(-0.35, Math.min(0.35, yaw));                     /* 정면 기준 ±20° 를 넘지 않는다 */
       var pitch = g.pitch + Math.sin(t * 0.17) * g.sway * 0.35;
       var cy = Math.cos(yaw), sy = Math.sin(yaw), cp = Math.cos(pitch), sp = Math.sin(pitch);
-      var D = 72, F = Math.min(W, H) * 1.45, S = g.s * (1 + 0.035 * flashK), OX = g.cx, OY = g.cy;
+      var D = 72, F = Math.min(W, H) * 1.45, S = g.s, OX = g.cx, OY = g.cy;
       /* 광원이 아주 천천히 돌고, 부드러운 빛 띠가 표면을 스친다 */
       var lx0 = -0.42 + Math.sin(t * 0.21) * 0.28, ly0 = -0.62 + Math.cos(t * 0.17) * 0.12, lz0 = -0.66; var lnorm = Math.sqrt(lx0*lx0 + ly0*ly0 + lz0*lz0); L = [lx0 / lnorm, ly0 / lnorm, lz0 / lnorm];
-      var sweepA = 0.8, sweepPos = Math.sin(t * 0.16) * 26, sweepC = Math.cos(sweepA), sweepS = Math.sin(sweepA), bandK = 0.16, bandW = 26;
-      if (flashK > 0) { sweepPos = -36 + 72 * fs; bandK = 0.16 + 0.6 * flashK; bandW = 60; }
+      var sweepA = 0.8, sweepPos = Math.sin(t * 0.16) * 26, sweepC = Math.cos(sweepA), sweepS = Math.sin(sweepA);
       var pal = { dark: mix(PAL_PAPER.dark, PAL_INK.dark, g.mode), mid: mix(PAL_PAPER.mid, PAL_INK.mid, g.mode), light: mix(PAL_PAPER.light, PAL_INK.light, g.mode), sky: mix(PAL_PAPER.sky, PAL_INK.sky, g.mode), fog: mix(PAL_PAPER.fog, PAL_INK.fog, g.mode) };
       /* 반투명 워터마크 챕터는 오프스크린에 불투명하게 그린 뒤 한 번에 합성 (겹침 얼룩 방지) */
       var usingOff = g.alpha < 0.999; ctx = usingOff ? octx : ctxMain;
@@ -841,19 +837,19 @@ html.touch-paging .cards{touch-action:pan-x}
         var buckets = [], bk; for (bk = 0; bk < 8; bk++) buckets.push([]);
         for (var di = 0; di < dots.length; di++) {
           var dd = dots[di], wt = t - dd.tw; if (wt < 0) continue;
-          var dp = Math.max(0, Math.min(1, (t - dd.t0) / dd.dur)), de = easeInOut3(dp), pop = wt < 0.4 ? 1 - wt / 0.4 : 0;   /* 켜지는 순간 번쩍 */
-          var base = dd.sh > 0.7 ? 0.62 : 0.42;
-          var da = (t < dd.t0 ? Math.min(base, wt * 5) : base * Math.pow(1 - dp, 1.4)) * (0.8 + 0.2 * Math.sin(t * 4 + dd.ph)) + pop * pop * 0.45;   /* 로고에 닿기 전에 흡수되듯 사라진다 */
+          var dp = Math.max(0, Math.min(1, (t - dd.t0) / dd.dur)), de = easeInOut3(dp);
+          var base = dd.sh > 0.7 ? 0.55 : 0.36;
+          var da = t < dd.t0 ? Math.min(base, wt * 2.5) : base * Math.pow(1 - dp, 1.4);          /* 조용히 켜지고, 로고에 닿기 전에 흡수되듯 사라진다 */
           if (da <= 0.02) continue;
           var fl0 = t < dd.t0 ? 1 : Math.max(0, 1 - dp * 1.6), vp = vortex(dd, de);
-          var dx = (vp.x + Math.sin(t * 0.8 + dd.ph) * 0.7 * fl0) * S, dy = (vp.y + Math.cos(t * 0.6 + dd.ph * 1.7) * 0.7 * fl0) * S, dz = -Math.sin(Math.PI * dp) * 4 * S;
+          var dx = (vp.x + Math.sin(t * 0.8 + dd.ph) * 0.4 * fl0) * S, dy = (vp.y + Math.cos(t * 0.6 + dd.ph * 1.7) * 0.4 * fl0) * S, dz = -Math.sin(Math.PI * dp) * 4 * S;
           var dax = dx * cy + dz * sy, daz = -dx * sy + dz * cy, day = dy * cp - daz * sp, daz2 = dy * sp + daz * cp, dsc = F / (daz2 + D);
-          var DX = OX + dax * dsc, DY = OY + day * dsc, dsz = Math.max(1, dd.sz * S * dsc * (1 - 0.4 * dp) * (1 + 1.3 * pop));
-          buckets[(dd.sh > 0.7 || pop > 0.3 ? 4 : 0) + Math.min(3, Math.floor(da / 0.7 * 4))].push(DX - dsz, DY - dsz, dsz * 2);
+          var DX = OX + dax * dsc, DY = OY + day * dsc, dsz = Math.max(1, dd.sz * S * dsc * (1 - 0.4 * dp));
+          buckets[(dd.sh > 0.7 ? 4 : 0) + Math.min(3, Math.floor(da / 0.6 * 4))].push(DX - dsz, DY - dsz, dsz * 2);
         }
         for (bk = 0; bk < 8; bk++) {
           var arr = buckets[bk]; if (!arr.length) continue;
-          ctx.globalAlpha = ((bk % 4) + 0.5) / 4 * 0.7; ctx.fillStyle = rgb(bk >= 4 ? pal.light : pal.mid); ctx.beginPath();
+          ctx.globalAlpha = ((bk % 4) + 0.5) / 4 * 0.6; ctx.fillStyle = rgb(bk >= 4 ? pal.light : pal.mid); ctx.beginPath();
           for (var ri = 0; ri < arr.length; ri += 3) ctx.rect(arr[ri], arr[ri + 1], arr[ri + 2], arr[ri + 2]);
           ctx.fill();
         }
@@ -880,14 +876,14 @@ html.touch-paging .cards{touch-action:pan-x}
         }
         var alpha = 1, dep = 1, szf = 1, lx = 0, ly = 0, lz = 0;
         if (!introDone && b.back) {
-          var wt = t - b.tw, pop = (wt > 0 && wt < 0.45) ? 1 - wt / 0.45 : 0; b.wg = pop;      /* 켜지는 순간 하얗게 번쩍 (색은 아래 그리기에서) */
+          var wt = t - b.tw;
           if (wt < 0) alpha = 0;
-          else if (t < b.t0) alpha = Math.min(0.92, wt * 6) * (0.85 + 0.15 * Math.sin(t * 5 + b.seed * 20));   /* 켜진 뒤 숨 쉬듯 깜빡인다 */
+          else if (t < b.t0) alpha = Math.min(0.92, wt * 2.8);                                   /* 조용히 켜진다 */
           else alpha = 0.92 + 0.08 * e;
-          szf = (t < b.t0 ? 0.28 : 0.28 + 0.72 * e) + 0.45 * pop * pop;                         /* 작은 큐브 → 픽셀 크기, 켜질 땐 잠깐 커졌다 줄어든다 */
+          szf = t < b.t0 ? 0.28 : 0.28 + 0.72 * e;                                              /* 작은 큐브 → 픽셀 크기 */
           var cube = Math.min(1, 0.5 / b.h); dep = t < b.t0 ? cube : cube + (1 - cube) * e;        /* 떠 있을 땐 정육면체, 모이며 로고 두께로 */
           var fl = t < b.t0 ? 1 : Math.max(0, 1 - p * 1.6);                                     /* 모이기 시작하면 떠다님이 잦아든다 */
-          if (fl > 0) { lx += Math.sin(t * 0.9 + b.seed * 6.283) * 0.8 * fl; ly += Math.cos(t * 0.7 + b.seed2 * 6.283) * 0.8 * fl; lz += Math.sin(t * 1.1 + b.seed * 3) * 1.6 * fl; }
+          if (fl > 0) { lx += Math.sin(t * 0.9 + b.seed * 6.283) * 0.45 * fl; ly += Math.cos(t * 0.7 + b.seed2 * 6.283) * 0.45 * fl; lz += Math.sin(t * 1.1 + b.seed * 3) * 1.0 * fl; }
           if (alpha <= 0) continue;
         }
         var bob = hasFlow ? Math.sin(t * 1.4 + b.fc * 0.35 + b.fr * 0.6) * 0.5 * g.flow : 0;
@@ -915,9 +911,8 @@ html.touch-paging .cards{touch-action:pan-x}
           }
           /* 상자 단위 색 보정: 안개(깊이)·빛 띠·데이터 패킷·살아있는 반짝임 */
           var fog = Math.max(0, Math.min(1, (cz1 + 18) / 40)) * 0.3;
-          var sd = (bx.cur.x * sweepC + bx.cur.y * sweepS) - sweepPos; var band = Math.exp(-sd * sd / bandW) * bandK; if (band < 0.01) band = 0;
+          var sd = (bx.cur.x * sweepC + bx.cur.y * sweepS) - sweepPos; var band = Math.exp(-sd * sd / 26) * 0.16; if (band < 0.01) band = 0;
           var flk = 0; if (hasLive) { flk = Math.pow(Math.max(0, Math.sin(t * 1.1 + bx.seed * 40 + bx.gx * 0.5 - bx.gy * 0.3)), 22) * 0.32 * g.live; if (flk < 0.01) flk = 0; }
-          if (!introDone && bx.wg > 0) flk = Math.min(1, flk + bx.wg * bx.wg * 0.95);           /* 인트로: 켜지는 순간의 하얀 번쩍임 */
           ctx.globalAlpha = it.a * (1 - m) * GA;
           for (var f = 0; f < 6; f++) {
             var fv = FACES[f].v, i0 = fv[0], i1 = fv[1], i2 = fv[2], i3 = fv[3];
