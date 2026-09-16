@@ -742,7 +742,7 @@ html.touch-paging .cards{touch-action:pan-x}
         if (Y < hdr1 + 2) { f.tw[q] = 1e9; continue; }                                        /* 헤더 뒤는 비워 둔다 */
         var r = Math.random(), rn = Math.min(1, Math.hypot(X - fr.cx, Y - fr.cy) / diag);
         f.tw[q] = now + IN_WAKE0 + Math.random() * IN_WAKE_SPAN; f.ph[q] = Math.random() * 6.2831853;
-        f.base[q] = r < 0.8 ? 0.22 + r * 0.32 : r < 0.97 ? 0.55 + Math.random() * 0.25 : 0.9 + Math.random() * 0.1;   /* 80% 어둡게(회색 40~95), 17% 중간, 3% 밝게 — 화면 전체가 픽셀 질감으로 보인다 */
+        f.base[q] = r < 0.8 ? 0.26 + r * 0.2 : r < 0.97 ? 0.5 + Math.random() * 0.15 : 0.85 + Math.random() * 0.15;   /* 80% 어둡게(회색 45~75, 편차 작게 → 노이즈가 아니라 고른 픽셀 면), 17% 중간, 3% 밝게 */
         f.t0[q] = now + IN_GATHER + Math.random() * 0.2 + (1 - rn) * 0.55;                    /* 바깥 칸이 먼저 출발 → 바깥에서 안쪽으로 촤라락 */
         f.dur[q] = 0.5 + rn * 0.4 + Math.random() * 0.15;
         f.tgt[q] = Math.floor(Math.random() * N);
@@ -847,7 +847,7 @@ html.touch-paging .cards{touch-action:pan-x}
           var qw = t - fd.tw[q]; if (qw < 0) continue;
           var qa = fd.base[q] * Math.min(1, qw * 3) * gain, hx = (q % fcw) + 0.5, hy = ((q / fcw) | 0) + 0.5;
           var zn = (SIN(hx * 0.045 + hy * 0.031 + tA) + SIN(hx * 0.02 - hy * 0.045 + tB)) * 0.35 + SIN(tC + fd.ph[q]) * 0.3;   /* -1(가깝다) ~ +1(멀다) */
-          var kz = D / (zn * ZA + D), qg = t - fd.t0[q], qx, qy, big = zn < -0.55;                  /* 원근: 가까우면 중심에서 바깥으로, 멀면 안쪽으로 */
+          var kz = D / (zn * ZA + D), qg = t - fd.t0[q], qx, qy, big = zn < -0.68;                  /* 원근: 가까우면 중심에서 바깥으로, 멀면 안쪽으로 */
           if (qg > 0) {
             var qp = qg / fd.dur[q]; if (qp >= 1) continue;
             var qe = easeSuck(qp), qt = fd.tgt[q]; kz = 1 + (kz - 1) * (1 - qe);
