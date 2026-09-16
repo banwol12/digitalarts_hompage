@@ -641,15 +641,7 @@ html.touch-paging .cards{touch-action:pan-x}
     var gFrom = null, gTo = null, gT0 = 0, gDur = 0.9;
     var active = 0, start = performance.now(), lastSpin = 0, spinAcc = 0;
 
-    /* ── 첫 입장 연출 "4D" (사용자 요청 2026-09-17): 검정 화면을 이루고 있던 숨은 픽셀들이 앞으로 튀어나왔다가, 촤라락 로고로 모인다.
-       화면을 2px 칸으로 나눈 격자 하나하나가 픽셀이다 (1440×900 이면 약 32만 개 — 사용자: 더 작고 촘촘하게, 랜덤 폭은 좁게). 저해상도 캔버스에 픽셀 단위로 찍은 뒤 확대한다.
-       0.05~1.8초  튀어나옴: 전체가 0 → 100 으로 떠오르면서, 칸마다 화면 면(z=0)에서 카메라 쪽으로 저마다 다른 깊이만큼 빠르게 튀어나와 멈춘다
-                  (원근: 가까울수록 중심에서 바깥으로 밀리고, 크고(2×2·3×3), 밝다 → 평평한 화면이 입체로 일어선다). 흐름·노이즈·깜빡임 없음
-       1.9~3.4초   촤라락: 바깥 칸부터 로고 픽셀 자리로 가속하며 빨려 들어가 닿기 전에 흡수된다
-       4.3초       전공명·SCROLL 힌트 등장 ── */
-    var field = null, INTRO_ZOOM = 1, IN_WAKE0 = 0.05, IN_WAKE_SPAN = 0.12, IN_FADE = 1.6, IN_GATHER = 1.9, IN_ZPOP = 14, introT0 = 0;   /* IN_FADE: 전체가 떠오르는 시간, IN_ZPOP: 튀어나오는 최대 깊이 */
-    function easeInOut3(p){ return p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2; }
-    function easeSuck(p){ return p < 0.8 ? 0.8 * Math.pow(p / 0.8, 2.6) : 0.8 + 0.2 * (1 - Math.pow(1 - (p - 0.8) / 0.2, 2)); }   /* 흡입: 천천히 출발해 계속 가속, 마지막 20% 에서 사뿐히 */
+    var dots = [];                                                                  /* 보조 점 층 — setFormation(0, true) 보다 먼저 있어야 한다 */
     function setFormation(i, initial, instant){
       var c = CHAPTERS[i] || CHAPTERS[0], fr = frameFor(i), now = (performance.now() - start) / 1000, fn = FORM[c.form];
       /* 첫 진입: 화면 전체 격자에 숨어 있던 픽셀들 — 왼쪽에서 오른쪽으로 하나씩 켜진 뒤 로고 자리로 모인다 */
@@ -657,15 +649,12 @@ html.touch-paging .cards{touch-action:pan-x}
       for (var k = 0; k < N; k++) {
         var b = boxes[k], t = fn(b, k);
         if (initial) {
-          /* 로고가 될 별들: 화면 전체에 서로 다른 깊이로 흩어져 있다가 직선으로 모인다 */
+          /* 화면 전체에 흩어진 작은 점들 — 잠깐 나타난 뒤 거의 동시에 로고 자리로 모인다 */
           var hdr0 = (document.querySelector('.site-header') || {}).offsetHeight || 64, X = 16 + Math.random() * (W - 32), Y = hdr0 + 8 + Math.random() * (H - hdr0 - 20);
-          var unit0 = unit * INTRO_ZOOM;                                    /* 카메라가 살짝 당겨진 채 시작하므로 그 배율로 흩뿌린다 */
-          b.cur = { x: (X - fr.cx) / unit0, y: (Y - fr.cy) / unit0, z: 0 };                 /* 화면 면에서 시작 */
-          b.zpop = -IN_ZPOP / fr.s * (0.5 + 0.5 * Math.random()); b.tp = now + 0.05 + Math.random() * 0.5; b.dp = 0.9 + Math.random() * 0.2;   /* 튀어나올 깊이·시각·시간 — 랜덤 폭 좁게 */
-          var rn = Math.min(1, Math.hypot(X - fr.cx, Y - fr.cy) / (Math.hypot(W, H) * 0.5));   /* 로고 중심에서의 거리 0~1 */
-          b.tw = now + IN_WAKE0 + Math.random() * IN_WAKE_SPAN;                        /* 거의 동시에 — 밝기는 전체 페이드(introGain)를 따른다 */
-          b.t0 = now + IN_GATHER + Math.random() * 0.25 + (1 - rn) * 0.45; /* 바깥 것이 먼저 출발 */
-          b.dur = 0.7 + rn * 0.5 + Math.random() * 0.15;                   /* 바깥 것은 오래 날아온다 */
+          b.cur = { x: (X - fr.cx) / unit, y: (Y - fr.cy) / unit, z: (Math.random() - 0.5) * 24 };   /* 서로 다른 깊이에 떠 있는 작은 큐브 */
+          b.tw = now + 0.05 + Math.random() * 0.55;                       /* 떠오르는 순간 */
+          b.t0 = now + 1.55 + Math.random() * 0.45;                       /* 공중에 떠 있다가 모이기 시작 */
+          b.dur = 1.0 + Math.random() * 0.4;
         } else {
           b.t0 = now + Math.random() * 0.45;
           b.dur = 0.75 + Math.random() * 0.35;
@@ -680,10 +669,10 @@ html.touch-paging .cards{touch-action:pan-x}
       gFrom.yaw = g.yaw + spinAcc; spinAcc = 0;
       var dyaw = gTo.yaw - gFrom.yaw; dyaw = Math.atan2(Math.sin(dyaw), Math.cos(dyaw)); gFrom.yaw = gTo.yaw - dyaw;
       gT0 = now; gDur = (initial || reduce || instant) ? 0.01 : 0.9;
-      if (initial && !introReduce) { gFrom.yaw = 0; gFrom.pitch = c.pitch; gFrom.sway = 0; gFrom.s = fr.s; gT0 = now + IN_GATHER; gDur = 2.0; introT0 = now; seedDots(fr, now); }   /* 카메라는 평평하게 고정 (기울이면 화면 모서리가 틀어져 보인다) */
+      if (initial && !introReduce) { gFrom.yaw = 0.3; gFrom.pitch = -0.22; gFrom.sway = 0; gFrom.s = fr.s; gT0 = now + 1.3; gDur = 1.9; seedDots(fr, now); }
     }
     setFormation(0, true);
-    var introDone = false, INTRO_T = 4.3, sceneT = 0;
+    var introDone = false, INTRO_T = 3.7, sceneT = 0;
     /* ── 이스터에그: 02 챕터의 코드 조각을 마우스·손가락으로 잡아 던지면 얼마쯤 날아갔다가 스프링처럼 제자리로 돌아온다.
        점수나 안내 없이 숨어 있다 (조각 위에서 커서가 손 모양으로 바뀌는 것만 힌트) ── */
     var play = { on: false, drag: null, last: 0, trail: [], gx: 0, gy: 0 };
@@ -730,23 +719,13 @@ html.touch-paging .cards{touch-action:pan-x}
       play.on = false; play.drag = null; document.body.style.cursor = '';
     }
     function seedDots(fr, now){
-      /* 화면 해상도 격자: 4px 칸 하나가 픽셀 하나. 칸마다 켜지는 시각·밝기·출발 시각·날아가는 시간·목표 로고 픽셀을 미리 뽑아 둔다 (타입 배열 → 8만 개도 가볍다) */
-      var cs = 2, cw = Math.ceil(W / cs), ch = Math.ceil(H / cs), n = cw * ch, hdr1 = (document.querySelector('.site-header') || {}).offsetHeight || 64;
-      var f = { cs: cs, cw: cw, ch: ch, n: n, cv: document.createElement('canvas'), tw: new Float32Array(n), base: new Float32Array(n), zt: new Float32Array(n), tp: new Float32Array(n), dp: new Float32Array(n), t0: new Float32Array(n), dur: new Float32Array(n), tgt: new Uint16Array(n), tx: new Float32Array(N), ty: new Float32Array(N) };
-      f.cv.width = cw; f.cv.height = ch; f.g = f.cv.getContext('2d'); f.img = f.g.createImageData(cw, ch); f.buf = f.img.data;
-      var diag = Math.hypot(W, H) * 0.5;
-      for (var q = 0; q < n; q++) {
-        var X = (q % cw + 0.5) * cs, Y = (Math.floor(q / cw) + 0.5) * cs;
-        if (Y < hdr1 + 2) { f.tw[q] = 1e9; continue; }                                        /* 헤더 뒤는 비워 둔다 */
-        var r = Math.random(), rn = Math.min(1, Math.hypot(X - fr.cx, Y - fr.cy) / diag);
-        f.tw[q] = now + IN_WAKE0 + Math.random() * IN_WAKE_SPAN;
-        f.zt[q] = -IN_ZPOP * (0.5 + 0.5 * Math.random()); f.tp[q] = now + 0.05 + Math.random() * 0.5; f.dp[q] = 0.9 + Math.random() * 0.2;   /* 튀어나올 깊이·시각·시간 — 랜덤 폭 좁게 */
-        f.base[q] = r < 0.985 ? 0.38 + Math.random() * 0.05 : 0.8 + Math.random() * 0.15;  /* 고른 밝기 (편차 아주 작게), 1.5% 만 밝은 점. 명암은 깊이(가까울수록 밝게)로만 */
-        f.t0[q] = now + IN_GATHER + Math.random() * 0.2 + (1 - rn) * 0.55;                    /* 바깥 칸이 먼저 출발 → 바깥에서 안쪽으로 촤라락 */
-        f.dur[q] = 0.5 + rn * 0.4 + Math.random() * 0.15;
-        f.tgt[q] = Math.floor(Math.random() * N);
+      /* 로고 픽셀(530개) 사이를 채우는 작은 보조 점 — 같은 타이밍으로 나타나 같이 모이며 사라진다. 원래 있던 층인데 선언 순서 때문에 그려지지 않았던 것을 살리고, 개수는 조금만 (사용자: 픽셀 수 조금 더) */
+      var unit = fr.s * (Math.min(W, H) * 1.45) / 72, count = MOBILE() ? 450 : 800; dots = [];
+      for (var q = 0; q < count; q++) {
+        var hdr1 = (document.querySelector('.site-header') || {}).offsetHeight || 64, X = 12 + Math.random() * (W - 24), Y = hdr1 + 6 + Math.random() * (H - hdr1 - 16), tb = boxes[Math.floor(Math.random() * N)].to || { x: 0, y: 0 };
+        dots.push({ sx: (X - fr.cx) / unit, sy: (Y - fr.cy) / unit, tx: tb.x + (Math.random() - 0.5) * 3, ty: tb.y + (Math.random() - 0.5) * 3,
+          tw: now + 0.05 + Math.random() * 0.55, t0: now + 1.55 + Math.random() * 0.45, dur: 0.85 + Math.random() * 0.35, sz: 0.07 + Math.random() * 0.12, sh: Math.random(), ph: Math.random() * 6.283 });
       }
-      field = f;
     }
 
     /* 03 챕터: 픽셀 필드 위를 오가는 데이터 패킷 (행·열을 따라 빛이 옮겨 다닌다) */
@@ -816,7 +795,7 @@ html.touch-paging .cards{touch-action:pan-x}
       var calm = !STATIC && !busy && !play.on && active !== 0 && g.flow < 0.01;
       frameNo++; if (calm && (frameNo & 1)) { requestAnimationFrame(render); return; }
       if (play.on) updatePlay(t);
-      if (gFrom && gTo) { var gp = Math.max(0, Math.min(1, (t - gT0) / gDur)), ge = easeOut(gp); for (var key in gTo) g[key] = gFrom[key] + (gTo[key] - gFrom[key]) * ge; if (gp >= 1) gFrom = gTo = null; }
+      if (gFrom && gTo) { var gp = Math.min(1, (t - gT0) / gDur), ge = easeOut(gp); for (var key in gTo) g[key] = gFrom[key] + (gTo[key] - gFrom[key]) * ge; if (gp >= 1) gFrom = gTo = null; }
       spinAcc += g.spin * (t - lastSpin); lastSpin = t;
       if (g.flow > 0.01 && !reduce) updateFlow(t); else lastT = t;
       var yaw = g.yaw + Math.sin(t * 0.22) * g.sway + spinAcc;
@@ -834,34 +813,28 @@ html.touch-paging .cards{touch-action:pan-x}
       ctx.setTransform(DPR, 0, 0, DPR, 0, 0); ctx.clearRect(0, 0, W, H);
       var GA = usingOff ? 1 : g.alpha;
 
-      var introGain = introDone ? 1 : easeInOut3(Math.max(0, Math.min(1, (t - introT0 - IN_WAKE0) / IN_FADE)));   /* 스르륵: 검정에서 전체가 함께 0 → 100 */
-      if (!introDone && field) {
-        var fd = field, fcs = fd.cs, fcw = fd.cw, fch = fd.ch, fb = fd.buf; fb.fill(0);
-        /* 이번 프레임의 로고 픽셀 화면 위치 (칸 단위) — 카메라가 움직여도 칸들이 제자리로 따라간다 */
-        for (var tk0 = 0; tk0 < N; tk0++) { var tb = boxes[tk0].to, tpx = tb.x * S, tpy = tb.y * S, tpz = tb.z * S;
-          var tax = tpx * cy + tpz * sy, taz = -tpx * sy + tpz * cy, tay = tpy * cp - taz * sp, taz2 = tpy * sp + taz * cp, tsc = F / (taz2 + D);
-          fd.tx[tk0] = (OX + tax * tsc) / fcs; fd.ty[tk0] = (OY + tay * tsc) / fcs; }
-        var gain = introGain;
-        var ccx = OX / fcs, ccy = OY / fcs;
-        for (var q = 0, qn = fd.n; q < qn; q++) {
-          var qw = t - fd.tw[q]; if (qw < 0) continue;
-          var hx = (q % fcw) + 0.5, hy = ((q / fcw) | 0) + 0.5, qa = fd.base[q] * Math.min(1, qw * 3) * gain;
-          var pp = (t - fd.tp[q]) / fd.dp[q]; pp = pp <= 0 ? 0 : pp >= 1 ? 1 : 1 - (1 - pp) * (1 - pp) * (1 - pp);   /* 튀어나옴: 빠르게 나왔다가 멈춘다 */
-          var z = fd.zt[q] * pp, kz = D / (z + D), qg = t - fd.t0[q], qx, qy;                         /* 원근: 가까우면(z<0) 중심에서 바깥으로 */
-          if (qg > 0) {
-            var qp = qg / fd.dur[q]; if (qp >= 1) continue;
-            var qe = easeSuck(qp), qt = fd.tgt[q]; kz = 1 + (kz - 1) * (1 - qe);
-            var sx0 = ccx + (hx - ccx) * kz, sy0 = ccy + (hy - ccy) * kz;
-            qx = (sx0 + (fd.tx[qt] - sx0) * qe) | 0; qy = (sy0 + (fd.ty[qt] - sy0) * qe) | 0; qa *= Math.pow(1 - qp, 1.2);   /* 닿기 전에 흡수된다 */
-          } else { qx = (ccx + (hx - ccx) * kz) | 0; qy = (ccy + (hy - ccy) * kz) | 0; }
-          var near = (kz - 1) / 0.29, sz = near > 0.7 ? 2 : 1;                                        /* 가장 가까운 것만 2×2 (4px), 나머지 2px */
-          if (qx < 0 || qy < 0 || qx + sz > fcw || qy + sz > fch) continue;
-          var qv = (qa * (0.75 + 0.6 * near) * (fd.base[q] > 0.6 ? 245 : 190)) | 0; if (qv > 255) qv = 255;
-          for (var yy = 0; yy < sz; yy++) { var qo = ((qy + yy) * fcw + qx) << 2; for (var xx = 0; xx < sz; xx++, qo += 4) { if (qv > fb[qo]) { fb[qo] = qv; fb[qo + 1] = qv; fb[qo + 2] = qv; fb[qo + 3] = 255; } } }
+      if (!introDone && dots.length) {
+        /* 보조 점: 색 2종 × 불투명도 4단계 = 8개 경로로 묶어 한 번에 채움 (수천 개여도 가볍게) */
+        var buckets = [], bk; for (bk = 0; bk < 8; bk++) buckets.push([]);
+        for (var di = 0; di < dots.length; di++) {
+          var dd = dots[di]; if (t < dd.tw) continue;
+          var dp = Math.max(0, Math.min(1, (t - dd.t0) / dd.dur)), de = dp < 0.5 ? 2 * dp * dp : 1 - Math.pow(-2 * dp + 2, 2) / 2;
+          var da = (t < dd.t0 ? Math.min(0.55, (t - dd.tw) * 2.2) : 0.55 * (1 - dp)) * (0.7 + 0.3 * Math.sin(t * 4 + dd.ph));
+          if (da <= 0.02) continue;
+          var fl0 = t < dd.t0 ? 1 : Math.max(0, 1 - dp * 1.6);
+          var dx = (dd.sx + (dd.tx - dd.sx) * de + Math.sin(t * 0.8 + dd.ph) * 0.8 * fl0) * S, dy = (dd.sy + (dd.ty - dd.sy) * de + Math.cos(t * 0.6 + dd.ph * 1.7) * 0.8 * fl0) * S;
+          var dax = dx * cy, daz = -dx * sy, day = dy * cp - daz * sp, daz2 = dy * sp + daz * cp, dsc = F / (daz2 + D);
+          var DX = OX + dax * dsc, DY = OY + day * dsc, dsz = Math.max(1, dd.sz * S * dsc * (1 - 0.4 * dp));
+          buckets[(dd.sh > 0.7 ? 4 : 0) + Math.min(3, Math.floor(da / 0.56 * 4))].push(DX - dsz, DY - dsz, dsz * 2);
         }
-        fd.g.putImageData(fd.img, 0, 0);
-        ctx.imageSmoothingEnabled = false; ctx.drawImage(fd.cv, 0, 0, fcw * fcs, fch * fcs); ctx.imageSmoothingEnabled = true;
-      } else if (introDone && field) field = null;
+        for (bk = 0; bk < 8; bk++) {
+          var arr = buckets[bk]; if (!arr.length) continue;
+          ctx.globalAlpha = ((bk % 4) + 0.5) / 4 * 0.56; ctx.fillStyle = rgb(bk >= 4 ? pal.light : pal.mid); ctx.beginPath();
+          for (var ri = 0; ri < arr.length; ri += 3) ctx.rect(arr[ri], arr[ri + 1], arr[ri + 2], arr[ri + 2]);
+          ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+      } else if (introDone && dots.length) { dots = []; }
 
       /* 프레임 상수: 면 6개의 회전된 법선과 조명은 모든 상자에 같다 → 한 번만 계산 (전에는 상자마다 6번, 3,000번 넘게 반복) */
       for (var f0 = 0; f0 < 6; f0++) {
@@ -875,23 +848,16 @@ html.touch-paging .cards{touch-action:pan-x}
       for (var i = 0; i < N; i++) {
         var b = boxes[i];
         var p = Math.max(0, Math.min(1, (t - b.t0) / b.dur));
-        var e = 0;
-        if (b.from && b.to) {
-          if (b.back && !introDone) {                                                          /* 첫 입장: 떠다닐 땐 흐름을 따라 움직이고(아래), 모일 땐 그 자리에서 직선으로 (천천히 출발해 빨라졌다가 사뿐히) */
-            if (p > 0) { if (!b.gs) { b.gs = true; b.from = { x: b.cur.x, y: b.cur.y, z: b.cur.z }; } e = easeSuck(p); b.cur.x = b.from.x + (b.to.x - b.from.x) * e; b.cur.y = b.from.y + (b.to.y - b.from.y) * e; b.cur.z = b.from.z + (b.to.z - b.from.z) * e; }
-            b.m = 0;
-          } else { e = easeOut(p); b.cur.x = b.from.x + (b.to.x - b.from.x) * e; b.cur.y = b.from.y + (b.to.y - b.from.y) * e; b.cur.z = b.from.z + (b.to.z - b.from.z) * e; b.m = b.mFrom + (b.mTo - b.mFrom) * e; }
-        }
+        if (b.from && b.to) { var e = b.back ? (p < 0.5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2) : easeOut(p); b.cur.x = b.from.x + (b.to.x - b.from.x) * e; b.cur.y = b.from.y + (b.to.y - b.from.y) * e; b.cur.z = b.from.z + (b.to.z - b.from.z) * e; b.m = b.mFrom + (b.mTo - b.mFrom) * e; }
         var alpha = 1, dep = 1, szf = 1, lx = 0, ly = 0, lz = 0;
         if (!introDone && b.back) {
-          var wt = t - b.tw;
-          if (wt < 0) alpha = 0;
-          else if (t < b.t0) alpha = 0.92 * Math.min(1, wt * 8) * introGain;                     /* 스르륵 — 전체와 함께 떠오른다 */
-          else alpha = 0.92 + 0.08 * e;
-          szf = t < b.t0 ? 0.28 : 0.28 + 0.72 * e;                                              /* 작은 큐브 → 픽셀 크기 */
-          var cube = Math.min(1, 0.5 / b.h); dep = t < b.t0 ? cube : cube + (1 - cube) * e;        /* 떠 있을 땐 정육면체, 모이며 로고 두께로 */
+          if (t < b.tw) alpha = 0;
+          else if (t < b.t0) alpha = Math.min(0.9, (t - b.tw) * 2.2) * (0.8 + 0.2 * Math.sin(t * 5 + b.seed * 20));   /* 떠오르며 반짝인다 */
+          else alpha = 0.9 + 0.1 * p;
+          szf = t < b.t0 ? 0.28 : 0.28 + 0.72 * p;                                              /* 작은 큐브 → 픽셀 크기 */
+          var cube = Math.min(1, 0.5 / b.h); dep = t < b.t0 ? cube : cube + (1 - cube) * p;        /* 떠 있을 땐 정육면체, 모이며 로고 두께로 */
           var fl = t < b.t0 ? 1 : Math.max(0, 1 - p * 1.6);                                     /* 모이기 시작하면 떠다님이 잦아든다 */
-          if (t < b.t0) b.cur.z = b.zpop * easeOut(Math.max(0, Math.min(1, (t - b.tp) / b.dp)));   /* 화면 면에서 카메라 쪽으로 튀어나온다 (x·y 는 그대로) */
+          if (fl > 0) { lx += Math.sin(t * 0.9 + b.seed * 6.283) * 0.8 * fl; ly += Math.cos(t * 0.7 + b.seed2 * 6.283) * 0.8 * fl; lz += Math.sin(t * 1.1 + b.seed * 3) * 1.6 * fl; }
           if (alpha <= 0) continue;
         }
         var bob = hasFlow ? Math.sin(t * 1.4 + b.fc * 0.35 + b.fr * 0.6) * 0.5 * g.flow : 0;
@@ -1046,7 +1012,6 @@ html.touch-paging .cards{touch-action:pan-x}
     if (document.fonts && document.fonts.ready) document.fonts.ready.then(function(){ resize(); if (active !== 0) setFormation(active, false, true); });
     pick();
     if (/[?&]debug=1/.test(location.search)) window.__play = { play: play, boxes: boxes, codeAt: codeAt, isDone: function(){ return introDone; } };   /* 검수용 */
-    if (/[?&]debug=1/.test(location.search)) window.__field = function(){ return field; };   /* 검수용: 인트로 픽셀 층 */
     if (STATIC) { window.__scene = { g: g, boxes: boxes, frameFor: frameFor, state: function(){ return { active: active, W: W, H: H, SHELL: SHELL, g: g }; } }; setTimeout(function(){ resize(); if (ONLY) { activate(parseInt(ONLY, 10)); } else { pick(); } setFormation(active, false, true); render(performance.now()); }, 400); }
   }
 
