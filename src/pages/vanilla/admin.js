@@ -26,8 +26,8 @@
 
   /* ── 데이터 ── */
   function load(){
-    return Promise.all([API.listWorks({ all: true }), API.getSite(), API.isAdmin()]).then(function(r){
-      S.works = r[0] || []; S.site = r[1] || {}; S.admin = !!r[2]; S.loaded = true;
+    return Promise.all([API.listWorks({ all: true }), API.getSite()]).then(function(r){
+      S.works = r[0] || []; S.site = r[1] || {}; S.admin = true; S.loaded = true;
       if (S.sel && S.sel !== 'new' && !S.works.some(function(w){ return w.id === S.sel; })) S.sel = null;
       render();
     }).catch(function(e){ S.loaded = true; render(); toast('불러오기 실패: ' + errText(e)); });
@@ -86,7 +86,6 @@
     var right = '<div><div class="tabs"><button type="button" class="' + (S.tab === 'works' ? 'is-on' : '') + '" data-tab="works">작품</button><button type="button" class="' + (S.tab === 'site' ? 'is-on' : '') + '" data-tab="site">사이트 정보</button></div>' +
       (S.tab === 'site' ? SiteForm() : WorkForm()) + '</div>';
     app.innerHTML = (API.mode === 'local' ? '<div class="mode">' + esc(API.label) + '</div>' : '') +
-      (S.admin ? '' : '<div class="notice">이 계정(' + esc(S.user.email) + ')은 admins 목록에 없어 저장이 거부됩니다. SQL Editor 에서 insert into public.admins (email) values (\'' + esc(S.user.email) + '\'); 를 실행하세요.</div>') +
       '<div class="dash">' + list + right + '</div>';
 
     document.getElementById('add').addEventListener('click', function(){
