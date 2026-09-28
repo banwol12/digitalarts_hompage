@@ -25,6 +25,7 @@ export default function Footer() {
               <Link to="/">/HOME</Link>
               <Link to="/portfolio">/ARCHIVE</Link>
               <Link to="/submit">/SUBMIT</Link>
+              <Link to="/credits">/CREDITS (제작진)</Link>
               <Link to="/admin">/ADMIN</Link>
             </div>
 
