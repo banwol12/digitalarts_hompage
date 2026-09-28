@@ -40,7 +40,9 @@
       field('dimensions · 규격 및 재료', 'dimensions', '', { textarea: true, rows: 2, placeholder: '예: 혼합 매체, 450 × 320 × 1160 mm 또는 단채널 비디오, 05:30', hint: '작품의 크기, 설치 규격, 사용 재료, 상영 시간 등 (선택, 없으면 비워둡니다)' }) +
       field('exhibition · 전시·상영 정보', 'exhibition', '', { placeholder: '2025 졸업전시, 아카이브 기획전 등', hint: '전시 또는 상영 이력이 있다면 적어 주세요. 없으면 비워둡니다.' }) +
       field('description · 작품 설명', 'paragraphs', '', { textarea: true, rows: 7, hint: '작품 개요 · 제작 과정 · 결과. 문단은 빈 줄로 구분합니다.' }) +
-      media('image', true) + media('video', false) +
+      media('image', true) +
+      field('video_url · 영상 링크 (YouTube · Vimeo)', 'video_url', '', { placeholder: 'https://www.youtube.com/watch?v=... 또는 https://vimeo.com/...', hint: 'YouTube 또는 Vimeo 영상 링크를 넣으면 상세 페이지에 플레이어로 임베드됩니다. (선택)' }) +
+      media('video', false) +
       field('ratio · 첫 화면 타일 화면비', 'ratio', '16:10', { select: API.RATIOS, hint: '이미지를 고르면 가장 가까운 비율이 자동으로 선택됩니다' }) +
       field('note · 전공에 전할 말', 'submitter_note', '', { textarea: true, rows: 2, placeholder: '전시 이력, 공동 제작자, 참고 링크 등' }) +
       '<label class="check"><input type="checkbox" name="agree"> 제출한 작품과 이미지·영상이 디지털아트전공 포트폴리오 사이트에 게시되는 데 동의합니다. 저작권은 제작자에게 있으며, 요청하면 내릴 수 있습니다.</label>' +
@@ -84,17 +86,22 @@
       if (bad) { setBad(bad[0], bad[1]); if (bad[0] === 'agree') { msg.className = 'msg err'; msg.textContent = bad[1]; } return; }
 
       var slug = 'sub-' + Date.now().toString(36);
+      var videoUrl = g('video_url') || null;
       var row = { slug: slug, title: g('title'), student: g('student'), submitter_email: g('email'), submitter_note: g('submitter_note') || null,
         category: g('category'), year: g('year'), tools: g('tools').split(',').map(function(s){ return s.trim(); }).filter(Boolean),
         dimensions: g('dimensions') || null,
         exhibition: g('exhibition') || null,
+        video_url: videoUrl,
         statement: g('statement'), paragraphs: g('paragraphs').split(/\n\s*\n/).map(function(s){ return s.trim(); }).filter(Boolean),
         ratio: g('ratio'), image: null, video: null };
       var btn = f.querySelector('button[type=submit]'); btn.disabled = true; msg.className = 'msg'; msg.textContent = '이미지 올리는 중…';
       var skippedVideo = false;
       API.upload(files.image, API.mediaPath('submissions', slug, 'image', files.image)).then(function(url){
         row.image = url;
-        if (!files.video) return null;
+        if (!files.video) {
+          if (videoUrl) row.video = videoUrl;
+          return null;
+        }
         msg.textContent = '영상 올리는 중…';
         return API.upload(files.video, API.mediaPath('submissions', slug, 'video', files.video)).then(function(v){ row.video = v; }, function(err){ if (API.mode === 'local') { skippedVideo = true; return null; } throw err; });
       }).then(function(){ msg.textContent = '제출하는 중…'; return API.submitWork(row); })

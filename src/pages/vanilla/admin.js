@@ -89,7 +89,7 @@
       '<div class="dash">' + list + right + '</div>';
 
     document.getElementById('add').addEventListener('click', function(){
-      S.draft = { title: '', student: '', category: CATS[0], year: '', tools: [], slug: '', statement: '', dimensions: '', exhibition: '', paragraphs: [], ratio: '16:10', image: '', video: '', published: true, status: 'approved' };
+      S.draft = { title: '', student: '', category: CATS[0], year: '', tools: [], slug: '', statement: '', dimensions: '', exhibition: '', video_url: '', paragraphs: [], ratio: '16:10', image: '', video: '', published: true, status: 'approved' };
       S.sel = 'new'; S.tab = 'works'; render();
     });
     Array.prototype.forEach.call(app.querySelectorAll('.row'), function(row){
@@ -104,6 +104,16 @@
     if (S.tab === 'site') bindSite(); else bindWork();
   }
 
+  function getEmbedInfo(url){
+    if (!url || typeof url !== 'string') return null;
+    var u = url.trim(), m = u.match(/src=["']([^"']+)["']/i);
+    if (m) u = m[1];
+    var yt = u.match(/(?:youtube\.com\/(?:watch\?.*v=|embed\/|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/i);
+    if (yt) return { type: 'youtube', embedUrl: 'https://www.youtube-nocookie.com/embed/' + yt[1] + '?rel=0&modestbranding=1' };
+    var vm = u.match(/vimeo\.com\/(?:video\/)?([0-9]+)(?:\/([a-zA-Z0-9]+))?/i);
+    if (vm) return { type: 'vimeo', embedUrl: 'https://player.vimeo.com/video/' + vm[1] + (vm[2] ? '?h=' + vm[2] : '') };
+    return null;
+  }
   function field(label, name, value, opts){
     opts = opts || {};
     var inner;
@@ -112,7 +122,15 @@
     else inner = '<input type="text" name="' + name + '" value="' + esc(value) + '" placeholder="' + esc(opts.placeholder || '') + '">';
     return '<label class="field"><span class="label">' + esc(label) + '</span>' + inner + (opts.hint ? '<span class="hint">' + esc(opts.hint) + '</span>' : '') + '</label>';
   }
-  function preview(kind, url){ return url ? (kind === 'video' ? '<video src="' + esc(url) + '" muted loop autoplay playsinline></video>' : '<img src="' + esc(url) + '" alt="">') : (kind === 'video' ? '' : 'no image'); }
+  function preview(kind, url){
+    if (!url) return kind === 'video' ? '' : 'no image';
+    if (kind === 'video') {
+      var embed = getEmbedInfo(url);
+      if (embed) return '<iframe src="' + esc(embed.embedUrl) + '" style="width:100%;height:100%;border:0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>';
+      return '<video src="' + esc(url) + '" muted loop autoplay playsinline></video>';
+    }
+    return '<img src="' + esc(url) + '" alt="">';
+  }
   function mediaBlock(kind, url){
     var isVideo = kind === 'video';
     return '<div class="field"><span class="label">' + (isVideo ? 'video · 영상 (선택, mp4 · webm, 50MB 이하)' : 'image · 대표 이미지 (jpg · png · gif, 15MB 이하)') + '</span><div class="media"><div class="well" id="well-' + kind + '">' + preview(kind, url) + '</div>' +
@@ -140,7 +158,9 @@
       field('exhibition · 전시·상영 정보', 'exhibition', w.exhibition || '', { placeholder: '2025 졸업전시, 아카이브 기획전 등', hint: '전시 또는 상영 이력 (선택)' }) +
       field('paragraphs · 본문', 'paragraphs', (w.paragraphs || []).join('\n\n'), { textarea: true, rows: 7, hint: '문단은 빈 줄로 구분 (작품 개요 · 제작 과정 · 결과)' }) +
       field('ratio · 첫 화면 타일 화면비', 'ratio', w.ratio || '16:10', { select: RATIOS }) +
-      mediaBlock('image', w.image) + mediaBlock('video', w.video) +
+      mediaBlock('image', w.image) +
+      field('video_url · 영상 링크 (YouTube · Vimeo)', 'video_url', w.video_url || (getEmbedInfo(w.video) ? w.video : ''), { placeholder: 'https://www.youtube.com/watch?v=... 또는 https://vimeo.com/...', hint: '유튜브나 비메오 링크를 넣으면 상세 페이지에 플레이어로 임베드됩니다.' }) +
+      mediaBlock('video', w.video) +
       (st === 'approved' ? '<label class="check"><input type="checkbox" name="published"' + (w.published ? ' checked' : '') + '> 공개 (끄면 사이트에서 숨김)</label>' : '') +
       '<div class="actions">' +
       (st === 'pending' ? '<button class="btn key" type="button" id="approve">승인 · 게시</button><button class="btn" type="submit">수정만 저장</button><button class="btn danger" type="button" id="reject">반려</button>'
@@ -153,13 +173,16 @@
     var w = current() || {}, g = function(n){ return f.elements[n].value.trim(); };
     var slug = g('slug') || autoSlug();
     if (!/^[a-z0-9-]+$/i.test(slug)) throw new Error('slug 는 영문·숫자·하이픈만 됩니다.');
+    var videoUrl = g('video_url') || null;
+    var videoVal = g('video') || (videoUrl && !(f.elements.videoFile && f.elements.videoFile.files && f.elements.videoFile.files[0]) ? videoUrl : null);
     var row = { slug: slug.toLowerCase(), title: g('title'), student: g('student'), category: g('category'), year: g('year'),
       tools: g('tools').split(',').map(function(s){ return s.trim(); }).filter(Boolean),
       dimensions: g('dimensions') || null,
       exhibition: g('exhibition') || null,
       statement: g('statement'),
+      video_url: videoUrl,
       paragraphs: g('paragraphs').split(/\n\s*\n/).map(function(s){ return s.trim(); }).filter(Boolean),
-      ratio: g('ratio'), image: g('image') || null, video: g('video') || null, status: statusOf(w),
+      ratio: g('ratio'), image: g('image') || null, video: videoVal, status: statusOf(w),
       published: f.elements.published ? f.elements.published.checked : !!w.published };
     if (w.submitter_email) row.submitter_email = w.submitter_email;
     if (w.submitter_note) row.submitter_note = w.submitter_note;
@@ -182,7 +205,16 @@
         }).catch(function(e){ msg.className = 'msg err'; msg.textContent = '업로드 실패: ' + errText(e); }).then(function(){ setBusy(false); fi.value = ''; });
       });
       url.addEventListener('change', function(){ well.innerHTML = preview(kind, url.value.trim()); });
+      url.addEventListener('input', function(){ well.innerHTML = preview(kind, url.value.trim()); });
     });
+    var vu = f.elements.video_url;
+    if (vu) {
+      vu.addEventListener('input', function(){
+        if (!f.elements.video.value.trim() && vu.value.trim()) {
+          document.getElementById('well-video').innerHTML = preview('video', vu.value.trim());
+        }
+      });
+    }
     Array.prototype.forEach.call(f.querySelectorAll('[data-clear]'), function(b){ b.addEventListener('click', function(){ var k = b.getAttribute('data-clear'); f.elements[k].value = ''; document.getElementById('well-' + k).textContent = k === 'video' ? '' : 'no image'; b.remove(); }); });
     function save(mutate, done){
       var row; try { row = readForm(f); } catch (e) { msg.className = 'msg err'; msg.textContent = e.message; return; }

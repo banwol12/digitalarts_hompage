@@ -9,9 +9,20 @@
   var fresh = false; try { fresh = !sessionStorage.getItem('pf-entered'); } catch (e) {}   /* 이번 세션 첫 방문: 진입 화면이 걷힌 뒤에 궤도가 펼쳐진다 */
   function all(root, sel){ return Array.prototype.slice.call(root.querySelectorAll(sel)); }
 
+  function getEmbedInfo(url){
+    if (!url || typeof url !== 'string') return null;
+    var u = url.trim(), m = u.match(/src=["']([^"']+)["']/i);
+    if (m) u = m[1];
+    var yt = u.match(/(?:youtube\.com\/(?:watch\?.*v=|embed\/|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/i);
+    if (yt) return { type: 'youtube', embedUrl: 'https://www.youtube-nocookie.com/embed/' + yt[1] + '?rel=0&modestbranding=1' };
+    var vm = u.match(/vimeo\.com\/(?:video\/)?([0-9]+)(?:\/([a-zA-Z0-9]+))?/i);
+    if (vm) return { type: 'vimeo', embedUrl: 'https://player.vimeo.com/video/' + vm[1] + (vm[2] ? '?h=' + vm[2] : '') };
+    return null;
+  }
+
   /* 자리표시 썸네일: 검정 위 본색 픽셀 필드 (work.video → mp4/webm, work.image → jpg/gif 가 있으면 그것을 우선) */
   function media(work, w, h){
-    if (work.video) { var v = document.createElement('video'); v.src = work.video; v.muted = true; v.loop = true; v.autoplay = true; v.playsInline = true; v.setAttribute('muted', ''); v.setAttribute('playsinline', ''); if (work.image) v.poster = work.image; return v; }
+    if (work.video && !getEmbedInfo(work.video)) { var v = document.createElement('video'); v.src = work.video; v.muted = true; v.loop = true; v.autoplay = true; v.playsInline = true; v.setAttribute('muted', ''); v.setAttribute('playsinline', ''); if (work.image) v.poster = work.image; return v; }
     if (work.image) { var im = document.createElement('img'); im.src = work.image; im.alt = work.title; im.loading = 'lazy'; im.decoding = 'async'; return im; }
     var cv = document.createElement('canvas'); cv.setAttribute('aria-hidden', 'true'); cv.width = w * 2; cv.height = h * 2; var g = cv.getContext('2d'); g.scale(2, 2);
     var seed = work.seed || 1; var rnd = function(){ seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
@@ -154,10 +165,12 @@
     cancelAnimationFrame(raf); document.body.classList.remove('is-home');
     var w = D.works.filter(function(x){ return x.slug === slug; })[0] || D.works[0]; if (!w) { Works(); return; }
     var more = D.works.filter(function(x){ return x.slug !== w.slug; }).slice(0, 3);
+    var embed = getEmbedInfo(w.video_url || w.video);
+    var hasVideo = Boolean(embed || (w.video && !getEmbedInfo(w.video)));
     app.innerHTML = '<section class="page tight"><a class="navlink back" href="#/works">← works</a>' +
       '<div class="work-head"><span class="label">' + esc(w.n) + '</span><h1 class="work-title"><span class="ln"><span>' + esc(w.title) + '</span></span></h1></div><div id="hero"></div>' +
       '<section class="section"><div class="label">about</div><div class="prose">' + (w.statement ? '<h2 class="display">' + esc(w.statement) + '</h2>' : '') + (w.paragraphs || []).map(function(p){ return '<p class="body">' + esc(p) + '</p>'; }).join('') + '</div></section>' +
-      (w.video ? '<section style="margin-top:var(--space-8x)" id="second"></section>' : '') +
+      (hasVideo ? '<section style="margin-top:var(--space-8x)" id="second"></section>' : '') +
       '<section class="section"><div class="label">credits</div><div class="credits">' +
         '<div class="credit"><div class="label">student</div><ul><li>' + esc(w.student) + '</li></ul></div>' +
         '<div class="credit"><div class="label">discipline</div><ul><li>' + esc(w.meta) + '</li></ul></div>' +
@@ -169,7 +182,16 @@
       '<section style="margin-top:var(--space-8x)"><div class="label">more to discover</div><div class="rows">' + more.map(rowItem).join('') + '</div></section></section>' + footer();
     var heroWork = w.image ? Object.assign({}, w, { video: null }) : w;
     document.getElementById('hero').appendChild(frame(heroWork, '', w.title, w.n));
-    if (w.video) {
+    if (embed) {
+      var secEl = document.getElementById('second');
+      if (secEl) {
+        var fig = document.createElement('figure'); fig.className = 'frame';
+        fig.innerHTML = '<div class="well" style="aspect-ratio:16/9;position:relative;background:#000;overflow:hidden">' +
+          '<iframe src="' + esc(embed.embedUrl) + '" title="' + esc(w.title) + '" style="position:absolute;inset:0;width:100%;height:100%;border:0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>' +
+          '</div><figcaption><span>' + esc(embed.type.toUpperCase() + ' · ' + w.title) + '</span><span>VIDEO</span></figcaption>';
+        secEl.appendChild(fig);
+      }
+    } else if (w.video) {
       var second = frame(Object.assign({}, w, { image: null }), 'r219', '', '', true);
       second.querySelector('.well').insertAdjacentHTML('beforeend', '<div class="player"><span class="pill">play</span><span class="grp"><span class="pill">sound : off</span><span class="pill">full screen</span></span></div>');
       var secEl = document.getElementById('second');
@@ -221,7 +243,7 @@
     if (rows && rows.length) D.works = rows.map(function(r, i){
       var rt = String(r.ratio || '16:10').split(':').map(Number);
       return { n: pad3(i + 1), slug: r.slug, title: r.title || '', student: r.student || '', meta: r.category || 'installation', year: r.year || '', tools: r.tools || [],
-        statement: r.statement || '', dimensions: r.dimensions || '', paragraphs: r.paragraphs || [], exhibition: r.exhibition || '', seed: i * 7 + 3, ratio: (rt.length === 2 && rt[0] > 0 && rt[1] > 0) ? rt : null, image: r.image || '', video: r.video || '' };
+        statement: r.statement || '', dimensions: r.dimensions || '', exhibition: r.exhibition || '', video_url: r.video_url || '', paragraphs: r.paragraphs || [], seed: i * 7 + 3, ratio: (rt.length === 2 && rt[0] > 0 && rt[1] > 0) ? rt : null, image: r.image || '', video: r.video || '' };
     });
     (site || []).forEach(function(row){ if (row.value != null && row.value !== '' && !(Array.isArray(row.value) && !row.value.length)) D[row.key] = row.value; });
   }
