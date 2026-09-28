@@ -125,7 +125,7 @@
 
   if (canvas && canvas.getContext) {
     var ctx = canvas.getContext('2d'), shownOp = '';
-    var HS = 0.47;
+    var HS = 0.5;                                                      /* 큐브 반폭: 0.47 이면 이웃 사이에 틈이 생겨 흰 격자 줄로 보였다 (사용자 2026-09-28) → 딱 붙게 */
     /* 프레임마다 다시 만들지 않는 버퍼: 꼭짓점·면 조명·정렬 순서·상자 기록 */
     var PX = new Float32Array(8), PY = new Float32Array(8), RX = new Float32Array(8), RY = new Float32Array(8), RZ = new Float32Array(8);
     var FNX = new Float32Array(6), FNY = new Float32Array(6), FNZ = new Float32Array(6), FR = new Float32Array(6), FG = new Float32Array(6), FB = new Float32Array(6);
@@ -510,9 +510,9 @@
         if (hasLive) {
           /* 살아 있는 로고: 전에는 위치에 따라 이어지는 물결(sin(gx·0.3+gy·0.18))이 로고 절반을 한 덩어리로 부풀렸다.
              이제는 픽셀마다 제 빠르기로 숨쉬고, 6–12초에 한 번 제 차례에 앞으로 톡 튀어나온다 — 로고 전체에 고르게 흩어진다 */
-          var lv = g.live; lz += Math.sin(t * b.bw + b.seed * 6.283) * 0.07 * lv; lx += Math.sin(t * 0.455 + b.seed2 * 6.283) * 0.018 * lv; ly += Math.cos(t * 0.52 + b.seed * 6.283) * 0.018 * lv;
+          var lv = g.live; lz += Math.sin(t * b.bw + b.seed * 6.283) * 0.025 * lv; lx += Math.sin(t * 0.455 + b.seed2 * 6.283) * 0.018 * lv; ly += Math.cos(t * 0.52 + b.seed * 6.283) * 0.018 * lv;
           var ph = ((t + b.po) % b.pp) / b.pp;
-          if (ph < 0.1) { var bump = Math.sin(Math.PI * ph / 0.1); b.pulse = bump * bump * lv * liveK; lz -= b.pulse * 0.6; }
+          if (ph < 0.1) { var bump = Math.sin(Math.PI * ph / 0.1); b.pulse = bump * bump * lv * liveK; lz -= b.pulse * 0.3; }   /* 숨쉬기·튀어나옴 깊이를 줄여 이웃 면이 계단처럼 갈라지지 않게 */
         }
         var px = (b.cur.x + lx) * S, py = (b.cur.y + ly) * S, pz = (b.cur.z + bob + lz) * S;
         var z1 = -px * sy + pz * cy; var z2 = py * sp + z1 * cp;
@@ -521,6 +521,20 @@
       }
       var ordArr = ORDER.subarray(0, nVis); ordArr.sort(function(a, b2){ return RECS[b2].z - RECS[a].z; });
       var margin = 60, fogA = pal.fog[0], fogB = pal.fog[1], fogC = pal.fog[2], liA = pal.light[0], liB = pal.light[1], liC = pal.light[2], skA = pal.sky[0], skB = pal.sky[1], skC = pal.sky[2];
+      /* 한 덩어리 로고 (사용자 2026-09-28: 큐브 사이로 흰 줄이 비쳐 격자처럼 네모네모하다): 큐브를 그리기 전에 모든 큐브의 앞면을
+         4% 넓혀 한 색으로 먼저 깐다. 이음새·안티에일리어싱 틈으로 배경 대신 이 색이 비쳐 줄이 사라진다 (코드 조각·차오르는 중인 큐브는 제외) */
+      ctx.beginPath(); var ulN = 0;
+      for (var u2 = 0; u2 < nVis; u2++) {
+        var ur = RECS[ordArr[u2]], ub = boxes[ordArr[u2]]; if (ur.a < 0.99 || ub.m > 0.01) continue;
+        var uhs = HS * S * ur.szf * 1.04, uvz = ur.pz - ub.h * S * ur.dep;
+        for (var uq = 0; uq < 4; uq++) {
+          var uc = uq === 0 ? 0 : uq === 1 ? 1 : uq === 2 ? 3 : 2, uvx = ur.px + (uc & 1 ? uhs : -uhs), uvy = ur.py + (uc & 2 ? uhs : -uhs);
+          var uax = uvx * cy + uvz * sy, uaz = -uvx * sy + uvz * cy, uay = uvy * cp - uaz * sp, usc = F / (uvy * sp + uaz * cp + D);
+          if (uq) ctx.lineTo(OX + uax * usc, OY + uay * usc); else ctx.moveTo(OX + uax * usc, OY + uay * usc);
+        }
+        ctx.closePath(); ulN++;
+      }
+      if (ulN) { ctx.fillStyle = colStr(FR[0] + (fogA - FR[0]) * 0.135, FG[0] + (fogB - FG[0]) * 0.135, FB[0] + (fogC - FB[0]) * 0.135); ctx.globalAlpha = 1; ctx.fill(); }   /* 워터마크 챕터의 반투명은 캔버스 opacity 가 맡는다 */
       var lastStyle = null;
       for (var k2 = 0; k2 < nVis; k2++) {
         var it = RECS[ordArr[k2]], bx = boxes[ordArr[k2]], hz = bx.h * S * it.dep, hs = HS * S * it.szf;
@@ -553,7 +567,7 @@
             /* 면을 0.35px 만큼 바깥으로 넓혀 이음새를 지운다 (전에는 면마다 stroke 를 한 번 더 그렸다) */
             var mx = (PX[i0] + PX[i1] + PX[i2] + PX[i3]) * 0.25, my = (PY[i0] + PY[i1] + PY[i2] + PY[i3]) * 0.25;
             ctx.beginPath();
-            for (var vq = 0; vq < 4; vq++) { var vi = fv[vq], ex = PX[vi] - mx, ey = PY[vi] - my, el = Math.max(2, Math.sqrt(ex * ex + ey * ey)), kk = 1 + 0.35 / el; if (vq) ctx.lineTo(mx + ex * kk, my + ey * kk); else ctx.moveTo(mx + ex * kk, my + ey * kk); }
+            for (var vq = 0; vq < 4; vq++) { var vi = fv[vq], ex = PX[vi] - mx, ey = PY[vi] - my, el = Math.max(2, Math.sqrt(ex * ex + ey * ey)), kk = 1 + 0.5 / el; if (vq) ctx.lineTo(mx + ex * kk, my + ey * kk); else ctx.moveTo(mx + ex * kk, my + ey * kk); }
             ctx.closePath(); ctx.fill();
           }
         }
