@@ -7,7 +7,7 @@ import { installAnime } from '../lib/anime';
 
 export default function CreditsPage() {
   useVanillaPage({
-    title: 'Digital Arts · Credits · 제작진',
+    title: 'Digital Arts · Credits',
     css: CREDITS_CSS,
     script: CREDITS_SCRIPT,
     setup: installAnime

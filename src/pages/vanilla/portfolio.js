@@ -57,8 +57,8 @@
       '<div class="caption">' + (C.address || []).map(esc).join('<br>') + '</div>' +
       '<div class="caption">for the screen<br>and beyond</div>' +
       '<div><div class="label">work with us</div><div style="margin-top:7px;display:grid;gap:7px;justify-items:start"><a class="btn" href="' + (C.email && C.email.indexOf('@') > 0 ? 'mailto:' + esc(C.email) : '#') + '">' + esc(C.email || '[전공 이메일]') + '</a><a class="btn" href="submit.html">submit a work ↗</a></div></div>' +
-      '<div style="display:grid;gap:7px;justify-items:start"><a class="btn" href="' + safeUrl(C.instagram) + '">instagram</a><a class="btn" href="' + safeUrl(C.youtube) + '">youtube</a><a class="btn" href="credits.html">credits · 제작진 ↗</a></div>' +
-      '</div><div class="bottom micro"><span>© seoul institute of the arts · digital arts ' + new Date().getFullYear() + '</span><div style="display:flex;gap:18px"><a class="micro" href="credits.html">credits · 제작진</a><a class="micro" href="index.html">back to main site</a></div></div></footer>';
+      '<div style="display:grid;gap:7px;justify-items:start"><a class="btn" href="' + safeUrl(C.instagram) + '">instagram</a><a class="btn" href="' + safeUrl(C.youtube) + '">youtube</a><a class="btn" href="credits.html">credits ↗</a></div>' +
+      '</div><div class="bottom micro"><span>© seoul institute of the arts · digital arts ' + new Date().getFullYear() + '</span><div style="display:flex;gap:18px"><a class="micro" href="credits.html">credits</a><a class="micro" href="index.html">back to main site</a></div></div></footer>';
   }
 
   /* ── 홈: cipher.tv 첫 화면 — 대표 이미지·GIF·영상이 기울어진 타원 궤도(별자리)를 천천히 돌고, 휠·터치가 회전 속도와 방향을 바꾼다.
