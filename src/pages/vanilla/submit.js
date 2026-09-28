@@ -23,10 +23,10 @@
   }
   function media(kind, req){
     var isVideo = kind === 'video';
-    return '<div class="field" data-f="' + kind + '"><span class="label' + (req ? ' req' : '') + '">' + (isVideo ? 'video · 영상 (mp4 · webm, 50MB 이하)' : 'image · 대표 이미지 (jpg · png · gif, 15MB 이하)') + '</span>' +
-      '<div class="media"><div class="well" id="well-' + kind + '">' + (isVideo ? 'no video' : 'no image') + '</div>' +
+    return '<div class="field" data-f="' + kind + '"><span class="label' + (req ? ' req' : '') + '">' + (isVideo ? 'video · 영상 (선택, mp4 · webm, 50MB 이하)' : 'image · 대표 이미지 (jpg · png · gif, 15MB 이하)') + '</span>' +
+      '<div class="media"><div class="well" id="well-' + kind + '">' + (isVideo ? '' : 'no image') + '</div>' +
       '<div class="file"><input type="file" name="' + kind + '" accept="' + (isVideo ? 'video/mp4,video/webm' : 'image/jpeg,image/png,image/gif,image/webp,image/avif') + '">' +
-      '<span class="hint">' + (isVideo ? '있으면 첫 화면 궤도와 작품 페이지에서 소리 없이 반복 재생됩니다. 없어도 됩니다.' : '첫 화면 궤도의 타일과 목록 미리보기에 쓰입니다. 움직이는 GIF 도 됩니다.') + '</span></div></div></div>';
+      '<span class="hint">' + (isVideo ? '선택사항입니다. 등록 시 포트폴리오 상세 페이지에서 영상 플레이어로 재생되며, 없으면 비워둡니다.' : '첫 화면 궤도의 타일과 목록 미리보기에 쓰입니다. 움직이는 GIF 도 됩니다.') + '</span></div></div></div>';
   }
 
   function Form(){
@@ -50,11 +50,12 @@
     var f = document.getElementById('sf'), msg = document.getElementById('msg');
     var files = { image: null, video: null };
     ['image', 'video'].forEach(function(kind){
+      var isVideo = kind === 'video';
       var fi = f.elements[kind], well = document.getElementById('well-' + kind);
       fi.addEventListener('change', function(){
         var file = fi.files && fi.files[0]; files[kind] = null;
-        if (!file) { well.textContent = 'no ' + kind; return; }
-        if (file.size > (kind === 'video' ? MAX_VID : MAX_IMG)) { setBad(kind, '파일이 너무 큽니다.'); fi.value = ''; well.textContent = 'no ' + kind; return; }
+        if (!file) { well.textContent = isVideo ? '' : 'no image'; return; }
+        if (file.size > (kind === 'video' ? MAX_VID : MAX_IMG)) { setBad(kind, '파일이 너무 큽니다.'); fi.value = ''; well.textContent = isVideo ? '' : 'no image'; return; }
         setBad(kind, '');
         files[kind] = file;
         var url = URL.createObjectURL(file);

@@ -112,14 +112,14 @@
     else inner = '<input type="text" name="' + name + '" value="' + esc(value) + '" placeholder="' + esc(opts.placeholder || '') + '">';
     return '<label class="field"><span class="label">' + esc(label) + '</span>' + inner + (opts.hint ? '<span class="hint">' + esc(opts.hint) + '</span>' : '') + '</label>';
   }
-  function preview(kind, url){ return url ? (kind === 'video' ? '<video src="' + esc(url) + '" muted loop autoplay playsinline></video>' : '<img src="' + esc(url) + '" alt="">') : 'no ' + kind; }
+  function preview(kind, url){ return url ? (kind === 'video' ? '<video src="' + esc(url) + '" muted loop autoplay playsinline></video>' : '<img src="' + esc(url) + '" alt="">') : (kind === 'video' ? '' : 'no image'); }
   function mediaBlock(kind, url){
     var isVideo = kind === 'video';
-    return '<div class="field"><span class="label">' + (isVideo ? 'video (mp4 · webm, 50MB 이하)' : 'image (jpg · png · gif, 15MB 이하)') + '</span><div class="media"><div class="well" id="well-' + kind + '">' + preview(kind, url) + '</div>' +
+    return '<div class="field"><span class="label">' + (isVideo ? 'video · 영상 (선택, mp4 · webm, 50MB 이하)' : 'image · 대표 이미지 (jpg · png · gif, 15MB 이하)') + '</span><div class="media"><div class="well" id="well-' + kind + '">' + preview(kind, url) + '</div>' +
       '<div class="file"><input type="file" name="' + kind + 'File" accept="' + (isVideo ? 'video/mp4,video/webm' : 'image/jpeg,image/png,image/gif,image/webp,image/avif') + '">' +
       '<input type="text" name="' + kind + '" value="' + esc(url || '') + '" placeholder="또는 주소를 직접 입력" style="background:none;border:0;border-bottom:1px solid var(--b24);padding:6px 0;outline:0;border-radius:0;width:100%">' +
       (url ? '<button class="btn" type="button" data-clear="' + kind + '">지우기</button>' : '') + '</div></div>' +
-      '<span class="hint">' + (isVideo ? '첫 화면 궤도와 작품 페이지에서 소리 없이 반복 재생됩니다. 없으면 이미지를 씁니다.' : '첫 화면 궤도의 타일과 목록의 미리보기에 쓰입니다. GIF 도 됩니다.') + '</span></div>';
+      '<span class="hint">' + (isVideo ? '선택사항입니다. 등록 시 포트폴리오 상세 페이지에서 영상 플레이어로 재생되며, 없으면 비워둡니다.' : '첫 화면 궤도의 타일과 목록의 미리보기에 쓰입니다. GIF 도 됩니다.') + '</span></div>';
   }
 
   function WorkForm(){
@@ -178,7 +178,7 @@
       });
       url.addEventListener('change', function(){ well.innerHTML = preview(kind, url.value.trim()); });
     });
-    Array.prototype.forEach.call(f.querySelectorAll('[data-clear]'), function(b){ b.addEventListener('click', function(){ var k = b.getAttribute('data-clear'); f.elements[k].value = ''; document.getElementById('well-' + k).textContent = 'no ' + k; b.remove(); }); });
+    Array.prototype.forEach.call(f.querySelectorAll('[data-clear]'), function(b){ b.addEventListener('click', function(){ var k = b.getAttribute('data-clear'); f.elements[k].value = ''; document.getElementById('well-' + k).textContent = k === 'video' ? '' : 'no image'; b.remove(); }); });
     function save(mutate, done){
       var row; try { row = readForm(f); } catch (e) { msg.className = 'msg err'; msg.textContent = e.message; return; }
       if (mutate) mutate(row);

@@ -157,7 +157,7 @@
     app.innerHTML = '<section class="page tight"><a class="navlink back" href="#/works">← works</a>' +
       '<div class="work-head"><span class="label">' + esc(w.n) + '</span><h1 class="work-title"><span class="ln"><span>' + esc(w.title) + '</span></span></h1></div><div id="hero"></div>' +
       '<section class="section"><div class="label">about</div><div class="prose"><h2 class="display">' + esc(w.statement) + '</h2>' + (w.paragraphs || []).map(function(p){ return '<p class="body">' + esc(p) + '</p>'; }).join('') + '</div></section>' +
-      '<section style="margin-top:var(--space-8x)" id="second"></section>' +
+      (w.video ? '<section style="margin-top:var(--space-8x)" id="second"></section>' : '') +
       '<section class="section"><div class="label">credits</div><div class="credits">' +
         '<div class="credit"><div class="label">student</div><ul><li>' + esc(w.student) + '</li></ul></div>' +
         '<div class="credit"><div class="label">discipline</div><ul><li>' + esc(w.meta) + '</li></ul></div>' +
@@ -167,10 +167,14 @@
         '<div class="credit"><div class="label">exhibition</div><ul><li>[전시·상영 정보]</li></ul></div>' +
       '</div></section>' +
       '<section style="margin-top:var(--space-8x)"><div class="label">more to discover</div><div class="rows">' + more.map(rowItem).join('') + '</div></section></section>' + footer();
-    document.getElementById('hero').appendChild(frame(w, '', w.title, w.n));
-    var second = frame(w, 'r219', '', '', true);
-    second.querySelector('.well').insertAdjacentHTML('beforeend', '<div class="player"><span class="pill">play</span><span class="grp"><span class="pill">sound : off</span><span class="pill">full screen</span></span></div>');
-    document.getElementById('second').appendChild(second);
+    var heroWork = w.image ? Object.assign({}, w, { video: null }) : w;
+    document.getElementById('hero').appendChild(frame(heroWork, '', w.title, w.n));
+    if (w.video) {
+      var second = frame(Object.assign({}, w, { image: null }), 'r219', '', '', true);
+      second.querySelector('.well').insertAdjacentHTML('beforeend', '<div class="player"><span class="pill">play</span><span class="grp"><span class="pill">sound : off</span><span class="pill">full screen</span></span></div>');
+      var secEl = document.getElementById('second');
+      if (secEl) secEl.appendChild(second);
+    }
   }
 
   /* ── 화면 전환 (anime.js): 제목은 줄마다 마스크 안에서 올라오고, 목록은 선이 그어지며 한 줄씩, 큰 이미지는 가려진 판이 걷히듯 열린다 ── */
