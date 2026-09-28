@@ -60,11 +60,13 @@
     app.innerHTML = '<section class="home" id="home"><div class="orbit" id="orbit"></div><div class="mark" aria-hidden="true"><svg><use href="#logo"/></svg></div>' +
       '<div class="foot micro"><span class="l" id="tagline"></span><span class="c">' + esc(D.strapline || '') + '</span><span class="r">seoul institute of the arts · digital arts</span></div></section>';
     var orbit = document.getElementById('orbit'), home = document.getElementById('home'), tagEl = document.getElementById('tagline');
-    var works = D.works.slice(0, 15), N = works.length, tiles = [];
+    var works = D.works.slice(0, 15), real = works.length;
+    while (real && works.length < 12) works = works.concat(D.works.slice(0, Math.min(real, 12 - works.length)));   /* 작품이 12개보다 적으면 있는 작품을 반복해 궤도를 채운다 (사용자 2026-09-28: DB 작품 3개뿐이라 궤도가 휑했다) */
+    var N = works.length, tiles = [];
     var ratios = [[16, 10], [4, 5], [3, 2], [1, 1], [16, 9], [4, 5], [16, 10], [5, 4]];   /* 작품마다 다른 화면비 (data의 ratio:[w,h] 로 덮어쓸 수 있음) */
     works.forEach(function(w, i){
       var r = (w.ratio && w.ratio.length === 2) ? w.ratio : ratios[i % ratios.length], ar = r[0] / r[1];
-      var t = document.createElement('a'); t.className = 'tile'; t.href = '#/work/' + w.slug; t.setAttribute('aria-label', w.title);
+      var t = document.createElement('a'); t.className = 'tile'; t.href = '#/work/' + w.slug; t.setAttribute('aria-label', w.title); if (i >= real) { t.setAttribute('aria-hidden', 'true'); t.tabIndex = -1; }   /* 반복 타일은 화면 읽기·탭 이동에서 뺀다 */
       t.appendChild(media(w, 480, Math.round(480 / ar)));
       var tl = { el: t, ar: ar, kw: ar >= 1.4 ? 0.72 : ar >= 1 ? 0.55 : 0.46, a: (i / N) * Math.PI * 2, j: (((i * 7) % 5) - 2) * 0.035, hs: 1, hot: false };
       t.addEventListener('mouseenter', function(){ home.classList.add('is-hot'); t.classList.add('hot'); tl.hot = true; });
