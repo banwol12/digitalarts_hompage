@@ -41,6 +41,6 @@ export const PORTFOLIO_DATA = {
 /* 포트폴리오·작품 게시·관리자 스크립트가 읽는 전역값 — React 로 옮기기 전에는 config.js · portfolio-data.js 를 <script> 로 불러 채웠다.
    이것이 빠져 궤도에 작품이 하나도 뜨지 않았다 (Supabase 에 승인된 작품이 없거나 못 읽으면 위 자리표시 작품을 보여준다) */
 export function installSiteGlobals() {
-  if (!window.SITE_CONFIG) window.SITE_CONFIG = { SUPABASE_URL, SUPABASE_ANON_KEY };
+  window.SITE_CONFIG = { SUPABASE_URL, SUPABASE_ANON_KEY };
   if (!window.PORTFOLIO_DATA) window.PORTFOLIO_DATA = PORTFOLIO_DATA;
 }

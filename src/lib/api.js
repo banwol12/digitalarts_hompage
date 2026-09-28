@@ -200,8 +200,8 @@ export const API = {
       const sb = getSupabase();
       if (sb) {
         try {
-          const { data, error } = await sb.from('works').insert(newWork).select().single();
-          if (!error && data) return data;
+          const { error } = await sb.from('works').insert(newWork);
+          if (!error) return newWork;
         } catch (e) {
           console.warn('Supabase insert failed, safely saved locally:', e);
         }

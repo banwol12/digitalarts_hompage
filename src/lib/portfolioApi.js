@@ -101,5 +101,5 @@ function createPortfolioAPI(C){
 /* React 로 옮기며 portfolio-api.js 가 빠져 관리자 페이지가 멈추고(PortfolioAPI 없음) 작품 게시가 안 됐다 — 같은 계약을 되살린다 */
 export function installPortfolioAPI() {
   installSiteGlobals();
-  if (!window.PortfolioAPI) window.PortfolioAPI = createPortfolioAPI(window.SITE_CONFIG);
+  window.PortfolioAPI = createPortfolioAPI(window.SITE_CONFIG);
 }
