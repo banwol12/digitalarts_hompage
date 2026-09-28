@@ -4,6 +4,7 @@
   var STATIC = /[?&]static=1/.test(location.search);
   var reduce = STATIC || window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   var PACE = 1.15;                                                /* 모든 연출 시간 배율 (2026-09-28 사용자: 너무 빠르다 → 15% 느리게). 로고 숨쉬기 주기는 따로 */
+  var IK = 1.7;                                                    /* 첫 입장 시간 배율 (사용자 2026-09-28: 인트로가 너무 빠르다 → 1 에서 1.5, 다시 '정말 조금만 더' 1.7). 챕터 전환은 PACE */
   var introReduce = STATIC;                                       /* 첫 입장 애니메이션은 OS 의 '동작 줄이기' 와 무관하게 항상 재생 (사용자 요청) */
   if ('scrollRestoration' in history) history.scrollRestoration = 'manual';   /* 새로고침해도 항상 맨 위(00 챕터)에서 시작 */
   var pendingHash = /^#c\d$/.test(location.hash) ? parseInt(location.hash.slice(2), 10) : null;
@@ -124,7 +125,7 @@
 
   if (canvas && canvas.getContext) {
     var ctx = canvas.getContext('2d'), shownOp = '';
-    var HS = 0.47;
+    var HS = 0.5;                                                      /* 큐브 반폭: 0.47 이면 이웃 사이에 틈이 생겨 흰 격자 줄로 보였다 (사용자 2026-09-28) → 딱 붙게 */
     /* 프레임마다 다시 만들지 않는 버퍼: 꼭짓점·면 조명·정렬 순서·상자 기록 */
     var PX = new Float32Array(8), PY = new Float32Array(8), RX = new Float32Array(8), RY = new Float32Array(8), RZ = new Float32Array(8);
     var FNX = new Float32Array(6), FNY = new Float32Array(6), FNZ = new Float32Array(6), FR = new Float32Array(6), FG = new Float32Array(6), FB = new Float32Array(6);
@@ -143,6 +144,7 @@
     function rgb(c){ return 'rgb(' + (c[0]|0) + ',' + (c[1]|0) + ',' + (c[2]|0) + ')'; }
     function easeOut(p){ return 1 - Math.pow(1 - p, 3); }
     function easeInOut(p){ return p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2; }
+    var introEase = (window.anime && window.anime.eases && typeof window.anime.eases.inOut === 'function') ? window.anime.eases.inOut(3) : easeInOut;   /* 인트로 모임 곡선 — anime.js */
     function easeOut4(p){ return 1 - Math.pow(1 - p, 4); }                    /* 챕터 전환: 스크롤과 동시에 바로 움직이고 부드럽게 멈춘다 */
 
     var W = 0, H = 0, DPR = 1, SHELL = 0;
@@ -244,25 +246,38 @@
          (전에는 나머지 칸도 로고 쪽으로 끌려오며 흐려져, 모이는 로고 둘레에 잔상처럼 남았다 — 2026-09-28 사용자 요청으로 제거) */
       var P = Math.max(MOBILE() ? 6 : 8, Math.sqrt(W * H / 20000)), cols = Math.floor(W / P), rows = Math.floor(H / P), n = cols * rows;
       var x0 = (W - (cols - 1) * P) / 2, y0 = (H - (rows - 1) * P) / 2, F = Math.min(W, H) * 1.45, D = 72, cp = Math.cos(c.pitch), sp = Math.sin(c.pitch), unit = fr.s * F / D;
-      var G = { n: n, SQ: P * 0.7, sx: new Float32Array(n), sy: new Float32Array(n), tw: new Float32Array(n), t0: new Float32Array(n), du: new Float32Array(n), al: new Float32Array(n), own: new Int16Array(n) };
-      G.own.fill(-1);
+      var G = { n: n, SQ: P * 0.7, SQA: Math.min(P * 0.7, 0.94 * unit * 0.42), sx: new Float32Array(n), sy: new Float32Array(n), tx: new Float32Array(n), ty: new Float32Array(n), tw: new Float32Array(n), t0: new Float32Array(n), du: new Float32Array(n), al: new Float32Array(n) };
+      /* 모이는 방식 (사용자 2026-09-28: 모이는 모션이 어색하다 → 화면의 작은 픽셀이 모두 로고 픽셀로 모여 로고가 되게):
+         칸마다 '로고를 화면 크기로 늘린 지도'에서 자기 자리에 가장 가까운 로고 픽셀을 맡아, 그 픽셀 안의 한 점으로 날아간다.
+         로고 픽셀(큐브)은 맡은 칸들이 도착하는 만큼 차오른다. 출발 순서는 anime.js 격자 stagger(가운데부터), 곡선은 anime.js eases.inOut(3) */
+      var LW = 32, LH = GRID.length, near = new Int16Array(LW * LH);
+      for (var lr = 0; lr < LH; lr++) for (var lc = 0; lc < LW; lc++) {
+        var bestK = 0, bestD = 1e9;
+        for (var bk = 0; bk < N; bk++) { var ddc = boxes[bk].c - lc, ddr = boxes[bk].r - lr, dd = ddc * ddc + ddr * ddr; if (dd < bestD) { bestD = dd; bestK = bk; } }
+        near[lr * LW + lc] = bestK;
+      }
+      var AN = window.anime, st = AN && AN.stagger ? AN.stagger(1, { grid: [cols, rows], from: 'center' }) : null, SL = { length: n }, stMax = Math.sqrt(((cols - 1) / 2) * ((cols - 1) / 2) + ((rows - 1) / 2) * ((rows - 1) / 2)) || 1;
+      var tA = new Float32Array(N).fill(1e9), tB = new Float32Array(N);
       G.qb = []; for (var q = 0; q < 8; q++) G.qb.push(new Float32Array(3 * n)); G.qn = new Int32Array(8);   /* 불투명도 8단계 그리기 버퍼 — 한 번만 만든다 (전에는 매 프레임 배열 9개를 새로 만들어 GC 가 돌았다) */
       for (var j = 0; j < n; j++) {
         var X = x0 + (j % cols) * P, Y = y0 + Math.floor(j / cols) * P;
         var yr = Y - fr.cy, wy = yr * D / (cp * F - yr * sp), wx = (X - fr.cx) * (wy * sp + D) / F;      /* 화면 좌표 → 로고 좌표 (챕터 0 카메라의 역투영: 격자가 화면에 정확히 반듯하게) */
         var ux = (X - W / 2) / (W * 0.48), uy = (Y - H / 2) / (H * 0.48), rN = Math.min(1, Math.sqrt(ux * ux + uy * uy) / 1.42);
         G.sx[j] = wx / fr.s; G.sy[j] = wy / fr.s;
+        var mc = Math.max(0, Math.min(LW - 1, Math.round(ux * R + CX - 0.5))), mr = Math.max(0, Math.min(LH - 1, Math.round(uy * R + CY - 0.5))), mk = near[mr * LW + mc], mb = boxes[mk];
+        G.tx[j] = mb.gx + (Math.random() - 0.5) * 0.7; G.ty[j] = mb.gy + (Math.random() - 0.5) * 0.7;   /* 맡은 로고 픽셀 안의 한 점 */
+        var sN = st ? Math.min(1, st(null, j, SL) / stMax) : rN;                    /* 가운데에서 떨어진 정도 (anime.js 격자 stagger) */
         /* 첫 입장 전체를 2초 안에 (사용자 2026-09-28: 체감 3초 → 1.8–2초로). 인트로만 초 단위로 — 챕터 전환은 PACE 그대로.
            전: 켜짐 0.2–0.8 · 멈춤 1초 · 모임 1.8–4.1 · 제목 4.8–6.4초 → 이제: 켜짐 0.04–0.34 · 모임 0.66–1.6 · 제목·헤더 1.3–1.9초 */
-        G.tw[j] = now + 0.04 + 0.26 * rN + Math.random() * 0.04;          /* 켜짐: 가운데 → 바깥 */
-        G.t0[j] = now + 0.66 + 0.12 * rN + Math.random() * 0.03;          /* 잠깐 멈춰 보인 뒤 로고 칸은 출발, 나머지 칸은 꺼짐 */
-        G.du[j] = 0.48 + 0.5 * rN;                                         /* 로고 칸의 비행 시간 — 가운데가 먼저, 바깥이 나중에 닿는 물결 (약 0.45초) */
+        G.tw[j] = now + (0.04 + 0.26 * rN + Math.random() * 0.04) * IK;          /* 켜짐: 가운데 → 바깥 */
+        G.t0[j] = now + (0.66 + 0.2 * sN + Math.random() * 0.03) * IK;           /* 잠깐 멈춰 보인 뒤 가운데 칸부터 출발 */
+        G.du[j] = (0.55 + 0.4 * rN) * IK;                                         /* 먼 칸일수록 오래 난다 — 로고는 가운데부터 차오른다 */
+        var arr = G.t0[j] + G.du[j]; if (arr < tA[mk]) tA[mk] = arr; if (arr > tB[mk]) tB[mk] = arr;
         G.al[j] = 0.4 + Math.random() * 0.08;                            /* 밝기 차이는 좁게 */
       }
-      for (var k = 0; k < N; k++) {
-        var b = boxes[k], ci = Math.max(0, Math.min(cols - 1, Math.round((W / 2 + b.gx / R * W * 0.48 - x0) / P))), ri = Math.max(0, Math.min(rows - 1, Math.round((H / 2 + b.gy / R * H * 0.48 - y0) / P))), jj = ri * cols + ci;
-        G.own[jj] = k;
-        b.cur = { x: G.sx[jj], y: G.sy[jj], z: 0 }; b.tw = G.tw[jj]; b.t0 = G.t0[jj]; b.dur = G.du[jj]; b.tl = b.t0 + b.dur; b.a0 = G.al[jj]; b.szf0 = G.SQ / (0.94 * unit);
+      for (var k = 0; k < N; k++) {                                              /* 로고 픽셀은 제자리에서, 맡은 칸이 처음 닿을 때부터 마지막이 닿고 조금 뒤까지 차오른다 */
+        var b = boxes[k]; if (tA[k] > 1e8) { tA[k] = now + 1.2 * IK; tB[k] = tA[k]; }
+        b.cur = { x: b.gx, y: b.gy, z: 0 }; b.tw = tA[k]; b.t0 = tA[k]; b.dur = (tB[k] - tA[k]) + 0.25 * IK; b.tl = b.t0 + b.dur;
       }
       grid = G;
     }
@@ -302,10 +317,10 @@
       gFrom.yaw = g.yaw + spinAcc; spinAcc = 0;
       var dyaw = gTo.yaw - gFrom.yaw; dyaw = Math.atan2(Math.sin(dyaw), Math.cos(dyaw)); gFrom.yaw = gTo.yaw - dyaw;
       gT0 = now; gDur = (initial || reduce || instant) ? 0.01 : 0.8 * PACE;                     /* 카메라(위치·크기·각도): 스크롤과 함께 바로 출발 */
-      if (initial && !introReduce) { gFrom.yaw = c.yaw; gFrom.pitch = c.pitch; gFrom.sway = 0; gFrom.s = fr.s; gT0 = now + 0.6; gDur = 1.2; }   /* 카메라 회전 없음 (사용자 요청): 처음부터 정면, 흔들림만 서서히 */
+      if (initial && !introReduce) { gFrom.yaw = c.yaw; gFrom.pitch = c.pitch; gFrom.sway = 0; gFrom.s = fr.s; gT0 = now + 0.6 * IK; gDur = 1.2 * IK; }   /* 카메라 회전 없음 (사용자 요청): 처음부터 정면, 흔들림만 서서히 */
     }
     setFormation(0, true);
-    var introDone = false, INTRO_T = 1.3, sceneT = 0, introAt = 0;   /* 1.3초: 제목·헤더가 올라오기 시작 (바깥 로고 픽셀이 닿는 1.6초와 겹쳐 1.9초에 모두 끝난다) */
+    var introDone = false, INTRO_T = 1.55 * IK, sceneT = 0, introAt = 0;   /* 1.3초: 제목·헤더가 올라오기 시작 (바깥 로고 픽셀이 닿는 1.6초와 겹쳐 1.9초에 모두 끝난다) */
     /* ── 이스터에그: 02 챕터의 코드 조각을 마우스·손가락으로 잡아 던지면 얼마쯤 날아갔다가 스프링처럼 제자리로 돌아온다.
        점수나 안내 없이 숨어 있다 (조각 위에서 커서가 손 모양으로 바뀌는 것만 힌트) ── */
     var play = { on: false, drag: null, last: 0, trail: [], gx: 0, gy: 0 };
@@ -448,22 +463,21 @@
         var fc = mix(pal.dark, pal.mid, Math.min(1, 0.25 + flam * 0.9)); fc = mix(fc, pal.light, Math.pow(flam, 3) * 0.75); fc = mix(fc, pal.light, Math.max(0, -fny2) * 0.12);
         FR[f0] = fc[0]; FG[f0] = fc[1]; FB[f0] = fc[2];
       }
-      if (grid && introDone) grid = null;
       if (grid) {
         /* 격자: 불투명도 8단계로 묶어 경로 8개로 한 번에 채운다 (2만 칸도 가볍게). 색은 로고 큐브 앞면과 같게 — 로고 픽셀이 떠날 때 이음새가 없도록 */
         var Gd = grid, gb = Gd.qb, gn = Gd.qn, gq; gn.fill(0);
         var gcol = colStr(FR[0] + (pal.fog[0] - FR[0]) * 0.135, FG[0] + (pal.fog[1] - FG[0]) * 0.135, FB[0] + (pal.fog[2] - FB[0]) * 0.135), gk = D / F;
-        var gOffK = 1 / 0.12, gInK = 1 / 0.2, gPopK = 1 / 0.35, gLeft = 0;   /* 꺼짐 0.12 · 켜짐 0.2 · 튀어나옴 0.35초 (인트로 2초 안에). 칸마다 나누지 않게 한 번만 */
+        var gInK = 1 / (0.2 * IK), gPopK = 1 / (0.35 * IK), gFadeK = 1 / (0.25 * IK), gLeft = 0, EZ = introEase;   /* 켜짐 0.2 · 튀어나옴 0.35 · 도착 뒤 스며듦 0.25초 (×IK) */
         for (var gj = 0; gj < Gd.n; gj++) {
           if (t < Gd.tw[gj]) { gLeft++; continue; }
-          var goff = (t - Gd.t0[gj]) * gOffK;
-          if (goff >= 1 || (Gd.own[gj] >= 0 && goff > 0)) continue;               /* 로고 픽셀은 떠나는 순간부터 큐브로 그린다 */
+          var gpp = (t - Gd.t0[gj]) / Gd.du[gj], ga = Gd.al[gj] * Math.min(1, (t - Gd.tw[gj]) * gInK), gxx = Gd.sx[gj], gyy = Gd.sy[gj], gzz = 0, gs = Gd.SQ, still = gpp <= 0;
+          if (still) { var gap = Math.min(1, (t - Gd.tw[gj]) * gPopK); gzz = 5 * (1 - gap) * (1 - gap); }   /* 켜지며 화면 안쪽에서 살짝 앞으로 */
+          else if (gpp < 1) { var gee = EZ(gpp); gxx += (Gd.tx[gj] - gxx) * gee; gyy += (Gd.ty[gj] - gyy) * gee; gs += (Gd.SQA - gs) * gee; ga += (0.85 - ga) * gee; }   /* 맡은 로고 픽셀로 날아가며 작아지고 밝아진다 */
+          else { var gfo = (t - Gd.t0[gj] - Gd.du[gj]) * gFadeK; if (gfo >= 1) continue; gxx = Gd.tx[gj]; gyy = Gd.ty[gj]; gs = Gd.SQA; ga = 0.85 * (1 - gfo); }   /* 닿으면 차오르는 로고 픽셀 속으로 스며든다 */
           gLeft++;
-          var ga = Gd.al[gj] * Math.min(1, (t - Gd.tw[gj]) * gInK), gap = Math.min(1, (t - Gd.tw[gj]) * gPopK), gzz = 5 * (1 - gap) * (1 - gap);   /* 켜지며 화면 안쪽에서 살짝 앞으로 */
-          if (goff > 0) ga *= 1 - goff;                                             /* 나머지 칸은 따라 모이지 않고 제자리에서 곧바로(0.12초) 꺼진다 (끌려오며 흐려지던 잔상 제거) */
           if (ga < 0.015) continue;
-          var gwx = Gd.sx[gj] * S, gwy = Gd.sy[gj] * S, gwz = gzz * S, gax = gwx * cy + gwz * sy, gaz = -gwx * sy + gwz * cy, gay = gwy * cp - gaz * sp, gsc = F / (gwy * sp + gaz * cp + D), ghs = Gd.SQ * gsc * gk / 2;
-          var gX = Math.round((OX + gax * gsc - ghs) * DPR) / DPR, gY = Math.round((OY + gay * gsc - ghs) * DPR) / DPR;   /* 격자는 제자리에 있으니 기기 픽셀에 맞춰 또렷하게 */
+          var gwx = gxx * S, gwy = gyy * S, gwz = gzz * S, gax = gwx * cy + gwz * sy, gaz = -gwx * sy + gwz * cy, gay = gwy * cp - gaz * sp, gsc = F / (gwy * sp + gaz * cp + D), ghs = gs * gsc * gk / 2;
+          var gX = OX + gax * gsc - ghs, gY = OY + gay * gsc - ghs; if (still) { gX = Math.round(gX * DPR) / DPR; gY = Math.round(gY * DPR) / DPR; }   /* 멈춰 있는 격자는 기기 픽셀에 맞춰 또렷하게 */
           var gi = Math.min(7, ga * 16 | 0), go = gn[gi], gbuf = gb[gi]; gbuf[go] = gX; gbuf[go + 1] = gY; gbuf[go + 2] = ghs * 2; gn[gi] = go + 3;
         }
         ctx.fillStyle = gcol;
@@ -484,12 +498,10 @@
         var p = Math.max(0, Math.min(1, (t - b.t0) / b.dur));
         if (b.from && b.to) { var e = b.back ? easeInOut(p) : easeOut4(p), arc = Math.sin(Math.PI * e); b.cur.x = b.from.x + (b.to.x - b.from.x) * e + b.ax * arc; b.cur.y = b.from.y + (b.to.y - b.from.y) * e + b.ay * arc; b.cur.z = b.from.z + (b.to.z - b.from.z) * e + b.az * arc; b.m = b.mFrom + (b.mTo - b.mFrom) * e; }
         var alpha = 1, dep = 1, szf = 1, lx = 0, ly = 0, lz = 0;
-        if (!introDone && b.back) {
-          if (t < b.t0) continue;                                                              /* 떠나기 전엔 격자의 한 칸 (격자 층이 그린다) */
-          var ep = easeInOut(p);
-          alpha = b.a0 + (1 - b.a0) * ep;                                                       /* 격자 밝기 → 로고 밝기 (떠나자마자 튀지 않게 이동과 같은 곡선으로) */
-          szf = b.szf0 + (1 - b.szf0) * ep;                                                     /* 격자 한 칸 크기 → 로고 픽셀 크기 */
-          dep = 0.03 + 0.97 * ep;                                                               /* 납작한 화면 픽셀 → 로고 두께의 큐브 */
+        if (b.back && t < b.t0 + b.dur) {
+          if (t < b.t0) continue;                                                              /* 맡은 칸이 닿기 전엔 비어 있다 */
+          var ep = easeOut(p);
+          alpha = ep; szf = 0.85 + 0.15 * ep; dep = 0.03 + 0.97 * ep;                           /* 도착하는 칸만큼 차오르며 납작한 픽셀 → 로고 두께의 큐브 */
         }
         var sq = (t - b.tl) / (0.5 * PACE);                                                       /* 착지: 제자리에 닿는 순간 화면 쪽으로 살짝 밀려 나왔다가 자리 잡는다 */
         if (b.sa && sq > 0 && sq < 1) lz -= b.sa * Math.sin(Math.PI * sq) * (1 - sq);
@@ -498,9 +510,9 @@
         if (hasLive) {
           /* 살아 있는 로고: 전에는 위치에 따라 이어지는 물결(sin(gx·0.3+gy·0.18))이 로고 절반을 한 덩어리로 부풀렸다.
              이제는 픽셀마다 제 빠르기로 숨쉬고, 6–12초에 한 번 제 차례에 앞으로 톡 튀어나온다 — 로고 전체에 고르게 흩어진다 */
-          var lv = g.live; lz += Math.sin(t * b.bw + b.seed * 6.283) * 0.07 * lv; lx += Math.sin(t * 0.455 + b.seed2 * 6.283) * 0.018 * lv; ly += Math.cos(t * 0.52 + b.seed * 6.283) * 0.018 * lv;
+          var lv = g.live; lz += Math.sin(t * b.bw + b.seed * 6.283) * 0.025 * lv; lx += Math.sin(t * 0.455 + b.seed2 * 6.283) * 0.018 * lv; ly += Math.cos(t * 0.52 + b.seed * 6.283) * 0.018 * lv;
           var ph = ((t + b.po) % b.pp) / b.pp;
-          if (ph < 0.1) { var bump = Math.sin(Math.PI * ph / 0.1); b.pulse = bump * bump * lv * liveK; lz -= b.pulse * 0.6; }
+          if (ph < 0.1) { var bump = Math.sin(Math.PI * ph / 0.1); b.pulse = bump * bump * lv * liveK; lz -= b.pulse * 0.3; }   /* 숨쉬기·튀어나옴 깊이를 줄여 이웃 면이 계단처럼 갈라지지 않게 */
         }
         var px = (b.cur.x + lx) * S, py = (b.cur.y + ly) * S, pz = (b.cur.z + bob + lz) * S;
         var z1 = -px * sy + pz * cy; var z2 = py * sp + z1 * cp;
@@ -509,6 +521,20 @@
       }
       var ordArr = ORDER.subarray(0, nVis); ordArr.sort(function(a, b2){ return RECS[b2].z - RECS[a].z; });
       var margin = 60, fogA = pal.fog[0], fogB = pal.fog[1], fogC = pal.fog[2], liA = pal.light[0], liB = pal.light[1], liC = pal.light[2], skA = pal.sky[0], skB = pal.sky[1], skC = pal.sky[2];
+      /* 한 덩어리 로고 (사용자 2026-09-28: 큐브 사이로 흰 줄이 비쳐 격자처럼 네모네모하다): 큐브를 그리기 전에 모든 큐브의 앞면을
+         4% 넓혀 한 색으로 먼저 깐다. 이음새·안티에일리어싱 틈으로 배경 대신 이 색이 비쳐 줄이 사라진다 (코드 조각·차오르는 중인 큐브는 제외) */
+      ctx.beginPath(); var ulN = 0;
+      for (var u2 = 0; u2 < nVis; u2++) {
+        var ur = RECS[ordArr[u2]], ub = boxes[ordArr[u2]]; if (ur.a < 0.99 || ub.m > 0.01) continue;
+        var uhs = HS * S * ur.szf * 1.04, uvz = ur.pz - ub.h * S * ur.dep;
+        for (var uq = 0; uq < 4; uq++) {
+          var uc = uq === 0 ? 0 : uq === 1 ? 1 : uq === 2 ? 3 : 2, uvx = ur.px + (uc & 1 ? uhs : -uhs), uvy = ur.py + (uc & 2 ? uhs : -uhs);
+          var uax = uvx * cy + uvz * sy, uaz = -uvx * sy + uvz * cy, uay = uvy * cp - uaz * sp, usc = F / (uvy * sp + uaz * cp + D);
+          if (uq) ctx.lineTo(OX + uax * usc, OY + uay * usc); else ctx.moveTo(OX + uax * usc, OY + uay * usc);
+        }
+        ctx.closePath(); ulN++;
+      }
+      if (ulN) { ctx.fillStyle = colStr(FR[0] + (fogA - FR[0]) * 0.135, FG[0] + (fogB - FG[0]) * 0.135, FB[0] + (fogC - FB[0]) * 0.135); ctx.globalAlpha = 1; ctx.fill(); }   /* 워터마크 챕터의 반투명은 캔버스 opacity 가 맡는다 */
       var lastStyle = null;
       for (var k2 = 0; k2 < nVis; k2++) {
         var it = RECS[ordArr[k2]], bx = boxes[ordArr[k2]], hz = bx.h * S * it.dep, hs = HS * S * it.szf;
@@ -541,7 +567,7 @@
             /* 면을 0.35px 만큼 바깥으로 넓혀 이음새를 지운다 (전에는 면마다 stroke 를 한 번 더 그렸다) */
             var mx = (PX[i0] + PX[i1] + PX[i2] + PX[i3]) * 0.25, my = (PY[i0] + PY[i1] + PY[i2] + PY[i3]) * 0.25;
             ctx.beginPath();
-            for (var vq = 0; vq < 4; vq++) { var vi = fv[vq], ex = PX[vi] - mx, ey = PY[vi] - my, el = Math.max(2, Math.sqrt(ex * ex + ey * ey)), kk = 1 + 0.35 / el; if (vq) ctx.lineTo(mx + ex * kk, my + ey * kk); else ctx.moveTo(mx + ex * kk, my + ey * kk); }
+            for (var vq = 0; vq < 4; vq++) { var vi = fv[vq], ex = PX[vi] - mx, ey = PY[vi] - my, el = Math.max(2, Math.sqrt(ex * ex + ey * ey)), kk = 1 + 0.5 / el; if (vq) ctx.lineTo(mx + ex * kk, my + ey * kk); else ctx.moveTo(mx + ex * kk, my + ey * kk); }
             ctx.closePath(); ctx.fill();
           }
         }
@@ -558,7 +584,7 @@
       window.removeEventListener('wheel', lockWheel); window.removeEventListener('keydown', lockKeys);   /* 이제부터 스크롤은 브라우저가 알아서 (JS 를 기다리지 않는다) */
       if (pendingHash !== null) { var ph = pendingHash; pendingHash = null; setTimeout(function(){ goTo(ph); }, 450); }   /* #c3 같은 주소로 들어와도 인트로를 본 뒤에 그 챕터로 */
     }
-    if (introReduce) introFinish(); else setTimeout(introFinish, 3000);   /* 탭이 가려져 프레임이 멈춰도 3초 뒤엔 풀린다 */
+    if (introReduce) introFinish(); else setTimeout(introFinish, 3000 * IK);   /* 탭이 가려져 프레임이 멈춰도 3초 뒤엔 풀린다 */
     /* 인트로가 끝나기 전에는 휠·키보드·터치로 넘어갈 수 없다 */
     var lockWheel = function(e){ if (!introDone && e.cancelable) e.preventDefault(); }, lockKeys = function(e){ if (!introDone && [' ', 'PageDown', 'PageUp', 'ArrowDown', 'ArrowUp', 'End', 'Home'].indexOf(e.key) >= 0) e.preventDefault(); };
     window.addEventListener('wheel', lockWheel, { passive: false });
@@ -633,7 +659,7 @@
       if (!A || introReduce) return;
       var wl = all(chapters[0], '.wordmark .ln > span');
       A.utils.set(wl, { y: '112%' });
-      A.animate(wl, { y: '0%', duration: Math.round(500 / PACE), ease: 'out(4)', delay: A.stagger(Math.round(50 / PACE)) });   /* 실제 0.5초·0.05초 간격 (엔진 속도가 1/PACE) — 인트로 1.9초 안에 */
+      A.animate(wl, { y: '0%', duration: Math.round(500 * IK / PACE), ease: 'out(4)', delay: A.stagger(Math.round(50 * IK / PACE)) });   /* 실제 0.5초·0.05초 간격 (엔진 속도가 1/PACE) — 인트로 1.9초 안에 */
     }
     /* 헤더 메뉴 밑줄: 현재 챕터 메뉴 밑으로 스프링처럼 옮겨 간다 (00 에서는 숨김) */
     var navInd = document.querySelector('.nav-ind');

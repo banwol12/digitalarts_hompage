@@ -35,7 +35,7 @@ export const PORTFOLIO_DATA = {
       { n:'005', label:'game', body:'게임 엔진으로 만든 인터랙티브 세계와 플레이.' }
     ]
   },
-  contact: { email: '[전공 이메일]', address: ['서울예술대학교'], instagram: 'https://www.instagram.com/seoularts_digitalarts/', youtube: 'https://www.youtube.com/@sia_digitalarts' }
+  contact: { email: '[전공 이메일]', address: ['Seoul Institute of the Arts'], instagram: 'https://www.instagram.com/seoularts_digitalarts/', youtube: 'https://www.youtube.com/@sia_digitalarts' }
 };
 
 /* 포트폴리오·작품 게시·관리자 스크립트가 읽는 전역값 — React 로 옮기기 전에는 config.js · portfolio-data.js 를 <script> 로 불러 채웠다.
