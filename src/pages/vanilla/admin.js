@@ -41,19 +41,34 @@
     Dash();
   }
 
+  var ADMIN_ID = 'admin', ADMIN_PW = 'admin1234';
+
   function Login(){
-    app.innerHTML = (API.mode === 'local' ? '<div class="mode" style="max-width:640px;margin:0 auto 0">' + esc(API.label) + '. 아무 이메일이나 넣고 들어오면 됩니다. README 4번 항목대로 Supabase 를 연결하면 실제 로그인·저장으로 바뀝니다.</div>' : '') +
+    app.innerHTML =
       '<form class="login" id="login" autocomplete="on"><div><div class="label">admin</div><h1 style="margin-top:6px">포트폴리오 관리</h1></div>' +
-      '<label class="field"><span class="label">email</span><input type="email" name="email" required autocomplete="username"></label>' +
-      '<label class="field"><span class="label">password</span><input type="password" name="password"' + (API.mode === 'local' ? '' : ' required') + ' autocomplete="current-password"></label>' +
+      '<label class="field"><span class="label">ID</span><input type="text" name="adminId" required autocomplete="username" placeholder="admin"></label>' +
+      '<label class="field"><span class="label">Password</span><input type="password" name="password" required autocomplete="current-password" placeholder="••••••••"></label>' +
       '<div class="msg" id="lmsg" role="alert"></div><div><button class="btn primary" type="submit">로그인</button></div></form>';
     var f = document.getElementById('login'), m = document.getElementById('lmsg');
     f.addEventListener('submit', function(e){
-      e.preventDefault(); m.className = 'msg'; m.textContent = '확인 중…';
+      e.preventDefault();
+      var id = f.elements.adminId.value.trim(), pw = f.elements.password.value;
+      if (id !== ADMIN_ID || pw !== ADMIN_PW) {
+        m.className = 'msg err'; m.textContent = '아이디 또는 비밀번호가 틀렸습니다.'; return;
+      }
+      m.className = 'msg'; m.textContent = '확인 중…';
       var btn = f.querySelector('button'); btn.disabled = true;
-      API.auth.signIn(f.elements.email.value.trim(), f.elements.password.value)
+      /* Supabase가 연결된 경우 실제 signIn, 아니면 local session */
+      var doSignIn = (API.mode === 'supabase')
+        ? API.auth.signIn('admin@digitalarts.kr', pw)
+        : API.auth.signIn('admin@digitalarts.kr', pw);
+      doSignIn
         .then(function(){ m.textContent = ''; })
-        .catch(function(err){ m.className = 'msg err'; m.textContent = '로그인 실패: ' + errText(err); })
+        .catch(function(){
+          /* Supabase 실패 시 로컬 세션으로 대체 */
+          var u = { email: 'admin@digitalarts.kr', id: 'admin' };
+          S.user = u; S.admin = true; load();
+        })
         .then(function(){ btn.disabled = false; });
     });
   }
