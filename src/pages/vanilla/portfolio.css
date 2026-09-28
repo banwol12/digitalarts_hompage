@@ -106,6 +106,8 @@ main{min-height:60vh}
 .frame figcaption{display:flex;justify-content:space-between;gap:var(--space-2);font:500 var(--text-10)/1.6 var(--mono);text-transform:uppercase;letter-spacing:var(--track-caps-wide);color:var(--text-muted)}
 .section{margin-top:var(--space-8x);display:grid;grid-template-columns:200px 1fr;gap:var(--space-40);align-items:start}
 .prose{display:grid;gap:var(--space-4);max-width:62ch}
+.prose .display{font-size:clamp(1.25rem,2.4vw,1.85rem);line-height:1.35;max-width:100%;white-space:pre-line;word-break:keep-all;overflow-wrap:break-word}
+.prose .body{white-space:pre-line;word-break:keep-all;line-height:1.7}
 .credits{display:grid;grid-template-columns:repeat(3,1fr);gap:32px 40px}
 .credit{display:grid;gap:var(--space-7)}
 .credit ul{display:grid;gap:2px}
