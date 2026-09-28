@@ -14,8 +14,15 @@
 
   var S = { user: null, works: [], site: {}, sel: null, draft: null, tab: 'works', admin: true, loaded: false };
 
-  API.auth.getUser().then(function(u){ S.user = u; if (u) load(); else render(); });
-  API.auth.onChange(function(u){ var was = !!S.user; S.user = u; if (u && !was) load(); else if (!u) { S.loaded = false; S.works = []; S.sel = null; render(); } });
+  /* 로컬 세션 체크: admin/admin1234 로그인 시 localStorage에 저장 */
+  var LOCAL_SESSION_KEY = 'da-admin-session';
+  function getLocalSession(){ try { return JSON.parse(localStorage.getItem(LOCAL_SESSION_KEY)); } catch(e){ return null; } }
+  function setLocalSession(u){ try { localStorage.setItem(LOCAL_SESSION_KEY, JSON.stringify(u)); } catch(e){} }
+  function clearLocalSession(){ try { localStorage.removeItem(LOCAL_SESSION_KEY); } catch(e){} }
+
+  var localUser = getLocalSession();
+  S.user = localUser;
+  if (localUser) { S.admin = true; load(); } else { render(); }
 
   /* ── 데이터 ── */
   function load(){
@@ -33,15 +40,13 @@
   /* ── 화면 ── */
   function render(){
     nav.innerHTML = (S.user
-      ? '<a href="portfolio.html" target="_blank" rel="noopener">사이트 보기 ↗</a><a href="submit.html" target="_blank" rel="noopener">게시 페이지 ↗</a><span class="who">' + esc(S.user.email) + '</span><button type="button" id="logout">로그아웃</button>'
+      ? '<a href="portfolio.html" target="_blank" rel="noopener">사이트 보기 ↗</a><a href="submit.html" target="_blank" rel="noopener">게시 페이지 ↗</a><span class="who">admin</span><button type="button" id="logout">로그아웃</button>'
       : '<a href="portfolio.html">사이트 보기 ↗</a>');
-    var lo = document.getElementById('logout'); if (lo) lo.addEventListener('click', function(){ API.auth.signOut(); });
+    var lo = document.getElementById('logout'); if (lo) lo.addEventListener('click', function(){ clearLocalSession(); S.user = null; S.loaded = false; S.works = []; S.sel = null; render(); });
     if (!S.user) return Login();
     if (!S.loaded) { app.innerHTML = '<div class="empty">불러오는 중…</div>'; return; }
     Dash();
   }
-
-  var ADMIN_ID = 'admin', ADMIN_PW = 'admin1234';
 
   function Login(){
     app.innerHTML =
@@ -53,23 +58,13 @@
     f.addEventListener('submit', function(e){
       e.preventDefault();
       var id = f.elements.adminId.value.trim(), pw = f.elements.password.value;
-      if (id !== ADMIN_ID || pw !== ADMIN_PW) {
+      if (id !== 'admin' || pw !== 'admin1234') {
         m.className = 'msg err'; m.textContent = '아이디 또는 비밀번호가 틀렸습니다.'; return;
       }
-      m.className = 'msg'; m.textContent = '확인 중…';
-      var btn = f.querySelector('button'); btn.disabled = true;
-      /* Supabase가 연결된 경우 실제 signIn, 아니면 local session */
-      var doSignIn = (API.mode === 'supabase')
-        ? API.auth.signIn('admin@digitalarts.kr', pw)
-        : API.auth.signIn('admin@digitalarts.kr', pw);
-      doSignIn
-        .then(function(){ m.textContent = ''; })
-        .catch(function(){
-          /* Supabase 실패 시 로컬 세션으로 대체 */
-          var u = { email: 'admin@digitalarts.kr', id: 'admin' };
-          S.user = u; S.admin = true; load();
-        })
-        .then(function(){ btn.disabled = false; });
+      var u = { id: 'admin' };
+      setLocalSession(u);
+      S.user = u; S.admin = true;
+      load();
     });
   }
 
