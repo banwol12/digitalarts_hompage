@@ -1,4 +1,9 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useLayoutEffect, useRef } from 'react';
+import { animate, stagger, spring, scrambleText, utils, engine } from 'animejs';
+
+// HOME_SCRIPT 가 전역 anime 로 쓰는 함수들 — CDN 대신 사이트에 같이 묶는다 (CDN 을 기다리지 않고, 못 받아도 인트로·챕터가 멈추지 않게).
+// HOME_SCRIPT 에서 anime 의 다른 함수를 새로 쓰면 여기에도 더한다
+const ANIME = { animate, stagger, spring, scrambleText, utils, engine };
 
 const HOME_CSS = `
 /* ═══ Cascades Design System — tokens (Claude Design 프로젝트 93225dbe 에서 동기화, 값 그대로) ═══ */
@@ -155,8 +160,8 @@ html.booting .progress{opacity:0}
 .brand .mark{width:calc(24px * var(--k));height:calc(26px * var(--k));flex:none}
 .brand .mark svg{width:100%;height:100%;fill:currentColor}
 .brand-text{display:flex;flex-direction:column;gap:2px;line-height:1.1}
-.brand-text small{font:var(--weight-core) calc(11px * var(--k))/1.1 var(--font-core);letter-spacing:0.14em;text-transform:uppercase;color:var(--text-muted)}
-.brand-text strong{font:600 calc(19px * var(--k))/1.1 var(--font-core);letter-spacing:0.06em}
+.brand-text small{font:600 calc(11px * var(--k))/1.1 var(--font-core);letter-spacing:0.3em;text-transform:uppercase;color:var(--text-muted)}
+.brand-text strong{font:600 calc(19px * var(--k))/1.1 var(--font-core);letter-spacing:-0.03em;text-transform:uppercase}   /* 헤더 브랜드도 가운데 제목(.intro-sub·.intro-title)과 같은 대문자·자간 (사용자 요청 2026-09-28: 두 글씨 통일) */
 .site-nav{display:flex;gap:var(--space-32);position:relative}
 .nav-ind{position:absolute;left:0;bottom:calc(-9px * var(--k));width:0;height:1px;background:var(--text-body);opacity:0;pointer-events:none}
 .site-nav a{font:var(--type-label);letter-spacing:var(--tracking-label);text-transform:uppercase;color:var(--text-muted)}
@@ -258,7 +263,7 @@ html.touch-paging .cards{touch-action:pan-x}
   .subnav a:first-child{margin-left:auto}
   .subnav a:last-child{margin-right:auto}
   .brand{font-size:12px;letter-spacing:0.03em}
-  .brand-text small{font-size:9px}
+  .brand-text small{font-size:9px;letter-spacing:0.18em}   /* 폰: 넓은 자간을 폭에 맞게 (0.3em 이면 입학처 버튼이 화면 밖으로 밀린다) */
   .brand-text strong{font-size:15px}
   .brand .mark{width:20px;height:22px}
   .brand>span:not(.mark){display:flex}
@@ -310,6 +315,8 @@ html.touch-paging .cards{touch-action:pan-x}
   .foot .links{gap:var(--space-16)}
   .foot .row>.cs-caption{letter-spacing:.08em}
 }
+@media (max-width:409px){.site-header .cta-long{display:none}.site-header .btn.sm{padding:8px 12px}}   /* 좁은 폰: 헤더 버튼은 '입학처 ↗' 만 — 전에는 375px 이하에서 버튼이 화면 밖으로 잘렸다 */
+@media (max-width:359px){.site-header .cta-label{display:none}.site-header .btn.sm{padding:8px 10px}}   /* 320px: 화살표만 (읽는 이름은 aria-label) */
 .ln{display:block;overflow:hidden;padding:.1em 0;margin:-.1em 0}
 .ln>span{display:inline-block}
 .am .reveal,.am .intro .wordmark{transition:none;transform:none}
@@ -487,8 +494,8 @@ html.booting .progress{opacity:0}
 .brand .mark{width:calc(24px * var(--k));height:calc(26px * var(--k));flex:none}
 .brand .mark svg{width:100%;height:100%;fill:currentColor}
 .brand-text{display:flex;flex-direction:column;gap:2px;line-height:1.1}
-.brand-text small{font:var(--weight-core) calc(11px * var(--k))/1.1 var(--font-core);letter-spacing:0.14em;text-transform:uppercase;color:var(--text-muted)}
-.brand-text strong{font:600 calc(19px * var(--k))/1.1 var(--font-core);letter-spacing:0.06em}
+.brand-text small{font:600 calc(11px * var(--k))/1.1 var(--font-core);letter-spacing:0.3em;text-transform:uppercase;color:var(--text-muted)}
+.brand-text strong{font:600 calc(19px * var(--k))/1.1 var(--font-core);letter-spacing:-0.03em;text-transform:uppercase}   /* 헤더 브랜드도 가운데 제목(.intro-sub·.intro-title)과 같은 대문자·자간 (사용자 요청 2026-09-28: 두 글씨 통일) */
 .site-nav{display:flex;gap:var(--space-32);position:relative}
 .nav-ind{position:absolute;left:0;bottom:calc(-9px * var(--k));width:0;height:1px;background:var(--text-body);opacity:0;pointer-events:none}
 .site-nav a{font:var(--type-label);letter-spacing:var(--tracking-label);text-transform:uppercase;color:var(--text-muted)}
@@ -590,7 +597,7 @@ html.touch-paging .cards{touch-action:pan-x}
   .subnav a:first-child{margin-left:auto}
   .subnav a:last-child{margin-right:auto}
   .brand{font-size:12px;letter-spacing:0.03em}
-  .brand-text small{font-size:9px}
+  .brand-text small{font-size:9px;letter-spacing:0.18em}   /* 폰: 넓은 자간을 폭에 맞게 (0.3em 이면 입학처 버튼이 화면 밖으로 밀린다) */
   .brand-text strong{font-size:15px}
   .brand .mark{width:20px;height:22px}
   .brand>span:not(.mark){display:flex}
@@ -642,6 +649,8 @@ html.touch-paging .cards{touch-action:pan-x}
   .foot .links{gap:var(--space-16)}
   .foot .row>.cs-caption{letter-spacing:.08em}
 }
+@media (max-width:409px){.site-header .cta-long{display:none}.site-header .btn.sm{padding:8px 12px}}   /* 좁은 폰: 헤더 버튼은 '입학처 ↗' 만 — 전에는 375px 이하에서 버튼이 화면 밖으로 잘렸다 */
+@media (max-width:359px){.site-header .cta-label{display:none}.site-header .btn.sm{padding:8px 10px}}   /* 320px: 화살표만 (읽는 이름은 aria-label) */
 .ln{display:block;overflow:hidden;padding:.1em 0;margin:-.1em 0}
 .ln>span{display:inline-block}
 .am .reveal,.am .intro .wordmark{transition:none;transform:none}
@@ -674,7 +683,7 @@ html.touch-paging .cards{touch-action:pan-x}
     <nav class="site-nav" aria-label="주요 메뉴">
       <a href="#c1" data-ch="1">전공소개</a><a href="#c2" data-ch="2">교육과정</a><a href="#c3" data-ch="3">진로</a><a href="#c4" data-ch="4">포트폴리오</a><a href="#c5" data-ch="5">입학안내</a><span class="nav-ind" aria-hidden="true"></span>
     </nav>
-    <div class="hdr-actions"><a class="btn sm primary" href="https://www.seoularts.ac.kr/web/cop/bbsWeb/selectBoardList.do?bbsId=BBSMSTR_000000000924" target="_blank" rel="noopener">입학처 바로가기 <svg class="i"><use href="#arrow-up-right"/></svg></a></div>
+    <div class="hdr-actions"><a class="btn sm primary" href="https://www.seoularts.ac.kr/web/cop/bbsWeb/selectBoardList.do?bbsId=BBSMSTR_000000000924" target="_blank" rel="noopener" aria-label="입학처 바로가기"><span class="cta-label">입학처<span class="cta-long"> 바로가기</span></span> <svg class="i"><use href="#arrow-up-right"/></svg></a></div>
   </div>
   <nav class="shell subnav" aria-label="챕터 메뉴">
     <a href="#c1" data-ch="1">전공소개</a><a href="#c2" data-ch="2">교육과정</a><a href="#c3" data-ch="3">진로</a><a href="#c4" data-ch="4">포트폴리오</a><a href="#c5" data-ch="5">입학안내</a>
@@ -1549,7 +1558,8 @@ const HOME_SCRIPT = `
 export default function HomePage() {
   const containerRef = useRef(null);
 
-  useEffect(() => {
+  // 화면에 그리기 전에(useLayoutEffect) 클래스·CSS·스크립트를 건다 — 스크립트가 늦게 돌면 가운데 제목과 헤더가 한 번 보였다 사라진다
+  useLayoutEffect(() => {
     // 1. Add html classes
     document.documentElement.classList.add('cs-inverse', 'booting');
     const timer = setTimeout(() => {
@@ -1562,32 +1572,17 @@ export default function HomePage() {
     styleEl.textContent = HOME_CSS;
     document.head.appendChild(styleEl);
 
-    // 3. Load anime.js then run script
-    let scriptEl = null;
-    let inlineEl = null;
-    const animeUrl = 'https://cdn.jsdelivr.net/npm/animejs@4.5.0/dist/bundles/anime.umd.min.js';
-    
-    const runScript = () => {
-      inlineEl = document.createElement('script');
-      inlineEl.textContent = HOME_SCRIPT;
-      document.body.appendChild(inlineEl);
-    };
-
-    if (typeof window.anime !== 'undefined') {
-      runScript();
-    } else {
-      scriptEl = document.createElement('script');
-      scriptEl.src = animeUrl;
-      scriptEl.onload = runScript;
-      document.head.appendChild(scriptEl);
-    }
+    // 3. Run script (anime.js 는 위에서 같이 묶었다)
+    window.anime = ANIME;
+    const inlineEl = document.createElement('script');
+    inlineEl.textContent = HOME_SCRIPT;
+    document.body.appendChild(inlineEl);
 
     return () => {
       clearTimeout(timer);
       document.documentElement.classList.remove('cs-inverse', 'booting', 'js', 'touch-paging');
-      if (document.head.contains(styleEl)) document.head.removeChild(styleEl);
-      if (scriptEl && document.head.contains(scriptEl)) document.head.removeChild(scriptEl);
-      if (inlineEl && document.body.contains(inlineEl)) document.body.removeChild(inlineEl);
+      styleEl.remove();
+      inlineEl.remove();
     };
   }, []);
 
