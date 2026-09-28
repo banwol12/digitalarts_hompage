@@ -156,12 +156,13 @@
     var more = D.works.filter(function(x){ return x.slug !== w.slug; }).slice(0, 3);
     app.innerHTML = '<section class="page tight"><a class="navlink back" href="#/works">← works</a>' +
       '<div class="work-head"><span class="label">' + esc(w.n) + '</span><h1 class="work-title"><span class="ln"><span>' + esc(w.title) + '</span></span></h1></div><div id="hero"></div>' +
-      '<section class="section"><div class="label">about</div><div class="prose"><h2 class="display">' + esc(w.statement) + '</h2>' + (w.paragraphs || []).map(function(p){ return '<p class="body">' + esc(p) + '</p>'; }).join('') + '</div></section>' +
+      '<section class="section"><div class="label">about</div><div class="prose">' + (w.statement ? '<h2 class="display">' + esc(w.statement) + '</h2>' : '') + (w.paragraphs || []).map(function(p){ return '<p class="body">' + esc(p) + '</p>'; }).join('') + '</div></section>' +
       (w.video ? '<section style="margin-top:var(--space-8x)" id="second"></section>' : '') +
       '<section class="section"><div class="label">credits</div><div class="credits">' +
         '<div class="credit"><div class="label">student</div><ul><li>' + esc(w.student) + '</li></ul></div>' +
         '<div class="credit"><div class="label">discipline</div><ul><li>' + esc(w.meta) + '</li></ul></div>' +
         '<div class="credit"><div class="label">year</div><ul><li>' + esc(w.year) + '</li></ul></div>' +
+        (w.dimensions ? '<div class="credit"><div class="label">dimensions</div><ul>' + String(w.dimensions).split('\n').map(function(s){ return s.trim(); }).filter(Boolean).map(function(s){ return '<li>' + esc(s) + '</li>'; }).join('') + '</ul></div>' : '') +
         '<div class="credit"><div class="label">tools</div><ul>' + (w.tools || []).map(function(t){ return '<li>' + esc(t) + '</li>'; }).join('') + '</ul></div>' +
         (w.exhibition ? '<div class="credit"><div class="label">exhibition</div><ul>' + String(w.exhibition).split('\n').map(function(s){ return s.trim(); }).filter(Boolean).map(function(s){ return '<li>' + esc(s) + '</li>'; }).join('') + '</ul></div>' : '') +
       '</div></section>' +
@@ -220,7 +221,7 @@
     if (rows && rows.length) D.works = rows.map(function(r, i){
       var rt = String(r.ratio || '16:10').split(':').map(Number);
       return { n: pad3(i + 1), slug: r.slug, title: r.title || '', student: r.student || '', meta: r.category || 'installation', year: r.year || '', tools: r.tools || [],
-        statement: r.statement || '', paragraphs: r.paragraphs || [], exhibition: r.exhibition || '', seed: i * 7 + 3, ratio: (rt.length === 2 && rt[0] > 0 && rt[1] > 0) ? rt : null, image: r.image || '', video: r.video || '' };
+        statement: r.statement || '', dimensions: r.dimensions || '', paragraphs: r.paragraphs || [], exhibition: r.exhibition || '', seed: i * 7 + 3, ratio: (rt.length === 2 && rt[0] > 0 && rt[1] > 0) ? rt : null, image: r.image || '', video: r.video || '' };
     });
     (site || []).forEach(function(row){ if (row.value != null && row.value !== '' && !(Array.isArray(row.value) && !row.value.length)) D[row.key] = row.value; });
   }

@@ -36,8 +36,9 @@
       '<div class="grid2">' + field('title · 작품 제목', 'title', '', { req: true }) + field('student · 이름', 'student', '', { req: true }) + '</div>' +
       '<div class="grid2">' + field('email · 이메일', 'email', '', { req: true, type: 'email', placeholder: 'name@seoularts.ac.kr', hint: '검토 결과를 알려 드릴 주소. 사이트에는 표시되지 않습니다.' }) + field('category · 분야', 'category', API.CATS[0], { select: API.CATS, req: true }) + '</div>' +
       '<div class="grid2">' + field('year · 제작 연도', 'year', '', { placeholder: String(new Date().getFullYear()) }) + field('tools · 도구', 'tools', '', { placeholder: 'TouchDesigner, Kinect', hint: '쉼표로 구분' }) + '</div>' +
+      field('statement · 한 줄 설명 (컨셉)', 'statement', '', { textarea: true, rows: 2, req: true, placeholder: '작품의 핵심 컨셉 또는 주제를 한 문장으로 적어 주세요.', hint: '상세 페이지 ABOUT 상단 대표 문구로 표시됩니다.' }) +
+      field('dimensions · 규격 및 재료', 'dimensions', '', { textarea: true, rows: 2, placeholder: '예: 혼합 매체, 450 × 320 × 1160 mm 또는 단채널 비디오, 05:30', hint: '작품의 크기, 설치 규격, 사용 재료, 상영 시간 등 (선택, 없으면 비워둡니다)' }) +
       field('exhibition · 전시·상영 정보', 'exhibition', '', { placeholder: '2025 졸업전시, 아카이브 기획전 등', hint: '전시 또는 상영 이력이 있다면 적어 주세요. 없으면 비워둡니다.' }) +
-      field('statement · 작품을 한 문장으로', 'statement', '', { textarea: true, rows: 2, req: true }) +
       field('description · 작품 설명', 'paragraphs', '', { textarea: true, rows: 7, hint: '작품 개요 · 제작 과정 · 결과. 문단은 빈 줄로 구분합니다.' }) +
       media('image', true) + media('video', false) +
       field('ratio · 첫 화면 타일 화면비', 'ratio', '16:10', { select: API.RATIOS, hint: '이미지를 고르면 가장 가까운 비율이 자동으로 선택됩니다' }) +
@@ -85,6 +86,7 @@
       var slug = 'sub-' + Date.now().toString(36);
       var row = { slug: slug, title: g('title'), student: g('student'), submitter_email: g('email'), submitter_note: g('submitter_note') || null,
         category: g('category'), year: g('year'), tools: g('tools').split(',').map(function(s){ return s.trim(); }).filter(Boolean),
+        dimensions: g('dimensions') || null,
         exhibition: g('exhibition') || null,
         statement: g('statement'), paragraphs: g('paragraphs').split(/\n\s*\n/).map(function(s){ return s.trim(); }).filter(Boolean),
         ratio: g('ratio'), image: null, video: null };
