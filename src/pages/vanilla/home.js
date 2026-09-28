@@ -110,7 +110,7 @@
   /* 챕터별 회전·동작 설정. 위치와 크기는 frameFor() 가 화면과 텍스트를 실측해 "빈 영역"에 맞춘다 */
   var CHAPTERS = [
     { form: 'logo',  yaw: 0,    pitch: -0.08, sway: 0,    spin: 0,    morph: 0, flow: 0, live: 1,   sMax: 1.0,  sMin: 0.2,  fit: 0.9  },   /* sway 0: 첫 챕터는 카메라가 전혀 돌지 않는다 (인트로 끝에 흔들림이 시작되는 게 회전처럼 보였다) */
-    { form: 'logo',  yaw: -0.25, pitch: -0.06, sway: 0.10, spin: 0,   morph: 0, flow: 0, live: 0,   sMax: 0.85, sMin: 0.2,  fit: 0.9  },   /* live 0: 01 챕터는 픽셀이 숨쉬거나 튀어나오지 않는다 (사용자 2026-09-28) */
+    { form: 'logo',  yaw: -0.25, pitch: -0.06, sway: 0.10, spin: 0,   morph: 0, flow: 0, live: 0,   sMax: 0.85, sMin: 0.2,  fit: 0.9, flat: 1 },   /* live 0: 01 챕터는 픽셀이 숨쉬거나 튀어나오지 않는다 (사용자 2026-09-28) */
     { form: 'burst', yaw: 0.15, pitch: -0.1,  sway: 0.20, spin: 0,    morph: 1, flow: 0, live: 0,   sMax: 0.85, sMin: 0.2,  fit: 0.86 },
     { form: 'field', yaw: 0,    pitch: -1.1,  sway: 0.02, spin: 0,    morph: 0, flow: 1, live: 0,   sMax: 1.0,  sMin: 0.3,  fit: 0.9  },
     { form: 'logo',  yaw: 0.1,  pitch: -0.1,  sway: 0.15, spin: 0,    morph: 0, flow: 0, live: 0.4, sMax: 1.0,  sMin: 0.18, fit: 0.92, alpha: 0.14 },
@@ -234,7 +234,7 @@
     }
 
     var f0 = frameFor(0), c0 = CHAPTERS[0];
-    var g = { cx: f0.cx, cy: f0.cy, s: f0.s, yaw: c0.yaw, pitch: c0.pitch, sway: c0.sway, spin: c0.spin, mode: 1, flow: 0, live: c0.live, alpha: 1 };
+    var g = { cx: f0.cx, cy: f0.cy, s: f0.s, yaw: c0.yaw, pitch: c0.pitch, sway: c0.sway, spin: c0.spin, mode: 1, flow: 0, live: c0.live, alpha: 1, flat: 0 };
     var gFrom = null, gTo = null, gT0 = 0, gDur = 0.9;
     var active = 0, start = performance.now(), lastSpin = 0, spinAcc = 0;
 
@@ -312,8 +312,8 @@
         if ((initial ? introReduce : reduce) || instant) { b.cur = { x: t.x, y: t.y, z: t.z }; b.m = c.morph; b.t0 = now - 10; b.tw = now - 10; b.tl = now - 10; b.sa = 0; b.ax = b.ay = b.az = 0; }
         if (b.tl + 0.5 * PACE > flightEnd) flightEnd = b.tl + 0.5 * PACE;
       }
-      gFrom = { cx: g.cx, cy: g.cy, s: g.s, yaw: g.yaw, pitch: g.pitch, sway: g.sway, spin: g.spin, mode: g.mode, flow: g.flow, live: g.live, alpha: g.alpha };
-      gTo = { cx: fr.cx, cy: fr.cy, s: fr.s, yaw: c.yaw, pitch: c.pitch, sway: c.sway, spin: c.spin, mode: chapters[i].getAttribute('data-mode') === 'ink' ? 1 : 0, flow: c.flow, live: c.live || 0, alpha: (MOBILE() || c.alpha === undefined) ? 1 : c.alpha };
+      gFrom = { cx: g.cx, cy: g.cy, s: g.s, yaw: g.yaw, pitch: g.pitch, sway: g.sway, spin: g.spin, mode: g.mode, flow: g.flow, live: g.live, alpha: g.alpha, flat: g.flat };
+      gTo = { cx: fr.cx, cy: fr.cy, s: fr.s, yaw: c.yaw, pitch: c.pitch, sway: c.sway, spin: c.spin, mode: chapters[i].getAttribute('data-mode') === 'ink' ? 1 : 0, flow: c.flow, live: c.live || 0, alpha: (MOBILE() || c.alpha === undefined) ? 1 : c.alpha, flat: c.flat || 0 };
       gFrom.yaw = g.yaw + spinAcc; spinAcc = 0;
       var dyaw = gTo.yaw - gFrom.yaw; dyaw = Math.atan2(Math.sin(dyaw), Math.cos(dyaw)); gFrom.yaw = gTo.yaw - dyaw;
       gT0 = now; gDur = (initial || reduce || instant) ? 0.01 : 0.8 * PACE;                     /* 카메라(위치·크기·각도): 스크롤과 함께 바로 출발 */
@@ -463,6 +463,7 @@
         var fc = mix(pal.dark, pal.mid, Math.min(1, 0.25 + flam * 0.9)); fc = mix(fc, pal.light, Math.pow(flam, 3) * 0.75); fc = mix(fc, pal.light, Math.max(0, -fny2) * 0.12);
         FR[f0] = fc[0]; FG[f0] = fc[1]; FB[f0] = fc[2];
       }
+      if (g.flat > 0.001) for (var f1 = 1; f1 < 6; f1++) { FR[f1] += (FR[0] - FR[f1]) * g.flat; FG[f1] += (FG[0] - FG[f1]) * g.flat; FB[f1] += (FB[0] - FB[f1]) * g.flat; }   /* 단색 챕터(01): 모든 면을 앞면 색 하나로 — 그라데이션 없음 (사용자 2026-09-28) */
       if (grid) {
         /* 격자: 불투명도 8단계로 묶어 경로 8개로 한 번에 채운다 (2만 칸도 가볍게). 색은 로고 큐브 앞면과 같게 — 로고 픽셀이 떠날 때 이음새가 없도록 */
         var Gd = grid, gb = Gd.qb, gn = Gd.qn, gq; gn.fill(0);
@@ -534,7 +535,7 @@
         }
         ctx.closePath(); ulN++;
       }
-      if (ulN) { ctx.fillStyle = colStr(FR[0] + (fogA - FR[0]) * 0.135, FG[0] + (fogB - FG[0]) * 0.135, FB[0] + (fogC - FB[0]) * 0.135); ctx.globalAlpha = 1; ctx.fill(); }   /* 워터마크 챕터의 반투명은 캔버스 opacity 가 맡는다 */
+      if (ulN) { var ulF = 0.135 * (1 - g.flat); ctx.fillStyle = colStr(FR[0] + (fogA - FR[0]) * ulF, FG[0] + (fogB - FG[0]) * ulF, FB[0] + (fogC - FB[0]) * ulF); ctx.globalAlpha = 1; ctx.fill(); }   /* 워터마크 챕터의 반투명은 캔버스 opacity 가 맡는다 */
       var lastStyle = null;
       for (var k2 = 0; k2 < nVis; k2++) {
         var it = RECS[ordArr[k2]], bx = boxes[ordArr[k2]], hz = bx.h * S * it.dep, hs = HS * S * it.szf;
@@ -550,8 +551,8 @@
             var sc = F / (az2 + D); PX[q] = OX + ax * sc; PY[q] = OY + ay * sc; RX[q] = ax; RY[q] = ay; RZ[q] = az2;
           }
           /* 상자 단위 색 보정: 안개(깊이)·빛 띠·데이터 패킷·살아있는 반짝임 */
-          var fog = Math.max(0, Math.min(1, (cz1 + 18) / 40)) * 0.3;
-          var sd = (bx.cur.x * sweepC + bx.cur.y * sweepS) - sweepPos; var band = Math.exp(-sd * sd / 26) * 0.09; if (band < 0.01) band = 0;   /* 빛 띠는 약하게 (한쪽만 밝아 보이지 않게) */
+          var fog = Math.max(0, Math.min(1, (cz1 + 18) / 40)) * 0.3 * (1 - g.flat);   /* 단색 챕터는 깊이 안개·빛 띠도 없음 */
+          var sd = (bx.cur.x * sweepC + bx.cur.y * sweepS) - sweepPos; var band = Math.exp(-sd * sd / 26) * 0.09 * (1 - g.flat); if (band < 0.01) band = 0;   /* 빛 띠는 약하게 (한쪽만 밝아 보이지 않게) */
           var flk = bx.pulse * 0.3; if (flk < 0.01) flk = 0;                                    /* 튀어나온 픽셀만 살짝 밝게 */
           ctx.globalAlpha = it.a * (1 - m);
           for (var f = 0; f < 6; f++) {
