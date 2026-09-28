@@ -136,9 +136,9 @@ a.card:hover{color:var(--text-body)}
 .card .title{font:var(--weight-core) var(--text-lead)/calc(1.15em + 5px) var(--font-core);letter-spacing:var(--tracking-heading);font-size:clamp(13px,0.95vw,var(--text-lead))}
 
 /* ── Header: fixed, 64px, hairline. Colors follow the body scope. ── */
-.site-header{position:fixed;inset:0 0 auto 0;z-index:30;height:var(--hdr);border-bottom:1px solid var(--border-hairline);background:var(--surface-page);transition:background-color var(--duration-slow) var(--ease),color var(--duration-slow) var(--ease),opacity .7s var(--ease) .35s,transform .7s var(--ease) .35s}
+.site-header{position:fixed;inset:0 0 auto 0;z-index:30;height:var(--hdr);border-bottom:1px solid var(--border-hairline);background:var(--surface-page);transition:background-color var(--duration-slow) var(--ease),color var(--duration-slow) var(--ease),opacity .45s var(--ease) .1s,transform .45s var(--ease) .1s}   /* 인트로가 끝나면(1.3초) 1.85초까지 나타난다 */
 html.booting .site-header{opacity:0;transform:translateY(-10px);pointer-events:none}
-.progress{transition:opacity .7s var(--ease) .6s}
+.progress{transition:opacity .45s var(--ease) .15s}   /* 인트로 1.9초 안에 */
 .hdr-actions{display:flex;gap:var(--space-8);align-items:center;justify-self:end}
 @property --a{syntax:'<percentage>';inherits:false;initial-value:0%}
 html.booting .progress{opacity:0}
@@ -194,7 +194,7 @@ html.touch-paging .cards{touch-action:pan-x}
 .intro .hint{position:absolute;left:0;right:0;bottom:var(--space-24);display:flex;justify-content:center}
 .intro .hint i{position:relative;display:block;width:1px;height:calc(44px * var(--k));background:var(--border-hairline);overflow:hidden}
 .intro .hint i::after{content:"";position:absolute;left:0;top:0;width:1px;height:45%;background:var(--text-body);animation:drip 2.4s var(--ease-in-out) infinite}
-.js .intro .hint{opacity:0;transition:opacity var(--duration-slow) var(--ease) 600ms}
+.js .intro .hint{opacity:0;transition:opacity var(--duration-slow) var(--ease) 150ms}
 .js .intro.is-ready .hint{opacity:1}
 @keyframes drip{from{transform:translateY(-100%)}to{transform:translateY(230%)}}
 

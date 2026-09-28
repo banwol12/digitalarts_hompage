@@ -6,11 +6,11 @@ import { useVanillaPage } from './vanilla/useVanillaPage';
 import { installAnime } from '../lib/anime';
 
 /* 홈 — 정적 판 index.html 의 CSS·마크업·스크립트 그대로 (./vanilla/home.*, 사용자 디자인).
-   인트로 동안 헤더를 숨기는 booting 클래스는 스크립트가 인트로를 마치면 풀고, 스크립트가 못 돌면 7초 뒤에 푼다 */
+   인트로 동안 헤더를 숨기는 booting 클래스는 스크립트가 인트로를 마치면(1.3초) 풀고, 스크립트가 못 돌면 3초 뒤에 푼다 */
 function setup() {
   const root = document.documentElement;
   root.classList.add('cs-inverse', 'booting');
-  const timer = setTimeout(() => root.classList.remove('booting'), 7000);
+  const timer = setTimeout(() => root.classList.remove('booting'), 3000);
   installAnime();
   return () => {
     clearTimeout(timer);

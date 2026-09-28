@@ -252,9 +252,11 @@
         var yr = Y - fr.cy, wy = yr * D / (cp * F - yr * sp), wx = (X - fr.cx) * (wy * sp + D) / F;      /* 화면 좌표 → 로고 좌표 (챕터 0 카메라의 역투영: 격자가 화면에 정확히 반듯하게) */
         var ux = (X - W / 2) / (W * 0.48), uy = (Y - H / 2) / (H * 0.48), rN = Math.min(1, Math.sqrt(ux * ux + uy * uy) / 1.42);
         G.sx[j] = wx / fr.s; G.sy[j] = wy / fr.s;
-        G.tw[j] = now + (0.15 + 0.5 * rN + Math.random() * 0.06) * PACE; /* 켜짐: 가운데 → 바깥 */
-        G.t0[j] = now + (1.6 + 0.25 * rN + Math.random() * 0.05) * PACE; /* 잠깐 멈춰 보인 뒤 로고 칸은 출발, 나머지 칸은 꺼짐 */
-        G.du[j] = (1.0 + 0.65 * rN) * PACE;                                       /* 로고 칸의 비행 시간 — 착지 물결 0.9초 (전 0.6초 — 사용자: 조금 더 천천히) */
+        /* 첫 입장 전체를 2초 안에 (사용자 2026-09-28: 체감 3초 → 1.8–2초로). 인트로만 초 단위로 — 챕터 전환은 PACE 그대로.
+           전: 켜짐 0.2–0.8 · 멈춤 1초 · 모임 1.8–4.1 · 제목 4.8–6.4초 → 이제: 켜짐 0.04–0.34 · 모임 0.66–1.6 · 제목·헤더 1.3–1.9초 */
+        G.tw[j] = now + 0.04 + 0.26 * rN + Math.random() * 0.04;          /* 켜짐: 가운데 → 바깥 */
+        G.t0[j] = now + 0.66 + 0.12 * rN + Math.random() * 0.03;          /* 잠깐 멈춰 보인 뒤 로고 칸은 출발, 나머지 칸은 꺼짐 */
+        G.du[j] = 0.48 + 0.5 * rN;                                         /* 로고 칸의 비행 시간 — 가운데가 먼저, 바깥이 나중에 닿는 물결 (약 0.45초) */
         G.al[j] = 0.4 + Math.random() * 0.08;                            /* 밝기 차이는 좁게 */
       }
       for (var k = 0; k < N; k++) {
@@ -300,10 +302,10 @@
       gFrom.yaw = g.yaw + spinAcc; spinAcc = 0;
       var dyaw = gTo.yaw - gFrom.yaw; dyaw = Math.atan2(Math.sin(dyaw), Math.cos(dyaw)); gFrom.yaw = gTo.yaw - dyaw;
       gT0 = now; gDur = (initial || reduce || instant) ? 0.01 : 0.8 * PACE;                     /* 카메라(위치·크기·각도): 스크롤과 함께 바로 출발 */
-      if (initial && !introReduce) { gFrom.yaw = c.yaw; gFrom.pitch = c.pitch; gFrom.sway = 0; gFrom.s = fr.s; gT0 = now + 1.3; gDur = 1.9; }   /* 카메라 회전 없음 (사용자 요청): 처음부터 정면, 흔들림만 서서히 */
+      if (initial && !introReduce) { gFrom.yaw = c.yaw; gFrom.pitch = c.pitch; gFrom.sway = 0; gFrom.s = fr.s; gT0 = now + 0.6; gDur = 1.2; }   /* 카메라 회전 없음 (사용자 요청): 처음부터 정면, 흔들림만 서서히 */
     }
     setFormation(0, true);
-    var introDone = false, INTRO_T = 4.15 * PACE, sceneT = 0, introAt = 0;
+    var introDone = false, INTRO_T = 1.3, sceneT = 0, introAt = 0;   /* 1.3초: 제목·헤더가 올라오기 시작 (바깥 로고 픽셀이 닿는 1.6초와 겹쳐 1.9초에 모두 끝난다) */
     /* ── 이스터에그: 02 챕터의 코드 조각을 마우스·손가락으로 잡아 던지면 얼마쯤 날아갔다가 스프링처럼 제자리로 돌아온다.
        점수나 안내 없이 숨어 있다 (조각 위에서 커서가 손 모양으로 바뀌는 것만 힌트) ── */
     var play = { on: false, drag: null, last: 0, trail: [], gx: 0, gy: 0 };
@@ -451,14 +453,14 @@
         /* 격자: 불투명도 8단계로 묶어 경로 8개로 한 번에 채운다 (2만 칸도 가볍게). 색은 로고 큐브 앞면과 같게 — 로고 픽셀이 떠날 때 이음새가 없도록 */
         var Gd = grid, gb = Gd.qb, gn = Gd.qn, gq; gn.fill(0);
         var gcol = colStr(FR[0] + (pal.fog[0] - FR[0]) * 0.135, FG[0] + (pal.fog[1] - FG[0]) * 0.135, FB[0] + (pal.fog[2] - FB[0]) * 0.135), gk = D / F;
-        var gOffK = 1 / (0.15 * PACE), gInK = 1 / (0.35 * PACE), gPopK = 1 / (0.6 * PACE), gLeft = 0;   /* 칸마다 나누지 않게 한 번만 */
+        var gOffK = 1 / 0.12, gInK = 1 / 0.2, gPopK = 1 / 0.35, gLeft = 0;   /* 꺼짐 0.12 · 켜짐 0.2 · 튀어나옴 0.35초 (인트로 2초 안에). 칸마다 나누지 않게 한 번만 */
         for (var gj = 0; gj < Gd.n; gj++) {
           if (t < Gd.tw[gj]) { gLeft++; continue; }
           var goff = (t - Gd.t0[gj]) * gOffK;
           if (goff >= 1 || (Gd.own[gj] >= 0 && goff > 0)) continue;               /* 로고 픽셀은 떠나는 순간부터 큐브로 그린다 */
           gLeft++;
           var ga = Gd.al[gj] * Math.min(1, (t - Gd.tw[gj]) * gInK), gap = Math.min(1, (t - Gd.tw[gj]) * gPopK), gzz = 5 * (1 - gap) * (1 - gap);   /* 켜지며 화면 안쪽에서 살짝 앞으로 */
-          if (goff > 0) ga *= 1 - goff;                                             /* 나머지 칸은 따라 모이지 않고 제자리에서 곧바로(0.15초×PACE) 꺼진다 (끌려오며 흐려지던 잔상 제거) */
+          if (goff > 0) ga *= 1 - goff;                                             /* 나머지 칸은 따라 모이지 않고 제자리에서 곧바로(0.12초) 꺼진다 (끌려오며 흐려지던 잔상 제거) */
           if (ga < 0.015) continue;
           var gwx = Gd.sx[gj] * S, gwy = Gd.sy[gj] * S, gwz = gzz * S, gax = gwx * cy + gwz * sy, gaz = -gwx * sy + gwz * cy, gay = gwy * cp - gaz * sp, gsc = F / (gwy * sp + gaz * cp + D), ghs = Gd.SQ * gsc * gk / 2;
           var gX = Math.round((OX + gax * gsc - ghs) * DPR) / DPR, gY = Math.round((OY + gay * gsc - ghs) * DPR) / DPR;   /* 격자는 제자리에 있으니 기기 픽셀에 맞춰 또렷하게 */
@@ -556,7 +558,7 @@
       window.removeEventListener('wheel', lockWheel); window.removeEventListener('keydown', lockKeys);   /* 이제부터 스크롤은 브라우저가 알아서 (JS 를 기다리지 않는다) */
       if (pendingHash !== null) { var ph = pendingHash; pendingHash = null; setTimeout(function(){ goTo(ph); }, 450); }   /* #c3 같은 주소로 들어와도 인트로를 본 뒤에 그 챕터로 */
     }
-    if (introReduce) introFinish(); else setTimeout(introFinish, 8000);   /* 탭이 가려져 프레임이 멈춰도 8초 뒤엔 풀린다 */
+    if (introReduce) introFinish(); else setTimeout(introFinish, 3000);   /* 탭이 가려져 프레임이 멈춰도 3초 뒤엔 풀린다 */
     /* 인트로가 끝나기 전에는 휠·키보드·터치로 넘어갈 수 없다 */
     var lockWheel = function(e){ if (!introDone && e.cancelable) e.preventDefault(); }, lockKeys = function(e){ if (!introDone && [' ', 'PageDown', 'PageUp', 'ArrowDown', 'ArrowUp', 'End', 'Home'].indexOf(e.key) >= 0) e.preventDefault(); };
     window.addEventListener('wheel', lockWheel, { passive: false });
@@ -631,7 +633,7 @@
       if (!A || introReduce) return;
       var wl = all(chapters[0], '.wordmark .ln > span');
       A.utils.set(wl, { y: '112%' });
-      A.animate(wl, { y: '0%', duration: 1200, ease: 'out(4)', delay: A.stagger(110) });
+      A.animate(wl, { y: '0%', duration: Math.round(500 / PACE), ease: 'out(4)', delay: A.stagger(Math.round(50 / PACE)) });   /* 실제 0.5초·0.05초 간격 (엔진 속도가 1/PACE) — 인트로 1.9초 안에 */
     }
     /* 헤더 메뉴 밑줄: 현재 챕터 메뉴 밑으로 스프링처럼 옮겨 간다 (00 에서는 숨김) */
     var navInd = document.querySelector('.nav-ind');
