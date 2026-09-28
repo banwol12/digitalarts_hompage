@@ -1,98 +1,9 @@
-<!doctype html>
-<html lang="ko">
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="robots" content="noindex, nofollow">
-<title>Digital Arts · Admin</title>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard-dynamic-subset.min.css">
-<style>
-/* 관리자 페이지 — 포트폴리오와 같은 Cipher 토큰(검정·본색·헤어라인·소문자 라벨), Pretendard */
-:root{--black:#000;--bone:#e9eae4;--b70:rgba(233,234,228,.7);--b45:rgba(233,234,228,.45);--b24:rgba(233,234,228,.24);--b12:rgba(233,234,228,.12);--b6:rgba(233,234,228,.06);--warn:#ff6b57;--key:#f4ff53;--font:"Pretendard","Noto Sans KR",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;--pm:40px}
-*{box-sizing:border-box}
-html,body{margin:0;background:var(--black);color:var(--bone);font:400 14px/1.6 var(--font);-webkit-font-smoothing:antialiased}
-a{color:inherit;text-decoration:none}
-button,input,select,textarea{font:inherit;color:inherit}
-h1{font:500 23px/1.3 var(--font);margin:0;letter-spacing:.01em}
-.label{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--b45)}
-.hdr{display:flex;align-items:center;justify-content:space-between;gap:24px;padding:15px var(--pm);border-bottom:1px solid var(--b12)}
-.hdr .brand{display:flex;align-items:center;gap:10px;font-weight:500;font-size:13px;letter-spacing:.14em;text-transform:uppercase}
-.hdr .brand span{color:var(--b45)}
-.hdr nav{display:flex;gap:24px;font-size:13px;align-items:center}
-.hdr nav a,.hdr nav button{background:none;border:0;padding:0;cursor:pointer;color:var(--b70)}
-.hdr nav a:hover,.hdr nav button:hover{color:var(--bone)}
-.hdr nav .who{color:var(--b45);font-size:12px}
-.wrap{padding:32px var(--pm) 96px}
-.mode{border:1px solid rgba(244,255,83,.35);color:var(--key);padding:10px 14px;font-size:12px;margin-bottom:28px}
-.notice{border:1px solid rgba(255,107,87,.4);color:var(--warn);padding:12px 14px;font-size:12px;margin-bottom:24px}
-.login{max-width:360px;margin:12vh auto 0;display:grid;gap:26px}
-.field{display:grid;gap:6px}
-.field input,.field select,.field textarea{width:100%;background:none;border:0;border-bottom:1px solid var(--b24);padding:8px 0;outline:0;border-radius:0;color:var(--bone)}
-.field input:focus,.field select:focus,.field textarea:focus{border-bottom-color:var(--bone)}
-.field select option{background:#111;color:var(--bone)}
-.field textarea{resize:vertical;min-height:72px;line-height:1.6}
-.field .hint{font-size:11px;color:var(--b45)}
-.check{display:flex;gap:10px;align-items:center;font-size:13px;cursor:pointer}
-.check input{accent-color:var(--bone)}
-.btn{display:inline-flex;align-items:center;gap:8px;background:none;border:1px solid var(--b24);padding:9px 14px;font-size:11px;letter-spacing:.14em;text-transform:uppercase;cursor:pointer;color:var(--bone);border-radius:0}
-.btn:hover{border-color:var(--bone)}
-.btn.primary{background:var(--bone);color:var(--black);border-color:var(--bone)}
-.btn.primary:hover{background:#fff}
-.btn.key{background:var(--key);color:var(--black);border-color:var(--key)}
-.btn.danger{color:var(--warn);border-color:rgba(255,107,87,.4)}
-.btn.danger:hover{border-color:var(--warn)}
-.btn:disabled{opacity:.4;cursor:default}
-.msg{font-size:12px;color:var(--b70);min-height:1.6em}
-.msg.err{color:var(--warn)}
-.dash{display:grid;grid-template-columns:320px 1fr;gap:48px;align-items:start}
-.list{display:grid;gap:28px}
-.list .head{display:flex;justify-content:space-between;align-items:center;padding:0 0 12px}
-.list .group{display:grid}
-.list .group .gh{display:flex;justify-content:space-between;align-items:baseline;padding:0 0 8px}
-.list .group .gh .label.hot{color:var(--key)}
-.row{display:grid;grid-template-columns:36px 1fr auto;gap:12px;align-items:center;padding:10px 0;border-top:1px solid var(--b12);cursor:pointer;color:var(--b70)}
-.group .row:last-child{border-bottom:1px solid var(--b12)}
-.row:hover,.row.is-sel{color:var(--bone)}
-.row .n{font-size:11px;letter-spacing:.1em;color:var(--b45)}
-.row.pending .n{color:var(--key)}
-.row.draft .n{color:var(--b24)}
-.row.rejected{color:var(--b45)}
-.row .t{display:grid;gap:2px;min-width:0}
-.row .t span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.row .t small{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--b45)}
-.row .ops{display:flex;gap:2px}
-.row .ops button{background:none;border:0;padding:2px 5px;cursor:pointer;color:var(--b45);font-size:11px}
-.row .ops button:hover{color:var(--bone)}
-.tabs{display:flex;gap:24px;margin-bottom:28px;font-size:13px}
-.tabs button{background:none;border:0;padding:0 0 6px;cursor:pointer;color:var(--b45);border-bottom:1px solid transparent}
-.tabs button.is-on{color:var(--bone);border-bottom-color:var(--bone)}
-.form{display:grid;gap:24px;max-width:760px}
-.grid2{display:grid;grid-template-columns:1fr 1fr;gap:24px}
-.submitter{border:1px solid rgba(244,255,83,.35);padding:14px 16px;display:grid;gap:6px;font-size:13px}
-.submitter .label{color:var(--key)}
-.submitter a{border-bottom:1px solid var(--b24)}
-.media{display:grid;grid-template-columns:180px 1fr;gap:16px;align-items:start}
-.media .well{aspect-ratio:16/10;background:var(--b6);border:1px solid var(--b12);overflow:hidden;display:grid;place-items:center;color:var(--b24);font-size:11px;letter-spacing:.14em;text-transform:uppercase}
-.media .well img,.media .well video{width:100%;height:100%;object-fit:cover;display:block}
-.media .file{display:grid;gap:10px}
-.media input[type=file]{font-size:12px;color:var(--b70);max-width:100%}
-.actions{display:flex;gap:12px;flex-wrap:wrap;align-items:center;padding-top:16px;border-top:1px solid var(--b12)}
-.actions .sp{flex:1}
-.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--bone);color:var(--black);padding:10px 16px;font-size:12px;letter-spacing:.04em;opacity:0;transition:opacity .2s;pointer-events:none;z-index:9}
-.toast.is-on{opacity:1}
-.empty{color:var(--b45);padding:24px 0;font-size:13px}
-@media (max-width:900px){:root{--pm:16px}.dash{grid-template-columns:1fr;gap:32px}.grid2{grid-template-columns:1fr}.media{grid-template-columns:1fr}.hdr nav{gap:14px}.hdr nav .who{display:none}}
-</style>
-<header class="hdr">
-  <a class="brand" href="portfolio.html">Digital Arts <span>/ admin</span></a>
-  <nav id="nav"></nav>
-</header>
-<main class="wrap" id="app"></main>
-<div class="toast" id="toast" role="status"></div>
-<script src="config.js"></script>
-<script src="portfolio-data.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-<script src="portfolio-api.js"></script>
-<script>
+import React, { useEffect, useRef } from 'react';
+
+const ADMIN_CSS = "\n/* \uad00\ub9ac\uc790 \ud398\uc774\uc9c0 \u2014 \ud3ec\ud2b8\ud3f4\ub9ac\uc624\uc640 \uac19\uc740 Cipher \ud1a0\ud070(\uac80\uc815\u00b7\ubcf8\uc0c9\u00b7\ud5e4\uc5b4\ub77c\uc778\u00b7\uc18c\ubb38\uc790 \ub77c\ubca8), Pretendard */\n:root{--black:#000;--bone:#e9eae4;--b70:rgba(233,234,228,.7);--b45:rgba(233,234,228,.45);--b24:rgba(233,234,228,.24);--b12:rgba(233,234,228,.12);--b6:rgba(233,234,228,.06);--warn:#ff6b57;--key:#f4ff53;--font:\"Pretendard\",\"Noto Sans KR\",-apple-system,BlinkMacSystemFont,\"Segoe UI\",sans-serif;--pm:40px}\n*{box-sizing:border-box}\nhtml,body{margin:0;background:var(--black);color:var(--bone);font:400 14px/1.6 var(--font);-webkit-font-smoothing:antialiased}\na{color:inherit;text-decoration:none}\nbutton,input,select,textarea{font:inherit;color:inherit}\nh1{font:500 23px/1.3 var(--font);margin:0;letter-spacing:.01em}\n.label{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--b45)}\n.hdr{display:flex;align-items:center;justify-content:space-between;gap:24px;padding:15px var(--pm);border-bottom:1px solid var(--b12)}\n.hdr .brand{display:flex;align-items:center;gap:10px;font-weight:600;font-size:16px;letter-spacing:0.01em;word-spacing:-0.03em}\n.hdr .brand span{color:var(--b45);font-weight:400;font-size:13px;letter-spacing:0.04em}\n.hdr nav{display:flex;gap:24px;font-size:13px;align-items:center}\n.hdr nav a,.hdr nav button{background:none;border:0;padding:0;cursor:pointer;color:var(--b70)}\n.hdr nav a:hover,.hdr nav button:hover{color:var(--bone)}\n.hdr nav .who{color:var(--b45);font-size:12px}\n.wrap{padding:32px var(--pm) 96px}\n.mode{border:1px solid rgba(244,255,83,.35);color:var(--key);padding:10px 14px;font-size:12px;margin-bottom:28px}\n.notice{border:1px solid rgba(255,107,87,.4);color:var(--warn);padding:12px 14px;font-size:12px;margin-bottom:24px}\n.login{max-width:360px;margin:12vh auto 0;display:grid;gap:26px}\n.field{display:grid;gap:6px}\n.field input,.field select,.field textarea{width:100%;background:none;border:0;border-bottom:1px solid var(--b24);padding:8px 0;outline:0;border-radius:0;color:var(--bone)}\n.field input:focus,.field select:focus,.field textarea:focus{border-bottom-color:var(--bone)}\n.field select option{background:#111;color:var(--bone)}\n.field textarea{resize:vertical;min-height:72px;line-height:1.6}\n.field .hint{font-size:11px;color:var(--b45)}\n.check{display:flex;gap:10px;align-items:center;font-size:13px;cursor:pointer}\n.check input{accent-color:var(--bone)}\n.btn{display:inline-flex;align-items:center;gap:8px;background:none;border:1px solid var(--b24);padding:9px 14px;font-size:11px;letter-spacing:.14em;text-transform:uppercase;cursor:pointer;color:var(--bone);border-radius:0}\n.btn:hover{border-color:var(--bone)}\n.btn.primary{background:var(--bone);color:var(--black);border-color:var(--bone)}\n.btn.primary:hover{background:#fff}\n.btn.key{background:var(--key);color:var(--black);border-color:var(--key)}\n.btn.danger{color:var(--warn);border-color:rgba(255,107,87,.4)}\n.btn.danger:hover{border-color:var(--warn)}\n.btn:disabled{opacity:.4;cursor:default}\n.msg{font-size:12px;color:var(--b70);min-height:1.6em}\n.msg.err{color:var(--warn)}\n.dash{display:grid;grid-template-columns:320px 1fr;gap:48px;align-items:start}\n.list{display:grid;gap:28px}\n.list .head{display:flex;justify-content:space-between;align-items:center;padding:0 0 12px}\n.list .group{display:grid}\n.list .group .gh{display:flex;justify-content:space-between;align-items:baseline;padding:0 0 8px}\n.list .group .gh .label.hot{color:var(--key)}\n.row{display:grid;grid-template-columns:36px 1fr auto;gap:12px;align-items:center;padding:10px 0;border-top:1px solid var(--b12);cursor:pointer;color:var(--b70)}\n.group .row:last-child{border-bottom:1px solid var(--b12)}\n.row:hover,.row.is-sel{color:var(--bone)}\n.row .n{font-size:11px;letter-spacing:.1em;color:var(--b45)}\n.row.pending .n{color:var(--key)}\n.row.draft .n{color:var(--b24)}\n.row.rejected{color:var(--b45)}\n.row .t{display:grid;gap:2px;min-width:0}\n.row .t span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}\n.row .t small{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--b45)}\n.row .ops{display:flex;gap:2px}\n.row .ops button{background:none;border:0;padding:2px 5px;cursor:pointer;color:var(--b45);font-size:11px}\n.row .ops button:hover{color:var(--bone)}\n.tabs{display:flex;gap:24px;margin-bottom:28px;font-size:13px}\n.tabs button{background:none;border:0;padding:0 0 6px;cursor:pointer;color:var(--b45);border-bottom:1px solid transparent}\n.tabs button.is-on{color:var(--bone);border-bottom-color:var(--bone)}\n.form{display:grid;gap:24px;max-width:760px}\n.grid2{display:grid;grid-template-columns:1fr 1fr;gap:24px}\n.submitter{border:1px solid rgba(244,255,83,.35);padding:14px 16px;display:grid;gap:6px;font-size:13px}\n.submitter .label{color:var(--key)}\n.submitter a{border-bottom:1px solid var(--b24)}\n.media{display:grid;grid-template-columns:180px 1fr;gap:16px;align-items:start}\n.media .well{aspect-ratio:16/10;background:var(--b6);border:1px solid var(--b12);overflow:hidden;display:grid;place-items:center;color:var(--b24);font-size:11px;letter-spacing:.14em;text-transform:uppercase}\n.media .well img,.media .well video{width:100%;height:100%;object-fit:cover;display:block}\n.media .file{display:grid;gap:10px}\n.media input[type=file]{font-size:12px;color:var(--b70);max-width:100%}\n.actions{display:flex;gap:12px;flex-wrap:wrap;align-items:center;padding-top:16px;border-top:1px solid var(--b12)}\n.actions .sp{flex:1}\n.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--bone);color:var(--black);padding:10px 16px;font-size:12px;letter-spacing:.04em;opacity:0;transition:opacity .2s;pointer-events:none;z-index:9}\n.toast.is-on{opacity:1}\n.empty{color:var(--b45);padding:24px 0;font-size:13px}\n@media (max-width:900px){:root{--pm:16px}.dash{grid-template-columns:1fr;gap:32px}.grid2{grid-template-columns:1fr}.media{grid-template-columns:1fr}.hdr nav{gap:14px}.hdr nav .who{display:none}}\n";
+const ADMIN_MARKUP = "<header class=\"hdr\">\n  <a class=\"brand\" href=\"portfolio.html\">Digital Arts Archive <span>/ admin</span></a>\n  <nav id=\"nav\"></nav>\n</header>\n<main class=\"wrap\" id=\"app\"></main>\n<div class=\"toast\" id=\"toast\" role=\"status\"></div>";
+
+function runAdminScript() {
 (function(){
   'use strict';
   var API = window.PortfolioAPI, D = window.PORTFOLIO_DATA || {};
@@ -128,7 +39,7 @@ h1{font:500 23px/1.3 var(--font);margin:0;letter-spacing:.01em}
   /* ── 화면 ── */
   function render(){
     nav.innerHTML = (S.user
-      ? '<a href="portfolio.html" target="_blank" rel="noopener">사이트 보기 ↗</a><a href="submit.html" target="_blank" rel="noopener">게시 페이지 ↗</a><span class="who">' + esc(S.user.email) + '</span><button type="button" id="logout">로그아웃</button>'
+      ? '<a href="portfolio.html" target="_blank" rel="noopener">사이트 보기 ↗</a><a href="submit.html" target="_blank" rel="noopener">게시 페이지 ↗</a><span class="who">' + esc(S.user.email || S.user.id || 'admin') + '</span><button type="button" id="logout">로그아웃</button>'
       : '<a href="portfolio.html">사이트 보기 ↗</a>');
     var lo = document.getElementById('logout'); if (lo) lo.addEventListener('click', function(){ API.auth.signOut(); });
     if (!S.user) return Login();
@@ -137,16 +48,15 @@ h1{font:500 23px/1.3 var(--font);margin:0;letter-spacing:.01em}
   }
 
   function Login(){
-    app.innerHTML = (API.mode === 'local' ? '<div class="mode" style="max-width:640px;margin:0 auto 0">' + esc(API.label) + '. 아무 이메일이나 넣고 들어오면 됩니다. README 4번 항목대로 Supabase 를 연결하면 실제 로그인·저장으로 바뀝니다.</div>' : '') +
-      '<form class="login" id="login" autocomplete="on"><div><div class="label">admin</div><h1 style="margin-top:6px">포트폴리오 관리</h1></div>' +
-      '<label class="field"><span class="label">email</span><input type="email" name="email" required autocomplete="username"></label>' +
-      '<label class="field"><span class="label">password</span><input type="password" name="password"' + (API.mode === 'local' ? '' : ' required') + ' autocomplete="current-password"></label>' +
+    app.innerHTML = '<form class="login" id="login" autocomplete="on"><div><div class="label">admin</div><h1 style="margin-top:6px">포트폴리오 관리</h1></div>' +
+      '<label class="field"><span class="label">아이디 (ID)</span><input type="text" name="username" value="admin" placeholder="admin" required autocomplete="username"></label>' +
+      '<label class="field"><span class="label">비밀번호 (Password)</span><input type="password" name="password" value="admin1234" placeholder="admin1234" required autocomplete="current-password"></label>' +
       '<div class="msg" id="lmsg"></div><div><button class="btn primary" type="submit">로그인</button></div></form>';
     var f = document.getElementById('login'), m = document.getElementById('lmsg');
     f.addEventListener('submit', function(e){
       e.preventDefault(); m.className = 'msg'; m.textContent = '확인 중…';
       var btn = f.querySelector('button'); btn.disabled = true;
-      API.auth.signIn(f.elements.email.value.trim(), f.elements.password.value)
+      API.auth.signIn(f.elements.username.value.trim(), f.elements.password.value)
         .then(function(){ m.textContent = ''; })
         .catch(function(err){ m.className = 'msg err'; m.textContent = '로그인 실패: ' + errText(err); })
         .then(function(){ btn.disabled = false; });
@@ -171,7 +81,7 @@ h1{font:500 23px/1.3 var(--font);margin:0;letter-spacing:.01em}
     var right = '<div><div class="tabs"><button type="button" class="' + (S.tab === 'works' ? 'is-on' : '') + '" data-tab="works">작품</button><button type="button" class="' + (S.tab === 'site' ? 'is-on' : '') + '" data-tab="site">사이트 정보</button></div>' +
       (S.tab === 'site' ? SiteForm() : WorkForm()) + '</div>';
     app.innerHTML = (API.mode === 'local' ? '<div class="mode">' + esc(API.label) + '</div>' : '') +
-      (S.admin ? '' : '<div class="notice">이 계정(' + esc(S.user.email) + ')은 admins 목록에 없어 저장이 거부됩니다. SQL Editor 에서 insert into public.admins (email) values (\'' + esc(S.user.email) + '\'); 를 실행하세요.</div>') +
+      (S.admin ? '' : '<div class="notice">이 계정(' + esc(S.user.email || S.user.id || 'admin') + ')은 admins 목록에 없어 저장이 거부됩니다.</div>') +
       '<div class="dash">' + list + right + '</div>';
 
     document.getElementById('add').addEventListener('click', function(){
@@ -312,5 +222,41 @@ h1{font:500 23px/1.3 var(--font);margin:0;letter-spacing:.01em}
     });
   }
 })();
-</script>
-</html>
+}
+
+export default function AdminPage() {
+  const containerRef = useRef(null);
+
+  useEffect(() => {
+    // 1. Inject exact CSS
+    const styleEl = document.createElement('style');
+    styleEl.id = 'admin-page-style';
+    styleEl.textContent = ADMIN_CSS;
+    document.head.appendChild(styleEl);
+
+    // 2. Run script
+    let cleanup;
+    try {
+      cleanup = runAdminScript();
+    } catch (e) {
+      console.warn('Admin script execution:', e);
+    }
+
+    return () => {
+      if (document.head.contains(styleEl)) {
+        document.head.removeChild(styleEl);
+      }
+      if (cleanup && typeof cleanup === 'function') {
+        cleanup();
+      }
+    };
+  }, []);
+
+  return (
+    <div
+      ref={containerRef}
+      className="admin-vanilla-wrapper"
+      dangerouslySetInnerHTML={{ __html: ADMIN_MARKUP }}
+    />
+  );
+}

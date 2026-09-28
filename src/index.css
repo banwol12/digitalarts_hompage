@@ -1,0 +1,16 @@
+/* ══════════════════════════════════════════════════════════════════════════
+   Global Baseline Styles (Page-specific styles are injected by each page)
+   ══════════════════════════════════════════════════════════════════════════ */
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background-color: #000000;
+  color: #e9eae4;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  min-height: 100vh;
+}
