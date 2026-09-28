@@ -613,7 +613,7 @@
     }
     function motionEnter(i, dir){
       var A = AM(), sec = chapters[i]; if (!A || !sec || i === 0) return;
-      var R = all(sec, '.reveal'), lines = all(sec, '.reveal .ln > span'), rules = all(sec, '.set, .set li, .tools .col'), media = all(sec, '.card .media'), thumbs = all(sec, '.card .media canvas');
+      var R = all(sec, '.reveal'), lines = all(sec, '.reveal .ln > span'), rules = all(sec, '.set, .set li, .tools .col'), media = all(sec, '.card .media'), thumbs = all(sec, '.card .media canvas, .card .media img, .card .media video');
       var holders = R.filter(function(el){ return el.querySelector('.ln') || el.matches('.set, .tools, .set li, .card'); });
       var fades = R.filter(function(el){ return holders.indexOf(el) < 0; });
       holders.forEach(function(el){
@@ -760,11 +760,14 @@
   }
 
   /* ── 작품 카드 미디어: 잉크 위 뉴트럴 픽셀 필드 (이미지 자리표시) ── */
-  document.querySelectorAll('canvas.thumb').forEach(function(cv){
+  function drawThumb(cv){
+    if (!cv || cv.__drawn) return;
+    cv.__drawn = true;
     var seed = parseInt(cv.getAttribute('data-seed'), 10) || 1;
     var rnd = function(){ seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
     var Wc = 320, Hc = 180; cv.width = Wc * 2; cv.height = Hc * 2;
-    var g2 = cv.getContext('2d'); g2.scale(2, 2);
+    var g2 = cv.getContext('2d'); if (!g2) return;
+    g2.scale(2, 2);
     g2.fillStyle = '#000'; g2.fillRect(0, 0, Wc, Hc);
     var cols = 20, rows = 11, cw = Wc / cols, chh = Hc / rows;
     var ccx = 6 + rnd() * 8, ccy = 3 + rnd() * 5, rr = 3.5 + rnd() * 3, stripes = 2 + Math.floor(rnd() * 4), ang = rnd() * Math.PI;
@@ -777,5 +780,82 @@
       var shade = Math.max(0, Math.min(3, Math.floor((1 - d / (rr + 3)) * 3 + rnd() * 1.2)));
       g2.fillStyle = pal[shade]; g2.fillRect(c * cw + 0.5, r * chh + 0.5, cw - 1, chh - 1);
     }
-  });
+  }
+  document.querySelectorAll('canvas.thumb').forEach(drawThumb);
+
+  /* ── 04 챕터 학생 포트폴리오 대표작 실시간 연동 (Supabase 승인 작품 우선) ── */
+  function loadFeaturedWorks(){
+    var cardsContainer = document.querySelector('.chapter.works .cards');
+    if (!cardsContainer) return;
+
+    var C = window.SITE_CONFIG || {};
+    var D = window.PORTFOLIO_DATA || {};
+    var fallbackWorks = (D.works || []).slice(0, 3);
+
+    function esc(s){ return String(s == null ? '' : s).replace(/[&<>"]/g, function(c){ return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+
+    function applyWorks(list){
+      if (!list || !list.length) return;
+      var items = list.slice(0, 3);
+      for (var k = items.length; k < 3 && k < fallbackWorks.length; k++){
+        items.push(fallbackWorks[k]);
+      }
+
+      var html = items.map(function(w, idx){
+        var category = (w.category || w.meta || 'Artwork').toUpperCase();
+        var year = w.year || '';
+        var catYear = category + (year ? ' · ' + year : '');
+        var title = w.title || '(제목 없음)';
+        var student = w.student || '';
+        var slug = w.slug || ('work-' + (idx + 1));
+        var href = 'portfolio.html#/work/' + encodeURIComponent(slug);
+
+        var mediaHtml = '';
+        if (w.image) {
+          mediaHtml = '<img src="' + esc(w.image) + '" alt="' + esc(title) + '" loading="lazy">';
+        } else if (w.video) {
+          mediaHtml = '<video src="' + esc(w.video) + '" muted loop autoplay playsinline></video>';
+        } else {
+          var seed = w.seed || ((idx + 1) * 7 + 3);
+          mediaHtml = '<canvas class="thumb" data-seed="' + seed + '" aria-hidden="true"></canvas>';
+        }
+
+        return '<a class="card reveal" style="--i:' + (idx + 2) + '" href="' + href + '">' +
+          '<div class="media">' + mediaHtml + '</div>' +
+          '<span class="cs-caption">' + esc(catYear) + '</span>' +
+          '<span class="title">' + esc(title) + '</span>' +
+          '<span class="cs-caption">' + esc(student) + '</span>' +
+          '</a>';
+      }).join('');
+
+      cardsContainer.innerHTML = html;
+      cardsContainer.querySelectorAll('canvas.thumb').forEach(drawThumb);
+
+      if (active === 4) {
+        motionEnter(4, 1);
+      }
+    }
+
+    try {
+      var localWorks = JSON.parse(localStorage.getItem('pf-works') || '[]').filter(function(r){ return r.published && r.status === 'approved'; });
+      if (localWorks.length) applyWorks(localWorks);
+    } catch(e){}
+
+    if (C.SUPABASE_URL && C.SUPABASE_ANON_KEY && typeof fetch === 'function') {
+      var base = C.SUPABASE_URL.replace(/\/$/, '') + '/rest/v1/';
+      var h = { apikey: C.SUPABASE_ANON_KEY, Authorization: 'Bearer ' + C.SUPABASE_ANON_KEY };
+      fetch(base + 'works?select=*&published=eq.true&status=eq.approved&order=sort.asc,created_at.desc&limit=3', { headers: h })
+        .then(function(r){ return r.ok ? r.json() : []; })
+        .then(function(data){
+          if (data && data.length) {
+            applyWorks(data);
+          }
+        })
+        .catch(function(err){
+          console.warn('Featured works fetch failed:', err);
+        });
+    }
+  }
+
+  loadFeaturedWorks();
 })();

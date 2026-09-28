@@ -130,9 +130,9 @@ p,.lead,.body,.set li p,.tools .h3,.card .title{text-wrap:pretty;overflow-wrap:b
 a.card:hover{color:var(--text-body)}
 .card .media{position:relative;margin-bottom:var(--space-8);overflow:hidden;background:var(--ink);border-radius:var(--radius-sm)}
 .card .media::after{content:"";position:absolute;inset:0;border:1px solid var(--border-hairline);border-radius:inherit;pointer-events:none}
-.card .media canvas{width:100%;aspect-ratio:16/9;transition:scale .9s var(--ease-out)}
+.card .media canvas, .card .media img, .card .media video{width:100%;aspect-ratio:16/9;object-fit:cover;display:block;transition:scale .9s var(--ease-out)}
 .card .title{transition:color var(--duration-base) var(--ease)}
-@media (hover:hover) and (pointer:fine){a.card:hover .media canvas{scale:1.04}a.card:hover .title{color:var(--text-accent)}}
+@media (hover:hover) and (pointer:fine){a.card:hover .media canvas, a.card:hover .media img, a.card:hover .media video{scale:1.04}a.card:hover .title{color:var(--text-accent)}}
 .card .title{font:var(--weight-core) var(--text-lead)/calc(1.15em + 5px) var(--font-core);letter-spacing:var(--tracking-heading);font-size:clamp(13px,0.95vw,var(--text-lead))}
 
 /* ── Header: fixed, 64px, hairline. Colors follow the body scope. ── */
