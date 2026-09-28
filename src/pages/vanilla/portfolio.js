@@ -163,8 +163,7 @@
         '<div class="credit"><div class="label">discipline</div><ul><li>' + esc(w.meta) + '</li></ul></div>' +
         '<div class="credit"><div class="label">year</div><ul><li>' + esc(w.year) + '</li></ul></div>' +
         '<div class="credit"><div class="label">tools</div><ul>' + (w.tools || []).map(function(t){ return '<li>' + esc(t) + '</li>'; }).join('') + '</ul></div>' +
-        '<div class="credit"><div class="label">advisor</div><ul><li>[지도교수]</li></ul></div>' +
-        '<div class="credit"><div class="label">exhibition</div><ul><li>[전시·상영 정보]</li></ul></div>' +
+        (w.exhibition ? '<div class="credit"><div class="label">exhibition</div><ul>' + String(w.exhibition).split('\n').map(function(s){ return s.trim(); }).filter(Boolean).map(function(s){ return '<li>' + esc(s) + '</li>'; }).join('') + '</ul></div>' : '') +
       '</div></section>' +
       '<section style="margin-top:var(--space-8x)"><div class="label">more to discover</div><div class="rows">' + more.map(rowItem).join('') + '</div></section></section>' + footer();
     var heroWork = w.image ? Object.assign({}, w, { video: null }) : w;
@@ -221,7 +220,7 @@
     if (rows && rows.length) D.works = rows.map(function(r, i){
       var rt = String(r.ratio || '16:10').split(':').map(Number);
       return { n: pad3(i + 1), slug: r.slug, title: r.title || '', student: r.student || '', meta: r.category || 'installation', year: r.year || '', tools: r.tools || [],
-        statement: r.statement || '', paragraphs: r.paragraphs || [], seed: i * 7 + 3, ratio: (rt.length === 2 && rt[0] > 0 && rt[1] > 0) ? rt : null, image: r.image || '', video: r.video || '' };
+        statement: r.statement || '', paragraphs: r.paragraphs || [], exhibition: r.exhibition || '', seed: i * 7 + 3, ratio: (rt.length === 2 && rt[0] > 0 && rt[1] > 0) ? rt : null, image: r.image || '', video: r.video || '' };
     });
     (site || []).forEach(function(row){ if (row.value != null && row.value !== '' && !(Array.isArray(row.value) && !row.value.length)) D[row.key] = row.value; });
   }

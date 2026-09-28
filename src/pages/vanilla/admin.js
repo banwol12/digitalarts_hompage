@@ -135,6 +135,7 @@
       '<div class="grid2">' + field('title · 작품 제목', 'title', w.title) + field('student · 학생 이름', 'student', w.student) + '</div>' +
       '<div class="grid2">' + field('category · 분야', 'category', w.category, { select: CATS }) + field('year · 연도', 'year', w.year, { placeholder: '2026' }) + '</div>' +
       '<div class="grid2">' + field('tools · 도구', 'tools', (w.tools || []).join(', '), { placeholder: 'TouchDesigner, Kinect', hint: '쉼표로 구분' }) + field('slug · 주소', 'slug', w.slug, { placeholder: autoSlug(), hint: '영문·숫자·하이픈. 비우면 자동' }) + '</div>' +
+      field('exhibition · 전시·상영 정보', 'exhibition', w.exhibition || '', { placeholder: '2025 졸업전시, 아카이브 기획전 등', hint: '전시 또는 상영 이력 (선택)' }) +
       field('statement · 한 문장', 'statement', w.statement, { textarea: true, rows: 2 }) +
       field('paragraphs · 본문', 'paragraphs', (w.paragraphs || []).join('\n\n'), { textarea: true, rows: 7, hint: '문단은 빈 줄로 구분 (작품 개요 · 제작 과정 · 결과)' }) +
       field('ratio · 첫 화면 타일 화면비', 'ratio', w.ratio || '16:10', { select: RATIOS }) +
@@ -152,7 +153,9 @@
     var slug = g('slug') || autoSlug();
     if (!/^[a-z0-9-]+$/i.test(slug)) throw new Error('slug 는 영문·숫자·하이픈만 됩니다.');
     var row = { slug: slug.toLowerCase(), title: g('title'), student: g('student'), category: g('category'), year: g('year'),
-      tools: g('tools').split(',').map(function(s){ return s.trim(); }).filter(Boolean), statement: g('statement'),
+      tools: g('tools').split(',').map(function(s){ return s.trim(); }).filter(Boolean),
+      exhibition: g('exhibition') || null,
+      statement: g('statement'),
       paragraphs: g('paragraphs').split(/\n\s*\n/).map(function(s){ return s.trim(); }).filter(Boolean),
       ratio: g('ratio'), image: g('image') || null, video: g('video') || null, status: statusOf(w),
       published: f.elements.published ? f.elements.published.checked : !!w.published };

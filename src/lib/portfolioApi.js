@@ -83,8 +83,32 @@ function createPortfolioAPI(C){
       return client().storage.from('portfolio').upload(path, file, { upsert: true, contentType: file.type || undefined, cacheControl: '31536000' })
         .then(unwrap).then(function(){ return client().storage.from('portfolio').getPublicUrl(path).data.publicUrl; });
     },
-    submitWork: function(row){ row = Object.assign({}, row, { status: 'pending', published: false, sort: 0 }); return client().from('works').insert(row).then(function(r){ if (r.error) throw r.error; return null; }); },
-    saveWork: function(row){ row = Object.assign({}, row, { updated_at: now() }); return client().from('works').upsert(row).select().single().then(unwrap); },
+    submitWork: function(row){
+      row = Object.assign({}, row, { status: 'pending', published: false, sort: 0 });
+      return client().from('works').insert(row).then(function(r){
+        if (r.error) {
+          if (r.error.code === 'PGRST204' && String(r.error.message).indexOf('exhibition') >= 0) {
+            var fb = Object.assign({}, row); delete fb.exhibition;
+            return client().from('works').insert(fb).then(function(r2){ if (r2.error) throw r2.error; return null; });
+          }
+          throw r.error;
+        }
+        return null;
+      });
+    },
+    saveWork: function(row){
+      row = Object.assign({}, row, { updated_at: now() });
+      return client().from('works').upsert(row).select().single().then(function(r){
+        if (r.error) {
+          if (r.error.code === 'PGRST204' && String(r.error.message).indexOf('exhibition') >= 0) {
+            var fb = Object.assign({}, row); delete fb.exhibition;
+            return client().from('works').upsert(fb).select().single().then(unwrap);
+          }
+          throw r.error;
+        }
+        return r.data;
+      });
+    },
     deleteWork: function(id){ return client().from('works').delete().eq('id', id).then(unwrap); },
     reorder: function(rows){ return client().from('works').upsert(rows.map(function(r, k){ return { id: r.id, slug: r.slug, sort: k + 1 }; })).then(unwrap); },
     saveSite: function(map){ return client().from('site').upsert(Object.keys(map).map(function(k){ return { key: k, value: map[k] }; })).then(unwrap); }
