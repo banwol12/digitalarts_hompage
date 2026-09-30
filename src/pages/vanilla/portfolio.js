@@ -135,15 +135,19 @@
   window.addEventListener('touchend', function(){ tY = null; }, { passive: true });
 
   /* ── works: 큰 프레임 세로 스택 ── */
-  function Works(filter){
+  /* works: 재학생 | 졸업생 두 구역 (사용자 2026-09-30). 주소 #/works/<current|alumni>/<분야> — 예전 #/works/<분야> 는 재학생으로 */
+  var ZONES = [['current', '재학생'], ['alumni', '졸업생']];
+  function Works(a, b){
     cancelAnimationFrame(raf); document.body.classList.remove('is-home');
-    filter = filter || 'all';
-    var metas = ['all'].concat(D.works.map(function(w){ return w.meta; }).filter(function(m, i, a){ return a.indexOf(m) === i; }));
-    var list = D.works.filter(function(w){ return filter === 'all' || w.meta === filter; });
+    var isZ = a === 'current' || a === 'alumni', zone = isZ ? a : 'current', filter = (isZ ? b : a) || 'all';
+    var pool = D.works.filter(function(w){ return (w.zone || 'current') === zone; });
+    var metas = ['all'].concat(pool.map(function(w){ return w.meta; }).filter(function(m, i, a2){ return a2.indexOf(m) === i; }));
+    var list = pool.filter(function(w){ return filter === 'all' || w.meta === filter; });
+    var zoneTabs = '<nav class="zones" aria-label="구분">' + ZONES.map(function(z){ var n = D.works.filter(function(w){ return (w.zone || 'current') === z[0]; }).length; return '<a class="' + (z[0] === zone ? 'is-active" aria-current="true' : '') + '" href="#/works/' + z[0] + '">' + z[1] + '<sup>' + n + '</sup></a>'; }).join('') + '</nav>';
     app.innerHTML = '<section class="page"><h1 class="display" style="max-width:30ch">' + (D.statement || []).map(function(t){ return '<span class="ln"><span>' + esc(t) + '</span></span>'; }).join('') + '</h1>' +
       '<p class="micro" style="margin:12px 0 0"><a href="submit.html" style="border-bottom:1px solid var(--border-hairline)">학생 작품 게시하기 ↗</a></p>' +
-      '<div class="filters">' + metas.map(function(m){ return '<a class="' + (m === filter ? 'is-active" aria-current="true' : '') + '" href="#/works/' + esc(m) + '">' + esc(m) + '</a>'; }).join('') + '</div>' +
-      '<div class="works-grid"><div class="rows" id="rows">' + list.map(rowItem).join('') + (list.length ? '' : '<p class="body">이 분야의 작품이 아직 없습니다.</p>') + '</div><div class="preview" id="preview"></div></div></section>' + footer();
+      zoneTabs + '<div class="filters">' + metas.map(function(m){ return '<a class="' + (m === filter ? 'is-active" aria-current="true' : '') + '" href="#/works/' + zone + '/' + esc(m) + '">' + esc(m) + '</a>'; }).join('') + '</div>' +
+      '<div class="works-grid"><div class="rows" id="rows">' + list.map(rowItem).join('') + (list.length ? '' : '<p class="body">' + (pool.length ? '이 분야의 작품이 아직 없습니다.' : (zone === 'alumni' ? '졸업생' : '재학생') + ' 작품이 아직 없습니다.') + '</p>') + '</div><div class="preview" id="preview"></div></div></section>' + footer();
     var pv = document.getElementById('preview');
     /* 미리보기: 새 작품을 위에 겹쳐 흐림에서 또렷하게 (0.32초), 다 나타나면 아래 것을 치운다 */
     function peek(w){
@@ -229,7 +233,7 @@
   function route(){
     var h = location.hash.replace(/^#\/?/, ''), parts = h.split('/'), name = parts[0] || 'home', A = AN();
     var show = function(){
-      if (name === 'works') Works(parts[1]); else if (name === 'work') Work(parts[1]); else Home();
+      if (name === 'works') Works(parts[1], parts[2]); else if (name === 'work') Work(parts[1]); else Home();
       var c = document.querySelector('.hdr .center a'); if (c) c.classList.toggle('is-active', name === 'works' || name === 'work');
       window.scrollTo(0, 0); enterPage();
     };
@@ -243,7 +247,7 @@
   function applyRemote(rows, site){
     if (rows && rows.length) D.works = rows.map(function(r, i){
       var rt = String(r.ratio || '16:10').split(':').map(Number);
-      return { n: pad3(i + 1), slug: r.slug, title: r.title || '', student: r.student || '', meta: r.category || 'installation', year: r.year || '', tools: r.tools || [],
+      return { n: pad3(i + 1), slug: r.slug, title: r.title || '', student: r.student || '', zone: r.zone === 'alumni' ? 'alumni' : 'current', meta: r.category || 'installation', year: r.year || '', tools: r.tools || [],
         statement: r.statement || '', dimensions: r.dimensions || '', exhibition: r.exhibition || '', video_url: r.video_url || '', paragraphs: r.paragraphs || [], seed: i * 7 + 3, ratio: (rt.length === 2 && rt[0] > 0 && rt[1] > 0) ? rt : null, image: r.image || '', video: r.video || '' };
     });
     (site || []).forEach(function(row){ if (row.value != null && row.value !== '' && !(Array.isArray(row.value) && !row.value.length)) D[row.key] = row.value; });

@@ -91,7 +91,7 @@ function createPortfolioAPI(C){
             if (r.error.code === 'PGRST204') {
               var msg = String(r.error.message || '');
               var fb = Object.assign({}, payload), stripped = false;
-              ['video_url', 'dimensions', 'exhibition'].forEach(function(col){
+              ['video_url', 'dimensions', 'exhibition', 'zone'].forEach(function(col){
                 if (msg.indexOf(col) >= 0 && col in fb) { delete fb[col]; stripped = true; }
               });
               if (stripped) return tryInsert(fb);
@@ -111,7 +111,7 @@ function createPortfolioAPI(C){
             if (r.error.code === 'PGRST204') {
               var msg = String(r.error.message || '');
               var fb = Object.assign({}, payload), stripped = false;
-              ['video_url', 'dimensions', 'exhibition'].forEach(function(col){
+              ['video_url', 'dimensions', 'exhibition', 'zone'].forEach(function(col){
                 if (msg.indexOf(col) >= 0 && col in fb) { delete fb[col]; stripped = true; }
               });
               if (stripped) return tryUpsert(fb);

@@ -72,7 +72,7 @@
     var st = statusOf(w);
     return '<div class="row ' + st + (w.id === S.sel ? ' is-sel' : '') + (st === 'approved' && !w.published ? ' draft' : '') + '" data-id="' + esc(w.id) + '" title="' + esc(w.slug) + '" tabindex="0" role="button">' +
       '<span class="n">' + (st === 'approved' ? pad(n) : st === 'pending' ? '대기' : '반려') + '</span>' +
-      '<span class="t"><span>' + esc(w.title || '(제목 없음)') + '</span><small>' + esc(w.student || '') + (w.student ? ' · ' : '') + esc(w.category || '') + (st === 'approved' && !w.published ? ' · 비공개' : '') + '</small></span>' +
+      '<span class="t"><span>' + esc(w.title || '(제목 없음)') + '</span><small>' + esc(w.student || '') + (w.student ? ' · ' : '') + esc(w.category || '') + (w.zone === 'alumni' ? ' · 졸업생' : '') + (st === 'approved' && !w.published ? ' · 비공개' : '') + '</small></span>' +
       (st === 'approved' ? '<span class="ops"><button type="button" data-move="-1" title="위로" aria-label="위로">▲</button><button type="button" data-move="1" title="아래로" aria-label="아래로">▼</button></span>' : '<span></span>') + '</div>';
   }
   function Dash(){
@@ -89,7 +89,7 @@
       '<div class="dash">' + list + right + '</div>';
 
     document.getElementById('add').addEventListener('click', function(){
-      S.draft = { title: '', student: '', category: CATS[0], year: '', tools: [], slug: '', statement: '', dimensions: '', exhibition: '', video_url: '', paragraphs: [], ratio: '16:10', image: '', video: '', published: true, status: 'approved' };
+      S.draft = { title: '', student: '', category: CATS[0], zone: 'current', year: '', tools: [], slug: '', statement: '', dimensions: '', exhibition: '', video_url: '', paragraphs: [], ratio: '16:10', image: '', video: '', published: true, status: 'approved' };
       S.sel = 'new'; S.tab = 'works'; render();
     });
     Array.prototype.forEach.call(app.querySelectorAll('.row'), function(row){
@@ -117,7 +117,7 @@
   function field(label, name, value, opts){
     opts = opts || {};
     var inner;
-    if (opts.select) inner = '<select name="' + name + '">' + opts.select.map(function(o){ return '<option value="' + esc(o) + '"' + (o === value ? ' selected' : '') + '>' + esc(o) + '</option>'; }).join('') + '</select>';
+    if (opts.select) inner = '<select name="' + name + '">' + opts.select.map(function(o){ var ov = Array.isArray(o) ? o[0] : o, ol = Array.isArray(o) ? o[1] : o; return '<option value="' + esc(ov) + '"' + (ov === value ? ' selected' : '') + '>' + esc(ol) + '</option>'; }).join('') + '</select>';   /* 선택지: 문자열 또는 [값, 보이는 글] */
     else if (opts.textarea) inner = '<textarea name="' + name + '" rows="' + (opts.rows || 3) + '" placeholder="' + esc(opts.placeholder || '') + '">' + esc(value) + '</textarea>';
     else inner = '<input type="text" name="' + name + '" value="' + esc(value) + '" placeholder="' + esc(opts.placeholder || '') + '">';
     return '<label class="field"><span class="label">' + esc(label) + '</span>' + inner + (opts.hint ? '<span class="hint">' + esc(opts.hint) + '</span>' : '') + '</label>';
@@ -152,6 +152,7 @@
         (w.created_at ? '<span class="label" style="color:var(--b45)">' + esc(String(w.created_at).slice(0, 10)) + '</span>' : '') + '</div>' : '') +
       '<div class="grid2">' + field('title · 작품 제목', 'title', w.title) + field('student · 학생 이름', 'student', w.student) + '</div>' +
       '<div class="grid2">' + field('category · 분야', 'category', w.category, { select: CATS }) + field('year · 연도', 'year', w.year, { placeholder: '2026' }) + '</div>' +
+      field('zone · 구분', 'zone', w.zone || 'current', { select: [['current', '재학생'], ['alumni', '졸업생']], hint: 'works 페이지에서 재학생·졸업생 탭으로 나뉘어 보입니다' }) +
       '<div class="grid2">' + field('tools · 도구', 'tools', (w.tools || []).join(', '), { placeholder: 'TouchDesigner, Kinect', hint: '쉼표로 구분' }) + field('slug · 주소', 'slug', w.slug, { placeholder: autoSlug(), hint: '영문·숫자·하이픈. 비우면 자동' }) + '</div>' +
       field('statement · 한 줄 설명 (컨셉)', 'statement', w.statement, { textarea: true, rows: 2, hint: '상세 페이지 ABOUT 상단 대표 문구' }) +
       field('dimensions · 규격 및 재료', 'dimensions', w.dimensions || '', { textarea: true, rows: 2, placeholder: '혼합 매체, 450 × 320 × 1160 mm 등', hint: '크기, 규격, 재료, 상영 시간 (선택)' }) +
@@ -175,7 +176,7 @@
     if (!/^[a-z0-9-]+$/i.test(slug)) throw new Error('slug 는 영문·숫자·하이픈만 됩니다.');
     var videoUrl = g('video_url') || null;
     var videoVal = g('video') || (videoUrl && !(f.elements.videoFile && f.elements.videoFile.files && f.elements.videoFile.files[0]) ? videoUrl : null);
-    var row = { slug: slug.toLowerCase(), title: g('title'), student: g('student'), category: g('category'), year: g('year'),
+    var row = { slug: slug.toLowerCase(), title: g('title'), student: g('student'), category: g('category'), zone: g('zone') || 'current', year: g('year'),
       tools: g('tools').split(',').map(function(s){ return s.trim(); }).filter(Boolean),
       dimensions: g('dimensions') || null,
       exhibition: g('exhibition') || null,
