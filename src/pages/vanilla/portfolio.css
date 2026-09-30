@@ -66,7 +66,7 @@ button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:poin
 .home{position:relative;height:100vh;height:100svh;overflow:hidden}
 body.is-home{overflow:hidden;height:100vh;height:100svh}
 .orbit{position:absolute;inset:0}
-.tile{position:absolute;left:0;top:0;will-change:transform;cursor:pointer;background:#000;overflow:hidden}
+.tile{position:absolute;left:0;top:0;will-change:transform;cursor:pointer;background:#000;overflow:hidden;transition:none}   /* 링크의 opacity 전환(0.2초)을 받으면 첫 등장 때 켜졌다 꺼졌다 한다 */
 .tile img,.tile canvas,.tile video{width:100%;height:100%;object-fit:cover;display:block;transition:filter var(--duration-normal) var(--ease-out),opacity var(--duration-normal) var(--ease-out)}
 .home.is-hot .tile:not(.hot) > *{filter:grayscale(1) brightness(.62)}
 .home .mark{position:absolute;left:50%;top:50%;width:44px;height:47px;transform:translate(-50%,-50%);color:var(--bone)}

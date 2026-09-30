@@ -79,6 +79,7 @@
       var r = (w.ratio && w.ratio.length === 2) ? w.ratio : ratios[i % ratios.length], ar = r[0] / r[1];
       var t = document.createElement('a'); t.className = 'tile'; t.href = '#/work/' + w.slug; t.setAttribute('aria-label', w.title); if (i >= real) { t.setAttribute('aria-hidden', 'true'); t.tabIndex = -1; }   /* 반복 타일은 화면 읽기·탭 이동에서 뺀다 */
       t.appendChild(media(w, 480, Math.round(480 / ar)));
+      if (AN() && !reduce) t.style.opacity = '0';                                   /* 궤도가 펼쳐지며 켜질 타일은 처음부터 꺼 둔다 (한 프레임 다 보였다가 꺼지던 깜빡임) */
       var tl = { el: t, ar: ar, kw: ar >= 1.4 ? 0.72 : ar >= 1 ? 0.55 : 0.46, a: (i / N) * Math.PI * 2, j: (((i * 7) % 5) - 2) * 0.035, hs: 1, hot: false };
       t.addEventListener('mouseenter', function(){ home.classList.add('is-hot'); t.classList.add('hot'); tl.hot = true; });
       t.addEventListener('mouseleave', function(){ home.classList.remove('is-hot'); t.classList.remove('hot'); tl.hot = false; });
@@ -258,11 +259,20 @@
     }
     var h = { apikey: C.SUPABASE_ANON_KEY, Authorization: 'Bearer ' + C.SUPABASE_ANON_KEY }, base = C.SUPABASE_URL.replace(/\/$/, '') + '/rest/v1/';
     var started = false, start = function(){ if (!started) { started = true; done(); } };
+    /* 지난번 받은 작품을 이 브라우저에 두었다가 바로 그린다 — DB 응답을 기다리는 빈 화면 없이 곧장 궤도가 펼쳐진다. 새로 받은 게 다를 때만 다시 그린다 */
+    var cached = null; try { cached = JSON.parse(localStorage.getItem('pf-cache') || 'null'); } catch (e) {}
+    if (cached && cached.w && cached.w.length) { applyRemote(cached.w, cached.s); start(); }
     var late = setTimeout(start, 4000);                                             /* 4초 안에 안 오면 자리표시 데이터로 먼저 연다 */
     Promise.all([
       fetch(base + 'works?select=*&published=eq.true&status=eq.approved&order=sort.asc,created_at.asc', { headers: h }).then(function(r){ return r.ok ? r.json() : []; }),
       fetch(base + 'site?select=key,value', { headers: h }).then(function(r){ return r.ok ? r.json() : []; })
-    ]).then(function(res){ clearTimeout(late); applyRemote(res[0], res[1]); if (started) route(); else start(); }, start);
+    ]).then(function(res){
+      clearTimeout(late);
+      var fresh2 = JSON.stringify({ w: res[0], s: res[1] }), same = cached && JSON.stringify({ w: cached.w, s: cached.s }) === fresh2;
+      try { localStorage.setItem('pf-cache', fresh2); } catch (e) {}
+      if (same) return start();
+      applyRemote(res[0], res[1]); if (started) route(); else start();
+    }, start);
   }
   loadRemote(function(){ window.addEventListener('hashchange', route); route(); });
 
