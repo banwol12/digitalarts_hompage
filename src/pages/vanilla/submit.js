@@ -16,7 +16,7 @@
     opts = opts || {};
     var inner;
     var rq = opts.req ? ' required aria-required="true"' : '';               /* 필수 항목을 스크린리더에도 알린다 (브라우저 기본 검사는 novalidate 로 계속 끔) */
-    if (opts.select) inner = '<select name="' + name + '"' + rq + '>' + opts.select.map(function(o){ return '<option value="' + esc(o) + '"' + (o === value ? ' selected' : '') + '>' + esc(o) + '</option>'; }).join('') + '</select>';
+    if (opts.select) inner = '<select name="' + name + '"' + rq + '>' + opts.select.map(function(o){ var ov = Array.isArray(o) ? o[0] : o, ol = Array.isArray(o) ? o[1] : o; return '<option value="' + esc(ov) + '"' + (ov === value ? ' selected' : '') + '>' + esc(ol) + '</option>'; }).join('') + '</select>';
     else if (opts.textarea) inner = '<textarea name="' + name + '"' + rq + ' rows="' + (opts.rows || 3) + '" placeholder="' + esc(opts.placeholder || '') + '">' + esc(value || '') + '</textarea>';
     else inner = '<input type="' + (opts.type || 'text') + '" name="' + name + '" value="' + esc(value || '') + '" placeholder="' + esc(opts.placeholder || '') + '"' + rq + (opts.attrs || '') + '>';
     return '<label class="field" data-f="' + name + '"><span class="label' + (opts.req ? ' req' : '') + '">' + esc(label) + '</span>' + inner + (opts.hint ? '<span class="hint">' + esc(opts.hint) + '</span>' : '') + '</label>';
@@ -35,6 +35,7 @@
       '<form class="form" id="sf" novalidate>' +
       '<div class="grid2">' + field('title · 작품 제목', 'title', '', { req: true }) + field('student · 이름', 'student', '', { req: true }) + '</div>' +
       '<div class="grid2">' + field('email · 이메일', 'email', '', { req: true, type: 'email', placeholder: 'name@seoularts.ac.kr', hint: '검토 결과를 알려 드릴 주소. 사이트에는 표시되지 않습니다.' }) + field('category · 분야', 'category', API.CATS[0], { select: API.CATS, req: true }) + '</div>' +
+      field('zone · 구분', 'zone', 'current', { select: [['current', '재학생'], ['alumni', '졸업생']], req: true, hint: 'works 페이지의 재학생·졸업생 탭 중 어디에 보일지 정합니다.' }) +
       '<div class="grid2">' + field('year · 제작 연도', 'year', '', { placeholder: String(new Date().getFullYear()) }) + field('tools · 도구', 'tools', '', { placeholder: 'TouchDesigner, Kinect', hint: '쉼표로 구분' }) + '</div>' +
       field('statement · 한 줄 설명 (컨셉)', 'statement', '', { textarea: true, rows: 2, req: true, placeholder: '작품의 핵심 컨셉 또는 주제를 한 문장으로 적어 주세요.', hint: '상세 페이지 ABOUT 상단 대표 문구로 표시됩니다.' }) +
       field('dimensions · 규격 및 재료', 'dimensions', '', { textarea: true, rows: 2, placeholder: '예: 혼합 매체, 450 × 320 × 1160 mm 또는 단채널 비디오, 05:30', hint: '작품의 크기, 설치 규격, 사용 재료, 상영 시간 등 (선택, 없으면 비워둡니다)' }) +
@@ -88,7 +89,7 @@
       var slug = 'sub-' + Date.now().toString(36);
       var videoUrl = g('video_url') || null;
       var row = { slug: slug, title: g('title'), student: g('student'), submitter_email: g('email'), submitter_note: g('submitter_note') || null,
-        category: g('category'), year: g('year'), tools: g('tools').split(',').map(function(s){ return s.trim(); }).filter(Boolean),
+        category: g('category'), zone: g('zone') || 'current', year: g('year'), tools: g('tools').split(',').map(function(s){ return s.trim(); }).filter(Boolean),
         dimensions: g('dimensions') || null,
         exhibition: g('exhibition') || null,
         video_url: videoUrl,
