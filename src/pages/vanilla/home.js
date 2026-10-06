@@ -604,27 +604,22 @@
       requestAnimationFrame(render);
     }
     function renderSC(t, yaw, pitch, F, D, S, OX, OY, pal){
-      var hasLive = g.live > 0.01, hasFlow = g.flow > 0.01, nFr = 0;
+      var hasFlow = g.flow > 0.01, nFr = 0, liveK = introDone ? Math.min(1, (t - introAt) / 1.5) : 0;
       for (var i = 0; i < N; i++) {
         var b = boxes[i], p = Math.max(0, Math.min(1, (t - b.t0) / b.dur));
         if (b.from && b.to) { var e = easeOut4(p), arc = Math.sin(Math.PI * e); b.cur.x = b.from.x + (b.to.x - b.from.x) * e + b.ax * arc; b.cur.y = b.from.y + (b.to.y - b.from.y) * e + b.ay * arc; b.cur.z = b.from.z + (b.to.z - b.from.z) * e + b.az * arc; b.m = b.mFrom + (b.mTo - b.mFrom) * e; }
-        var lx = 0, ly = 0, lz = 0, bob = hasFlow ? Math.sin(t * 1.4 + b.fc * 0.35 + b.fr * 0.6) * 0.5 * g.flow : 0;
+        /* 3D 의 살아 있는 움직임은 픽셀 단위 물결(셰이더). 칸 단위로는 03 필드의 물결과 데이터 패킷만 */
+        var bob = hasFlow ? Math.sin(t * 1.4 + b.fc * 0.35 + b.fr * 0.6) * 0.5 * g.flow : 0;
         b.pulse = 0;
-        if (hasLive) {
-          var lv = g.live, liveK = introDone ? Math.min(1, (t - introAt) / 1.5) : 0;
-          lz += Math.sin(t * b.bw + b.seed * 6.283) * 0.025 * lv; lx += Math.sin(t * 0.455 + b.seed2 * 6.283) * 0.018 * lv; ly += Math.cos(t * 0.52 + b.seed * 6.283) * 0.018 * lv;
-          var ph = ((t + b.po) % b.pp) / b.pp;
-          if (ph < 0.1) { var bump = Math.sin(Math.PI * ph / 0.1); b.pulse = bump * bump * lv * liveK; lz -= b.pulse * 0.3; }
-        }
-        CFX[i * 4] = lx; CFX[i * 4 + 1] = ly; CFX[i * 4 + 2] = lz + bob; CFX[i * 4 + 3] = boost[i] * g.flow;
-        CM[i * 2] = b.m; CM[i * 2 + 1] = b.pulse * 0.3;
+        CFX[i * 4] = 0; CFX[i * 4 + 1] = 0; CFX[i * 4 + 2] = bob; CFX[i * 4 + 3] = boost[i] * g.flow;
+        CM[i * 2] = b.m; CM[i * 2 + 1] = 0;
         if (b.m > 0.001) ORDER[nFr++] = i;
       }
-      /* 빛: 예전처럼 천천히 돈다 (옛 좌표 → three: y·z 뒤집기). 03 필드(g.flow)는 왼쪽 위에서 낮게 비스듬히 스치는 빛 — 막대가 오르내리는 게 명암·그림자로 보인다 */
-      var fw = g.flow, fx3 = -0.85 + Math.sin(t * 0.2) * 0.06, fy3 = 0.5, fz3 = 0.12;
+      /* 빛: 예전처럼 천천히 돈다 (옛 좌표 → three: y·z 뒤집기). 03 필드(g.flow)는 정면과 위 사이 45° 대각선에서 — 막대가 오르내리는 게 명암·그림자로 보인다 */
+      var fw = g.flow, fx3 = Math.sin(t * 0.2) * 0.08, fy3 = 0.71, fz3 = 0.71;
       LV[0] = L[0] + (fx3 - L[0]) * fw; LV[1] = -L[1] + (fy3 + L[1]) * fw; LV[2] = -L[2] + (fz3 + L[2]) * fw;
       S3D.render({ t: t, dt: lastFrameT ? t - lastFrameT : 1 / 60, cx: OX, cy: OY, s: S, yaw: yaw, pitch: pitch, mode: g.mode, flat: g.flat, wall: g.wall, F: F, D: D,
-        cellFx: CFX, cellM: CM, light: LV });
+        cellFx: CFX, cellM: CM, light: LV, live: g.live * liveK });
       lastFrameT = t;
       /* 02 챕터 코드 조각만 2D 로 (예전 투영 그대로) */
       var cy = Math.cos(yaw), sy = Math.sin(yaw), cp = Math.cos(pitch), sp = Math.sin(pitch);
