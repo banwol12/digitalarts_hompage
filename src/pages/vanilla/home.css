@@ -186,14 +186,7 @@ html.touch-paging .cards{touch-action:pan-x}
 
 /* Chapter 0 — intro: logo centred (canvas), wordmark below */
 .intro{text-align:center;align-content:end;padding-bottom:12vh}
-.intro .wordmark{display:flex;flex-direction:column;gap:var(--space-12);align-items:center;position:relative}
-/* 블롭 트래킹 (Originkit Vector Wordmark 의 추적 박스만): 제목 위 네모 셋 + 점선 삼각형 + 좌표 라벨 */
-.trk{position:absolute;inset:0;pointer-events:none;opacity:0;transition:opacity .6s var(--ease)}
-.trk.on{opacity:1}
-.trk svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
-.trk rect{fill:none;stroke:rgba(233,234,228,.6);stroke-width:1}
-.trk line{stroke:rgba(233,234,228,.5);stroke-width:1;stroke-dasharray:2 3}
-.trk span{position:absolute;left:0;top:0;padding:5px 0 0 6px;font:500 11px/1 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.08em;color:rgba(233,234,228,.75);white-space:nowrap}
+.intro .wordmark{display:flex;flex-direction:column;gap:var(--space-12);align-items:center}
 .intro-sub{font:600 clamp(12px,1.2vw,calc(17px * var(--k)))/1.4 var(--font-core);letter-spacing:0.3em;text-transform:uppercase;color:var(--text-muted);text-align:center;padding-left:0.3em}
 .intro-title{font:600 clamp(2.5rem,9vw,calc(7rem * var(--k)))/.94 var(--font-core);letter-spacing:-0.03em;text-transform:uppercase;color:var(--text-body);text-align:center;margin-top:2px}   /* 포트폴리오 푸터 워드마크와 같은 서체·자간 (사용자 요청) */
 .js .intro .wordmark{opacity:0;transform:translateY(14px);transition:opacity var(--duration-slow) var(--ease),transform var(--duration-slow) var(--ease)}
