@@ -1,15 +1,15 @@
 /* 메인 홈 3D 씬 (three.js) — 로고 픽셀 530칸을 각각 작은 픽셀 큐브 여러 개로 채운다.
-   · 큐브는 GPU 에서 힘으로 움직인다: 첫 입장은 화면 왼쪽 밖에서 바람에 실려 들어와 왼쪽부터 쌓이고,
-     챕터가 바뀌면 칸마다 정해진 순서로 새 자리로 날아간다. 날 때는 속도만큼 기울고 내려앉으면 반듯하게 격자에 맞는다.
-   · 빛: 키 라이트(천천히 돌거나 커서를 따라감) + 하늘·바닥 반사광. 그림자는 빛에서 본 깊이 지도에서
+   · 큐브는 GPU 에서 힘으로 움직인다: 첫 입장은 화면 전체에 숨어 있던 픽셀(화면을 빈틈없이 덮는 격자)이 가운데부터 켜졌다가
+     로고로 빨려 들어가 뭉친다. 챕터가 바뀌면 칸마다 정해진 순서로 새 자리로 날아간다. 날 때만 기울고 내려앉으면 반듯하다.
+   · 빛: 천천히 도는 키 라이트 + 하늘·바닥 반사광. 그림자는 빛에서 본 깊이 지도에서
      가리는 큐브를 찾아 거리만큼 번지게 하는 PCSS — 가까우면 또렷하고 멀면 퍼진다.
-   · 로고 뒤 벽(잉크 챕터는 조명이 닿는 벽, 페이퍼 챕터는 그림자만 남는 투명 벽)에 그림자가 진다.
+   · 배경은 페이지 색 그대로(잉크 = 검정). 페이퍼 챕터에서만 로고 뒤 투명한 벽에 그림자가 남는다.
    · 좌표는 home.js 의 옛 투영(카메라 거리 D, 초점 F px, 화면 중심 cx·cy)과 똑같이 맞춰 frameFor 배치를 그대로 쓴다.
      옛 좌표는 y 아래·z 화면 안쪽, three 는 y 위·z 화면 바깥 → (x, -y, -z) */
 import {
   WebGLRenderer, Scene, PerspectiveCamera, OrthographicCamera, BoxGeometry, InstancedBufferGeometry,
   InstancedBufferAttribute, Mesh, PlaneGeometry, ShaderMaterial, WebGLRenderTarget, DepthTexture, UnsignedIntType,
-  DataTexture, RGBAFormat, FloatType, HalfFloatType, NearestFilter, Vector3, Matrix4, Euler, Raycaster, Plane
+  DataTexture, RGBAFormat, FloatType, HalfFloatType, NearestFilter, Vector3, Matrix4, Euler
 } from 'three';
 import { GPUComputationRenderer } from 'three/addons/misc/GPUComputationRenderer.js';
 
@@ -44,39 +44,30 @@ vec3 curl(vec3 p){
 
 /* 목표: A(이전 자리, w = 첫 입장 때 붙잡히기 시작하는 시각) → B(새 자리, w = 바꾸는 시각). 큐브마다 바꾸는 시각이 달라 물결처럼 옮겨 간다 */
 const VEL = /* glsl */`
-uniform float uTime, uDt, uPtrOn, uPtrR, uWind, uSnap;
-uniform vec3 uPtr, uPtrVel;
+uniform float uTime, uDt, uSnap, uRamp;
 uniform sampler2D tA, tB;
 ${NOISE}
 void main(){
   vec2 uv = gl_FragCoord.xy / resolution.xy;
   if (uSnap > 0.5) { gl_FragColor = vec4(0.0); return; }
   vec4 P = texture2D(texturePosition, uv), V = texture2D(textureVelocity, uv), A = texture2D(tA, uv), B = texture2D(tB, uv);
-  vec3 T = uTime < B.w ? A.xyz : B.xyz, p = P.xyz, v = V.xyz, dp = p - uPtr;
-  float k = smoothstep(A.w, A.w + 1.6, uTime);
-  float fall = exp(-dot(dp.xy, dp.xy) / (uPtrR * uPtrR)) * uPtrOn;
-  float loose = max(V.w * exp(-uDt * 1.4), fall);
-  float hold = k * (1.0 - 0.92 * loose);
-  vec3 d = T - p;
-  float swirl = min(1.0, length(d) * 0.1) * hold;                                     /* 챕터 전환 중 날아가는 큐브만 살짝 소용돌이 */
-  vec3 desired = d * 6.0 * hold;
-  float dl = length(desired); if (dl > 38.0) desired *= 38.0 / dl;
-  float gust = 0.7 + 0.6 * fract(sin(dot(uv, vec2(12.9898, 78.233))) * 43758.5453);
-  if (hold < 0.995 || swirl > 0.01)
-    desired += vec3(uWind * gust, -2.0, 0.0) * (1.0 - hold) + curl(p * 0.05 + vec3(0.0, 0.0, uTime * 0.1)) * ((4.5 + uWind * 0.3) * (1.0 - hold) + 2.5 * swirl);
-  vec3 acc = (desired - v) * (1.8 + 12.0 * hold);
-  acc += fall * (uPtrVel * 5.0 + normalize(vec3(dp.xy, 0.9)) * (26.0 + length(uPtrVel) * 1.6));
-  gl_FragColor = vec4(v + acc * uDt, loose);
+  vec3 T = uTime < B.w ? A.xyz : B.xyz, p = P.xyz, v = V.xyz, d = T - p;
+  float hold = smoothstep(A.w, A.w + uRamp, uTime);                                    /* 붙잡히기 전엔 제자리 (화면 격자) */
+  float swirl = min(1.0, length(d) * 0.1) * hold;                                     /* 날아가는 동안만 살짝 소용돌이 */
+  vec3 desired = d * 7.5 * hold;
+  float dl = length(desired); if (dl > 55.0) desired *= 55.0 / dl;
+  if (swirl > 0.01) desired += curl(p * 0.05 + vec3(0.0, 0.0, uTime * 0.1)) * 2.5 * swirl;
+  gl_FragColor = vec4(v + (desired - v) * (1.8 + 12.0 * hold) * uDt, 0.0);
 }`;
 
 const POS = /* glsl */`
-uniform float uTime, uDt, uSnap;
+uniform float uTime, uDt, uSnap, uRamp;
 uniform sampler2D tA, tB;
 void main(){
   vec2 uv = gl_FragCoord.xy / resolution.xy;
   vec4 P = texture2D(texturePosition, uv), V = texture2D(textureVelocity, uv), A = texture2D(tA, uv), B = texture2D(tB, uv);
   if (uSnap > 0.5) { gl_FragColor = vec4(uTime < B.w ? A.xyz : B.xyz, 1.0); return; }
-  gl_FragColor = vec4(P.xyz + V.xyz * uDt, smoothstep(A.w, A.w + 1.6, uTime) * (1.0 - V.w));   /* w: 자리 잡은 정도 */
+  gl_FragColor = vec4(P.xyz + V.xyz * uDt, smoothstep(A.w, A.w + uRamp, uTime));      /* w: 붙잡힌 정도 */
 }`;
 
 /* 빛·그림자 공용 */
@@ -105,23 +96,25 @@ vec3 outColor(vec3 c){ return pow(aces(c * 1.1), vec3(1.0 / 2.2)) + (ign(gl_Frag
 const CUBE_VS = /* glsl */`
 uniform sampler2D tPos, tVel, tCell;
 uniform mat4 uModel;
-uniform float uScale, uTime;
+uniform float uScale, uTime, uGridSz;
 attribute vec4 aRef;   /* xy 시뮬레이션 uv · z 칸 u · w 깊이 AO */
 attribute vec4 aSize;  /* xyz 큐브 크기 · w 무작위 */
+attribute float aAppear;  /* 첫 입장: 화면 픽셀로 켜지는 시각 */
 varying vec3 vN, vW, vBox;
-varying float vAo, vGlow, vFlk, vSeed;
+varying float vAo, vGlow, vFlk, vSeed, vDim;
 mat3 rotAxis(vec3 a, float t){ float c = cos(t), s = sin(t), o = 1.0 - c;
   return mat3(c + a.x * a.x * o, a.y * a.x * o + a.z * s, a.z * a.x * o - a.y * s, a.x * a.y * o - a.z * s, c + a.y * a.y * o, a.z * a.y * o + a.x * s, a.x * a.z * o + a.y * s, a.y * a.z * o - a.x * s, c + a.z * a.z * o); }
 void main(){
   vec4 P = texture2D(tPos, aRef.xy), V = texture2D(tVel, aRef.xy);
   vec4 C0 = texture2D(tCell, vec2(aRef.z, 0.25)), C1 = texture2D(tCell, vec2(aRef.z, 0.75));
-  float s = aSize.w, tilt = clamp((1.0 - P.w) + length(V.xyz) * 0.05, 0.0, 1.0);     /* 나는 동안만 기울고, 멈추면 반듯하게 */
+  float s = aSize.w, tilt = clamp(length(V.xyz) * 0.04, 0.0, 1.0);                    /* 나는 동안만 기울고, 멈추면 반듯하게 */
+  float sz = smoothstep(aAppear, aAppear + 0.2, uTime) * mix(uGridSz, 1.0, P.w);           /* 화면 픽셀일 땐 작고 어둡다가 로고가 되며 제 크기·밝기 */
   vec3 ax = normalize(vec3(fract(s * 7.13), fract(s * 3.37), fract(s * 5.71)) - 0.5 + 1e-3);
   mat3 R = rotAxis(ax, tilt * ((s - 0.5) * 5.0 + sin(uTime * (1.5 + s * 2.5) + s * 40.0) * 1.2));
-  vec3 local = R * (position * aSize.xyz * (1.0 - C1.x));                              /* C1.x: 02 챕터에서 코드 조각으로 바뀌며 사라짐 */
+  vec3 local = R * (position * aSize.xyz * sz * (1.0 - C1.x));                         /* C1.x: 02 챕터에서 코드 조각으로 바뀌며 사라짐 */
   vec4 w = uModel * vec4((P.xyz + C0.xyz + local) * uScale, 1.0);
   vW = w.xyz; vN = mat3(uModel) * (R * normal); vBox = position;
-  vAo = aRef.w; vGlow = C0.w; vFlk = C1.y; vSeed = s;
+  vAo = aRef.w; vGlow = C0.w; vFlk = C1.y; vSeed = s; vDim = mix(0.2, 1.0, P.w * P.w);
   gl_Position = projectionMatrix * viewMatrix * w;
 }`;
 
@@ -129,7 +122,7 @@ const CUBE_FS = /* glsl */`
 uniform vec3 uAlbInk, uAlbPaper, uSkyInk, uSkyPaper, uGroundInk, uGroundPaper, uKey;
 uniform float uFlat, uNOff, uBias;
 varying vec3 vN, vW, vBox;
-varying float vAo, vGlow, vFlk, vSeed;
+varying float vAo, vGlow, vFlk, vSeed, vDim;
 ${LIGHT}
 void main(){
   vec3 n = normalize(vN);
@@ -143,7 +136,7 @@ void main(){
   vec3 key = uLCol * uLI * spot(vW) * sh;
   vec3 hemi = mix(mix(uGroundPaper, uGroundInk, uMode), mix(uSkyPaper, uSkyInk, uMode), n.y * 0.5 + 0.5) * vAo;
   vec3 col = alb * (key * ndl + hemi) * (1.0 - 0.28 * edge) + key * spec * (1.0 - edge);
-  col *= 1.0 + vFlk * 0.9;
+  col *= (1.0 + vFlk * 0.9) * vDim;
   col = mix(col, uKey * (1.4 + 0.6 * ndl), clamp(vGlow, 0.0, 0.85));                   /* 03 챕터 데이터 패킷 */
   vec3 c = outColor(col);
   vec3 flatC = mix(vec3(0.235, 0.24, 0.255), vec3(0.62, 0.62, 0.63), uMode);             /* 01 챕터: 모든 면을 한 색으로 (사용자 2026-09-28) */
@@ -160,31 +153,29 @@ void main(){
   gl_Position = projectionMatrix * viewMatrix * w;
 }`;
 
-/* 벽: 잉크면 조명이 닿는 어두운 벽, 페이퍼면 그림자만 남기는 투명한 벽 (premultiplied) */
+/* 벽: 페이퍼 챕터에서만 그림자를 남기는 투명한 벽 (잉크 챕터는 검정 그대로) — premultiplied */
 const WALL_FS = /* glsl */`
-uniform float uFlat, uWallA, uBiasW;
+uniform float uFlat, uBiasW;
 varying vec3 vW, vN;
 ${LIGHT}
-float h21(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
-float vnoise(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(h21(i), h21(i + vec2(1.0, 0.0)), f.x), mix(h21(i + vec2(0.0, 1.0)), h21(i + 1.0), f.x), f.y); }
 void main(){
-  float sh = pcss(vW, uBiasW), sp = spot(vW), ndl = max(dot(normalize(vN), uL), 0.0);
-  vec3 lit = vec3(0.034, 0.034, 0.036) * (0.85 + 0.3 * vnoise(vW.xy * 2.5 + vW.z)) * (uLCol * uLI * sp * sh * ndl + vec3(0.05) * (0.3 + 0.7 * sp));
-  vec3 ink = outColor(lit);
-  float dark = (1.0 - sh) * 0.3 * (1.0 - 0.5 * uFlat);
-  float a = mix(dark, max(ink.r, max(ink.g, ink.b)), uMode) * uWallA;
-  gl_FragColor = vec4(ink * uMode * uWallA, a);
+  float a = (1.0 - pcss(vW, uBiasW)) * 0.3 * (1.0 - 0.5 * uFlat) * (1.0 - uMode);
+  if (a < 0.002) discard;
+  gl_FragColor = vec4(0.0, 0.0, 0.0, a);
 }`;
 
 const DEPTH_VS = /* glsl */`
 uniform sampler2D tPos, tVel, tCell;
 uniform mat4 uModel;
 uniform float uScale;
+uniform float uTime, uGridSz;
 attribute vec4 aRef;
 attribute vec4 aSize;
+attribute float aAppear;
 void main(){
   vec4 P = texture2D(tPos, aRef.xy), C0 = texture2D(tCell, vec2(aRef.z, 0.25)), C1 = texture2D(tCell, vec2(aRef.z, 0.75));
-  gl_Position = projectionMatrix * viewMatrix * uModel * vec4((P.xyz + C0.xyz + position * aSize.xyz * (1.0 - C1.x)) * uScale, 1.0);
+  float sz = smoothstep(aAppear, aAppear + 0.2, uTime) * mix(uGridSz, 1.0, P.w);
+  gl_Position = projectionMatrix * viewMatrix * uModel * vec4((P.xyz + C0.xyz + position * aSize.xyz * sz * (1.0 - C1.x)) * uScale, 1.0);
 }`;
 
 function rng(seed){ return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
@@ -221,9 +212,9 @@ export function createHomeScene({ canvas, cells, small }){
   const pos0 = gpu.createTexture(), vel0 = gpu.createTexture();
   const velVar = gpu.addVariable('textureVelocity', VEL, vel0), posVar = gpu.addVariable('texturePosition', POS, pos0);
   gpu.setVariableDependencies(velVar, [velVar, posVar]); gpu.setVariableDependencies(posVar, [velVar, posVar]);
-  const simU = { uTime: { value: 0 }, uDt: { value: 1 / 60 }, uSnap: { value: 1 }, tA: { value: tA }, tB: { value: tB }, uPtr: { value: new Vector3(0, 0, 999) }, uPtrVel: { value: new Vector3() }, uPtrOn: { value: 0 }, uPtrR: { value: 3.6 }, uWind: { value: 0 } };
+  const simU = { uTime: { value: 0 }, uDt: { value: 1 / 60 }, uSnap: { value: 1 }, uRamp: { value: 0.45 }, tA: { value: tA }, tB: { value: tB } };
   Object.assign(velVar.material.uniforms, simU);
-  Object.assign(posVar.material.uniforms, { uTime: simU.uTime, uDt: simU.uDt, uSnap: simU.uSnap, tA: simU.tA, tB: simU.tB });
+  Object.assign(posVar.material.uniforms, simU);
   const err = gpu.init();
   if (err) { renderer.dispose(); throw new Error(err); }
 
@@ -239,12 +230,13 @@ export function createHomeScene({ canvas, cells, small }){
   const common = {
     tShadow: { value: shadowRT.depthTexture }, uLVP: { value: new Matrix4() }, uLRange: { value: 160 }, uSoft: { value: 0.09 }, uShadowW: { value: 80 },
     uTexel: { value: 1 / SM }, uLI: { value: 2.6 }, uPoolR: { value: 30 }, uMode: { value: 1 }, uL: { value: L }, uLCol: { value: new Vector3(1.0, 0.96, 0.9) },
-    uModel: { value: model }, uScale: { value: 1 }, uTime: { value: 0 }, uFlat: { value: 0 }
+    uModel: { value: model }, uScale: { value: 1 }, uTime: { value: 0 }, uFlat: { value: 0 }, uGridSz: { value: 1 }
   };
 
   const box = new BoxGeometry(1, 1, 1), geo = new InstancedBufferGeometry();
   geo.index = box.index; geo.setAttribute('position', box.getAttribute('position')); geo.setAttribute('normal', box.getAttribute('normal'));
-  geo.setAttribute('aRef', new InstancedBufferAttribute(aRef, 4)); geo.setAttribute('aSize', new InstancedBufferAttribute(aSize, 4));
+  const appear = new InstancedBufferAttribute(new Float32Array(n), 1);
+  geo.setAttribute('aRef', new InstancedBufferAttribute(aRef, 4)); geo.setAttribute('aSize', new InstancedBufferAttribute(aSize, 4)); geo.setAttribute('aAppear', appear);
   geo.instanceCount = n;
   const cubeMat = new ShaderMaterial({
     vertexShader: CUBE_VS, fragmentShader: CUBE_FS, defines: { NB: 8, NP: 12 },
@@ -257,12 +249,12 @@ export function createHomeScene({ canvas, cells, small }){
   const cubes = new Mesh(geo, cubeMat); cubes.frustumCulled = false;
   const wallMat = new ShaderMaterial({
     vertexShader: WALL_VS, fragmentShader: WALL_FS, defines: { NB: 12, NP: 20 }, transparent: true, premultipliedAlpha: true, depthWrite: false,
-    uniforms: { ...common, uWallZ: { value: -5.5 }, uBiasW: { value: 0.05 }, uWallA: { value: 1 } }
+    uniforms: { ...common, uWallZ: { value: -5.5 }, uBiasW: { value: 0.05 } }
   });
   const wall = new Mesh(new PlaneGeometry(600, 400), wallMat); wall.frustumCulled = false; wall.renderOrder = -1;
   const scene = new Scene(); scene.add(wall, cubes);
   const depthMat = new ShaderMaterial({ vertexShader: DEPTH_VS, fragmentShader: 'void main(){ gl_FragColor = vec4(1.0); }', colorWrite: false,
-    uniforms: { tPos: posTex, tVel: velTex, tCell: { value: tCell }, uModel: common.uModel, uScale: common.uScale } });
+    uniforms: { tPos: posTex, tVel: velTex, tCell: { value: tCell }, uModel: common.uModel, uScale: common.uScale, uTime: common.uTime, uGridSz: common.uGridSz } });
   const shadowCubes = new Mesh(geo, depthMat); shadowCubes.frustumCulled = false;
   const shadowScene = new Scene(); shadowScene.add(shadowCubes);
 
@@ -281,9 +273,6 @@ export function createHomeScene({ canvas, cells, small }){
     radius = Math.sqrt(r) + 2;
   }
 
-  /* ── 입력: 커서 = 빛, 누른 채 끌기 = 바람 (home.js 가 언제 바람을 켤지 정한다) ── */
-  const ptr = { has: false, down: false, ndcX: 0, ndcY: 0, world: new Vector3(), prev: new Vector3(), vel: new Vector3(), lastDown: -1e9 };
-  const ray = new Raycaster(), inv = new Matrix4(), hit = new Vector3(), plane = new Plane(new Vector3(0, 0, 1), -0.5);
 
   return {
     grains: n,
@@ -297,33 +286,41 @@ export function createHomeScene({ canvas, cells, small }){
       tA.needsUpdate = tB.needsUpdate = true;
       simUntil = Math.max(simUntil, t + Math.max(...delay) + 2.5);
     },
-    /* 첫 입장: 화면 왼쪽 밖(로고 좌표)에서 모래 줄기로 출발. 오른쪽 자리일수록 줄기 뒤쪽 → 왼쪽부터 쌓인다. 반환: 대부분 내려앉는 시각 */
+    /* 첫 입장 (예전 인트로와 같은 생각): 검은 화면을 덮는 규칙적인 픽셀 격자(간격 8px, 폰 6px — 평소엔 느끼지 못하는 화면의 해상도).
+       격자 한 칸에 큐브 몇 개가 겹쳐 있다가 로고로 빨려 들어간다. 로고 중심에서 본 방향이 같은 부채꼴끼리, 안쪽은 안쪽·바깥은 바깥과 짝지어
+       화면 전체가 엉킴 없이 가운데로 오므라든다. 가운데부터 켜지고 가운데부터 출발. 반환: land = 제목·헤더가 올라오는 시각 */
     intro(t, view){
-      const WIND = 34, xMin = Math.min(...cells.map(c => c.gx)), xMax = Math.max(...cells.map(c => c.gx));
-      const left = view.left, hw = Math.max(20, view.right - view.left) / 2;
-      const pd = pos0.image.data, vd = vel0.image.data;
-      let end = 0;
-      for (let i = 0; i < n; i++) {
-        const tx = bData[i * 4], ty = bData[i * 4 + 1], u = (cells[cellOf[i]].gx - xMin) / (xMax - xMin);
-        const sx = left - 2 - u * hw * 0.5 - Math.pow(rand(), 0.6) * hw * 0.55;
-        pd[i * 4] = sx; pd[i * 4 + 1] = ty * 0.75 + (rand() - 0.5) * 9 + Math.sin(sx * 0.08) * 3; pd[i * 4 + 2] = bData[i * 4 + 2] + (rand() - 0.5) * 8; pd[i * 4 + 3] = 0;
-        vd[i * 4] = WIND * (0.7 + rand() * 0.6); vd[i * 4 + 1] = (rand() - 0.5) * 3; vd[i * 4 + 2] = vd[i * 4 + 3] = 0;
-        const cap = t + Math.max(0.3, (tx - sx) / WIND - 0.7 + (rand() - 0.5) * 0.3);
-        aData[i * 4] = tx; aData[i * 4 + 1] = ty; aData[i * 4 + 2] = bData[i * 4 + 2]; aData[i * 4 + 3] = cap; bData[i * 4 + 3] = -1e9;
-        if (cap > end) end = cap;
+      const k = view.k, pitch = Math.max(small ? 6 : 8, Math.sqrt(W * H / 20000)) * k;
+      const cols = Math.max(2, Math.floor((view.right - view.left) / pitch)), rows = Math.max(2, Math.floor((view.top - view.bottom) / pitch)), G = cols * rows;
+      const x0 = (view.left + view.right) / 2 - (cols - 1) * pitch / 2, y0 = (view.top + view.bottom) / 2 + (rows - 1) * pitch / 2;
+      const pts = Array.from({ length: n }, (_, j) => { const q = Math.floor(j * G / n); return [x0 + (q % cols) * pitch, y0 - Math.floor(q / cols) * pitch]; });
+      const tg = Array.from({ length: n }, (_, i) => [bData[i * 4], bData[i * 4 + 1], i]);
+      const ang = a => Math.atan2(a[1], a[0]), rad = a => a[0] * a[0] + a[1] * a[1];
+      tg.sort((a, b) => ang(a) - ang(b)); pts.sort((a, b) => ang(a) - ang(b));
+      const SECT = Math.max(24, Math.round(Math.sqrt(n) * 0.7)), rMax = Math.sqrt(Math.max(...pts.map(rad)));
+      const pd = pos0.image.data, vd = vel0.image.data, ap = appear.array;
+      let land = 0;
+      for (let b = 0; b < SECT; b++) {
+        const lo = Math.floor(b * n / SECT), hi = Math.floor((b + 1) * n / SECT);
+        const ts = tg.slice(lo, hi).sort((a, c) => rad(a) - rad(c)), ss = pts.slice(lo, hi).sort((a, c) => rad(a) - rad(c));
+        for (let j = 0; j < ts.length; j++) {
+          const i = ts[j][2], sp = ss[j], rN = Math.sqrt(rad(sp)) / rMax;
+          pd[i * 4] = sp[0]; pd[i * 4 + 1] = sp[1]; pd[i * 4 + 2] = 0; pd[i * 4 + 3] = 0;
+          vd[i * 4] = vd[i * 4 + 1] = vd[i * 4 + 2] = vd[i * 4 + 3] = 0;
+          ap[i] = t + 0.02 + 0.2 * rN + rand() * 0.03;                                    /* 켜짐: 가운데 → 바깥 */
+          const cap = t + 0.38 + 0.22 * rN + rand() * 0.03;                               /* 잠깐 보인 뒤 가운데 칸부터 출발 */
+          aData[i * 4] = bData[i * 4]; aData[i * 4 + 1] = bData[i * 4 + 1]; aData[i * 4 + 2] = bData[i * 4 + 2]; aData[i * 4 + 3] = cap; bData[i * 4 + 3] = -1e9;
+          if (cap > land) land = cap;
+        }
       }
-      tA.needsUpdate = tB.needsUpdate = true; pos0.needsUpdate = vel0.needsUpdate = true;
+      common.uGridSz.value = pitch * 0.7 * M;                                             /* 격자일 땐 칸의 70% 크기 → 날아가며 제 크기로 */
+      appear.needsUpdate = true; tA.needsUpdate = tB.needsUpdate = true; pos0.needsUpdate = vel0.needsUpdate = true;
       gpu.renderTexture(pos0, posVar.renderTargets[0]); gpu.renderTexture(pos0, posVar.renderTargets[1]);
       gpu.renderTexture(vel0, velVar.renderTargets[0]); gpu.renderTexture(vel0, velVar.renderTargets[1]);
-      snapNext = false; simU.uWind.value = WIND; this.windOff = end; simUntil = end + 3;
-      return { land: t + (end - t) * 0.78, end: end + 1.6 };
+      snapNext = false; simUntil = land + 3;
+      return { land: land + 0.55, end: land + 1.3 };
     },
-    pointer(x, y, down){
-      ptr.has = true; ptr.ndcX = x / W * 2 - 1; ptr.ndcY = -(y / H * 2 - 1);
-      if (down) { ptr.down = true; ptr.lastDown = performance.now(); } else ptr.down = false;
-    },
-    lightFromPointer(out){ if (!ptr.has) return false; out[0] = ptr.ndcX; out[1] = ptr.ndcY * 0.9 + 0.15; out[2] = 0.8; return true; },
-    /* 매 프레임: s 가 g (cx·cy·s·yaw·pitch·mode·flat·wall), cellFx = 칸마다 [dx,dy,dz,glow] (옛 좌표), cellM = [사라짐, 반짝임] */
+    /* 매 프레임: st = g (cx·cy·s·yaw·pitch·mode·flat·wall) + 빛 방향, cellFx = 칸마다 [dx,dy,dz,glow] (옛 좌표), cellM = [사라짐, 반짝임] */
     render(st){
       const t = st.t, dt = Math.min(Math.max(st.dt, 0), 1 / 30);
       const F = st.F, D = st.D;
@@ -343,18 +340,7 @@ export function createHomeScene({ canvas, cells, small }){
       }
       tCell.needsUpdate = true;
 
-      /* 바람: 커서 광선을 로고 좌표로 옮겨 앞면 높이의 평면과 만나는 점 */
-      if (ptr.has) {
-        ray.setFromCamera({ x: ptr.ndcX, y: ptr.ndcY }, camera);
-        inv.copy(model).invert(); ray.ray.applyMatrix4(inv); ray.ray.origin.divideScalar(st.s);
-        if (ray.ray.intersectPlane(plane, hit)) { ptr.prev.copy(ptr.world); ptr.world.copy(hit); ptr.vel.lerp(hit.clone().sub(ptr.prev).divideScalar(Math.max(dt, 1e-3)).clampLength(0, 80), 1 - Math.exp(-dt * 12)); }
-      }
-      const windOn = ptr.down && st.wind;
-      simU.uPtrOn.value += ((windOn ? 1 : 0) - simU.uPtrOn.value) * (1 - Math.exp(-dt * 10));
-      if (windOn) simUntil = Math.max(simUntil, t + 3);
-      simU.uPtr.value.copy(ptr.world); simU.uPtrVel.value.copy(ptr.vel);
-      if (this.windOff) simU.uWind.value = 34 * (1 - Math.min(1, Math.max(0, (t - this.windOff) / 1.6)));
-      if (snapNext || t < simUntil || simU.uPtrOn.value > 0.01) {
+      if (snapNext || t < simUntil) {
         simU.uTime.value = t; simU.uDt.value = dt; simU.uSnap.value = snapNext ? 1 : 0;
         gpu.compute(); snapNext = false;
       }

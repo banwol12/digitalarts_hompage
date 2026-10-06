@@ -3,7 +3,7 @@
   document.documentElement.classList.add('js');
   var STATIC = /[?&]static=1/.test(location.search);
   var reduce = STATIC || window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  var PACE = 1.15;                                                /* 모든 연출 시간 배율 (2026-09-28 사용자: 너무 빠르다 → 15% 느리게). 로고 숨쉬기 주기는 따로 */
+  var PACE = 0.95;                                                /* 모든 연출 시간 배율 (09-28 사용자: 너무 빠르다 → 1.15, 10-06: 전체를 조금 빠르게 → 0.95). 로고 숨쉬기 주기는 따로 */
   var IK = 1.7;                                                    /* 첫 입장 시간 배율 (사용자 2026-09-28: 인트로가 너무 빠르다 → 1 에서 1.5, 다시 '정말 조금만 더' 1.7). 챕터 전환은 PACE */
   var introReduce = STATIC;                                       /* 첫 입장 애니메이션은 OS 의 '동작 줄이기' 와 무관하게 항상 재생 (사용자 요청) */
   if ('scrollRestoration' in history) history.scrollRestoration = 'manual';   /* 새로고침해도 항상 맨 위(00 챕터)에서 시작 */
@@ -127,7 +127,7 @@
     var ctx = canvas.getContext('2d'), shownOp = '';
     /* 3D 씬 (three.js, src/lib/homeScene.js): 로고 칸마다 픽셀 큐브 여러 개 + 실제 조명·부드러운 그림자. 2D 캔버스는 02 챕터 코드 조각만 그린다.
        WebGL2 가 안 되면(또는 ?flat2d=1) 예전 2D 큐브 렌더러가 그대로 돈다 */
-    var canvas3d = document.getElementById('scene3d'), S3D = null, scLand = 0, windDown = false, LV = [0, 0, 1];
+    var canvas3d = document.getElementById('scene3d'), S3D = null, scLand = 0, LV = [0, 0, 1];
     if (canvas3d && window.__createHomeScene && !/[?&]flat2d=1/.test(location.search)) {
       try { S3D = window.__createHomeScene({ canvas: canvas3d, cells: boxes.map(function(b){ return { gx: b.gx, gy: b.gy, h: b.h }; }), small: mqMob.matches || window.matchMedia('(pointer: coarse)').matches }); }
       catch (e) { console.warn('3D scene unavailable — 2D fallback', e); S3D = null; }
@@ -335,7 +335,7 @@
         S3D.setTargets(tp, td, now, snap3 || initial);
         if (initial) {
           for (var k4 = 0; k4 < N; k4++) { var b4 = boxes[k4]; b4.cur = { x: b4.to.x, y: b4.to.y, z: b4.to.z }; b4.from = null; b4.tl = now - 10; }   /* 코드 조각 자리 계산용 (첫 화면에선 안 보임) */
-          if (!introReduce) { var Fv = Math.min(W, H) * 1.45; scLand = S3D.intro(now, { left: -fr.cx * 72 / (Fv * fr.s), right: (W - fr.cx) * 72 / (Fv * fr.s) }).land; }
+          if (!introReduce) { var kv = 72 / (Math.min(W, H) * 1.45 * fr.s); scLand = S3D.intro(now, { k: kv, left: -fr.cx * kv, right: (W - fr.cx) * kv, top: fr.cy * kv, bottom: -(H - fr.cy) * kv }).land; }   /* 보이는 화면 (로고 좌표) */
         }
       }
     }
@@ -620,10 +620,9 @@
         CM[i * 2] = b.m; CM[i * 2 + 1] = b.pulse * 0.3;
         if (b.m > 0.001) ORDER[nFr++] = i;
       }
-      /* 빛: 커서가 있으면 커서 쪽에서, 없으면 예전처럼 천천히 돈다 (옛 좌표 → three: y·z 뒤집기) */
-      if (!(S3D.lightFromPointer(LV))) { LV[0] = L[0]; LV[1] = -L[1]; LV[2] = -L[2]; }
+      LV[0] = L[0]; LV[1] = -L[1]; LV[2] = -L[2];                                    /* 빛: 예전처럼 천천히 돈다 (옛 좌표 → three: y·z 뒤집기) */
       S3D.render({ t: t, dt: lastFrameT ? t - lastFrameT : 1 / 60, cx: OX, cy: OY, s: S, yaw: yaw, pitch: pitch, mode: g.mode, flat: g.flat, wall: g.wall, F: F, D: D,
-        cellFx: CFX, cellM: CM, light: LV, wind: introDone && active !== 2 && !play.on });
+        cellFx: CFX, cellM: CM, light: LV });
       lastFrameT = t;
       /* 02 챕터 코드 조각만 2D 로 (예전 투영 그대로) */
       var cy = Math.cos(yaw), sy = Math.sin(yaw), cp = Math.cos(pitch), sp = Math.sin(pitch);
@@ -647,11 +646,9 @@
     requestAnimationFrame(render);
 
     function evOK(e){ var el = e.target && e.target.nodeType === 1 ? e.target : null; return !(el && el.closest && el.closest('a, button, input, textarea, select, .cards')); }
-    var emptyAt = function(e){ var el = e.target && e.target.nodeType === 1 ? e.target : null; return !(el && el.closest && el.closest('p, h1, h2, h3, li, a, button, input, textarea, select, label, .cards, .wordmark, .site-header, .stack')); };
-    document.addEventListener('mousedown', function(e){ if (e.button !== 0 || !evOK(e)) return; if (dragStart(e.clientX, e.clientY)) { e.preventDefault(); document.body.style.cursor = 'grabbing'; return; }
-      if (S3D && !TOUCH && emptyAt(e)) { windDown = true; S3D.pointer(e.clientX, e.clientY, true); e.preventDefault(); } });   /* 빈 곳을 누른 채 끌면 큐브가 쓸렸다가 다시 모인다 */
-    document.addEventListener('mousemove', function(e){ if (S3D && !TOUCH) S3D.pointer(e.clientX, e.clientY, windDown); if (play.drag) { dragMove(e.clientX, e.clientY); return; } if (active === 2 && introDone && !TOUCH) document.body.style.cursor = codeAt(e.clientX, e.clientY) ? 'grab' : ''; });
-    document.addEventListener('mouseup', function(e){ if (windDown) { windDown = false; if (S3D) S3D.pointer(e.clientX, e.clientY, false); } if (play.drag) { dragEnd(); document.body.style.cursor = 'grab'; } });
+    document.addEventListener('mousedown', function(e){ if (e.button !== 0 || !evOK(e)) return; if (dragStart(e.clientX, e.clientY)) { e.preventDefault(); document.body.style.cursor = 'grabbing'; } });
+    document.addEventListener('mousemove', function(e){ if (play.drag) { dragMove(e.clientX, e.clientY); return; } if (active === 2 && introDone && !TOUCH) document.body.style.cursor = codeAt(e.clientX, e.clientY) ? 'grab' : ''; });
+    document.addEventListener('mouseup', function(){ if (play.drag) { dragEnd(); document.body.style.cursor = 'grab'; } });
     var playTouchMove = function(e){ if (!play.drag) return; var tt = e.touches[0]; dragMove(tt.clientX, tt.clientY); if (e.cancelable) e.preventDefault(); };
     var playTouchEnd = function(){ if (play.drag) dragEnd(); document.removeEventListener('touchmove', playTouchMove); document.removeEventListener('touchend', playTouchEnd); document.removeEventListener('touchcancel', playTouchEnd); };
     document.addEventListener('touchstart', function(e){ if (!evOK(e)) return; var tt = e.touches[0]; if (dragStart(tt.clientX, tt.clientY)) { document.addEventListener('touchmove', playTouchMove, { passive: false }); document.addEventListener('touchend', playTouchEnd, { passive: true }); document.addEventListener('touchcancel', playTouchEnd, { passive: true }); } }, { passive: true });   /* 끌 때만 non-passive 리스너 */
