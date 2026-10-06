@@ -1,7 +1,8 @@
 /* 메인 홈 3D 씬 (three.js) — 로고 픽셀 530칸을 각각 작은 픽셀 큐브 여러 개로 채운다.
-   · 첫 입장: 어둠 속 제자리에 있던 픽셀이, 아래에서 낮게 깔려 올라오는 따뜻한 불빛에 하나씩 솟으며 드러난다.
+   · 첫 입장: 어둠 속 로고(불꽃 모양) 안에서 불이 붙어 타오르고, 은빛 띠가 대각선으로 쓸고 지나가며 불이 꺼진 자리부터
+     은빛으로 반짝이는 픽셀 큐브가 되었다가 로고 색으로 식는다. 불 색은 Spectral.js(물감 혼합 Kubelka-Munk) 그러데이션.
      챕터가 바뀌면 큐브가 GPU 에서 힘으로 새 자리로 날아간다 (날 때만 기운다).
-   · 살아 있는 로고: 앞면에 닿는 빛이 픽셀마다 조금씩 기울어 일렁이는 잔물결 — 천천히 위로 흐른다 (칸 덩어리로 튀지 않는다).
+   · 살아 있는 로고: 칸 단위로 아주 느리게 오르내리는 부드러운 물결 (home.js — 이웃 칸이 함께 움직여 툭 튀지 않는다).
    · 색: 빛을 정면으로 받는 앞면 = 로고 파일 색 #A0A0A0 그대로. 그늘·옆면만 밝기가 달라진다.
    · 빛: 천천히 도는 키 라이트 + 하늘·바닥 반사광. 그림자는 빛에서 본 깊이 지도에서
      가리는 큐브를 찾아 거리만큼 번지게 하는 PCSS — 가까우면 또렷하고 멀면 퍼진다.
@@ -11,9 +12,10 @@
 import {
   WebGLRenderer, Scene, PerspectiveCamera, OrthographicCamera, BoxGeometry, InstancedBufferGeometry,
   InstancedBufferAttribute, Mesh, PlaneGeometry, ShaderMaterial, WebGLRenderTarget, DepthTexture, UnsignedIntType,
-  DataTexture, RGBAFormat, FloatType, HalfFloatType, NearestFilter, Vector2, Vector3, Matrix4, Euler
+  DataTexture, RGBAFormat, FloatType, HalfFloatType, NearestFilter, LinearFilter, Vector2, Vector3, Matrix4, Euler
 } from 'three';
 import { GPUComputationRenderer } from 'three/addons/misc/GPUComputationRenderer.js';
+import * as spectral from 'spectral.js/spectral.js';
 
 const NOISE = /* glsl */`
 vec4 permute(vec4 x){ return mod(((x * 34.0) + 1.0) * x, 289.0); }
@@ -98,17 +100,13 @@ vec3 outColor(vec3 c){ return pow(aces(c * 1.1), vec3(1.0 / 2.2)) + (ign(gl_Frag
 const CUBE_VS = /* glsl */`
 uniform sampler2D tPos, tVel, tCell;
 uniform mat4 uModel;
-uniform float uScale, uTime, uLive, uFront, uBand;
+uniform float uScale, uTime, uFront, uBand;
+uniform vec2 uDir;
 attribute vec4 aRef;   /* xy 시뮬레이션 uv · z 칸 u · w 깊이 AO */
 attribute vec4 aSize;  /* xyz 큐브 크기 · w 무작위 */
-attribute float aAppear;  /* 첫 입장: 빛이 지나가며 솟아오르는 시각 */
+attribute float aAppear;  /* 첫 입장: 은빛 띠가 지나가며 픽셀로 솟는 시각 */
 varying vec3 vN, vW, vBox;
-varying float vAo, vGlow, vSeed, vBandL, vRise;
-vec3 ripple(vec2 q, float t){                                                          /* 높이와 기울기: 서로 다른 방향의 잔물결 셋이 겹쳐 위로 천천히 흐른다 */
-  vec2 k1 = vec2(0.9, 1.3), k2 = vec2(-1.2, 0.9), k3 = vec2(0.35, 1.7);
-  float p1 = dot(k1, q) - t * 1.1, p2 = dot(k2, q) - t * 0.83 + 1.7, p3 = dot(k3, q) - t * 1.37 + 4.1;
-  return vec3(0.022 * sin(p1) + 0.02 * sin(p2) + 0.018 * sin(p3), 0.022 * cos(p1) * k1 + 0.02 * cos(p2) * k2 + 0.018 * cos(p3) * k3);
-}
+varying float vAo, vGlow, vSeed, vBandL, vRise, vSilver;
 mat3 rotAxis(vec3 a, float t){ float c = cos(t), s = sin(t), o = 1.0 - c;
   return mat3(c + a.x * a.x * o, a.y * a.x * o + a.z * s, a.z * a.x * o - a.y * s, a.x * a.y * o - a.z * s, c + a.y * a.y * o, a.z * a.y * o + a.x * s, a.x * a.z * o + a.y * s, a.y * a.z * o - a.x * s, c + a.z * a.z * o); }
 void main(){
@@ -116,16 +114,15 @@ void main(){
   vec4 C0 = texture2D(tCell, vec2(aRef.z, 0.25)), C1 = texture2D(tCell, vec2(aRef.z, 0.75));
   float s = aSize.w, tilt = clamp(length(V.xyz) * 0.04, 0.0, 1.0);                    /* 나는 동안만 기울고, 멈추면 반듯하게 */
   float u = clamp((uTime - aAppear) / 0.6, 0.0, 1.0), e = 1.0 - (1.0 - u) * (1.0 - u) * (1.0 - u), lit = step(aAppear, uTime);   /* 화면 면에서 납작하게 시작해 부드럽게 솟는다 */
-  vec3 rp = uLive > 0.001 ? ripple(P.xy, uTime) * uLive : vec3(0.0);
   vec3 ax = normalize(vec3(fract(s * 7.13), fract(s * 3.37), fract(s * 5.71)) - 0.5 + 1e-3);
   mat3 R = rotAxis(ax, tilt * ((s - 0.5) * 5.0 + sin(uTime * (1.5 + s * 2.5) + s * 40.0) * 1.2));
   vec3 grow = vec3(mix(0.8, 1.0, e), mix(0.8, 1.0, e), mix(0.04, 1.0, e)) * lit;
   vec3 local = R * (position * aSize.xyz * grow * (1.0 - C1.x));                       /* C1.x: 02 챕터에서 코드 조각으로 바뀌며 사라짐 */
-  vec4 w = uModel * vec4((vec3(P.xy, P.z * e) + C0.xyz + local) * uScale, 1.0);   /* 높이는 그대로 (이웃과 높이가 어긋나면 옆면이 긁힘처럼 비친다) */
-  vec3 nl = R * normal; if (normal.z > 0.5) nl = normalize(nl + vec3(-rp.y, -rp.z, 0.0) * 2.2);   /* 앞면에 닿는 빛이 물결 따라 일렁인다 */
-  vW = w.xyz; vN = mat3(uModel) * nl; vBox = position;
-  vAo = aRef.w; vGlow = C0.w; vSeed = s; vRise = smoothstep(0.0, 0.75, u) * lit;        /* 솟으며 어둠에서 서서히 밝아진다 */
-  float dy = (P.y - uFront) / 2.0; vBandL = uBand * exp(-dy * dy);                   /* 입장: 빛의 앞머리에 닿은 픽셀만 잠깐 더 밝다 */
+  vec4 w = uModel * vec4((vec3(P.xy, P.z * e) + C0.xyz + local) * uScale, 1.0);
+  vW = w.xyz; vN = mat3(uModel) * (R * normal); vBox = position;
+  vAo = aRef.w; vGlow = C0.w; vSeed = s; vRise = smoothstep(0.0, 0.4, u) * lit;
+  vSilver = lit * (1.0 - smoothstep(aAppear + 0.15, aAppear + 0.9, uTime));            /* 막 픽셀이 된 순간은 은빛, 곧 로고 색으로 식는다 */
+  float dd = (dot(P.xy, uDir) - uFront) / 1.6; vBandL = uBand * exp(-dd * dd);        /* 은빛 띠 바로 위 픽셀은 번쩍 */
   gl_Position = projectionMatrix * viewMatrix * w;
 }`;
 
@@ -133,7 +130,7 @@ const CUBE_FS = /* glsl */`
 uniform vec3 uAlb, uKey;
 uniform float uFlat, uNOff, uBias, uRef, uAmb;
 varying vec3 vN, vW, vBox;
-varying float vAo, vGlow, vSeed, vBandL, vRise;
+varying float vAo, vGlow, vSeed, vBandL, vRise, vSilver;
 ${LIGHT}
 void main(){
   vec3 n = normalize(vN);
@@ -142,13 +139,58 @@ void main(){
   float edge = smoothstep(0.8, 1.0, e2);
   float sh = pcss(vW + n * uNOff, uBias), ndl = max(dot(n, uL), 0.0);
   float hemi = uAmb * (0.6 + 0.4 * (n.y * 0.5 + 0.5)) * vAo;
-  float shade = (uLI * ndl * sh * spot(vW) * (1.0 + vBandL * 1.6) + hemi) / uRef * vRise;      /* 빛을 정면으로 받는 앞면 = 1 → 로고 파일 색 그대로 */
+  float shade = (uLI * ndl * sh * spot(vW) + hemi) / uRef * vRise;                       /* 빛을 정면으로 받는 앞면 = 1 → 로고 파일 색 그대로 */
   vec3 V = normalize(cameraPosition - vW), H = normalize(uL + V);
   float spec = pow(max(dot(n, H), 0.0), 80.0) * 0.08 * ndl * sh;
   vec3 col = uAlb * uLCol * shade * (0.98 + 0.04 * fract(vSeed * 13.71)) * (1.0 - 0.08 * edge) + spec * uLCol;
   col = mix(col, uKey * (1.0 + 0.4 * ndl), clamp(vGlow, 0.0, 0.85));                    /* 03 챕터 데이터 패킷 */
+  float met = pow(max(dot(n, H), 0.0), 18.0);                                            /* 은빛: 차가운 금속 반사 + 띠의 번쩍임 */
+  col = mix(col, vec3(0.62, 0.66, 0.72) * (0.5 + 1.8 * met * sh) * vRise + vec3(1.0) * vBandL * 1.4, clamp(vSilver * 0.9 + vBandL, 0.0, 1.0));
   vec3 c = pow(clamp(col, 0.0, 1.0), vec3(1.0 / 2.2)) + (ign(gl_FragCoord.xy + 17.0) - 0.5) / 255.0;
   gl_FragColor = vec4(mix(c, vec3(0.627), uFlat), 1.0);                                  /* 01 챕터: 모든 면을 로고 색 하나로 */
+}`;
+
+/* 첫 입장 불: 로고 면 바로 앞의 판 하나. 로고 모양(마스크)을 위로 번지게 늘려 불꽃 혀가 넘실대고,
+   위로 흐르는 난류(도메인 워프 fbm)로 타오른다. 온도 → 색은 Spectral.js 로 만든 그러데이션 텍스처 */
+const FIRE_VS = /* glsl */`
+uniform mat4 uModel;
+uniform float uScale;
+varying vec2 vP;
+void main(){
+  vP = position.xy + vec2(0.0, 3.5);
+  gl_Position = projectionMatrix * viewMatrix * uModel * vec4(vec3(vP, 2.4) * uScale, 1.0);
+}`;
+
+const FIRE_FS = /* glsl */`
+uniform sampler2D tMask, tLut;
+uniform float uTime, uIgnite, uFire, uBandD, uGlint;
+uniform vec2 uDir;
+varying vec2 vP;
+float h21(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+float vn(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(h21(i), h21(i + vec2(1.0, 0.0)), f.x), mix(h21(i + vec2(0.0, 1.0)), h21(i + 1.0), f.x), f.y); }
+float fbm(vec2 p){ float a = 0.5, s = 0.0; for (int i = 0; i < 5; i++) { s += a * vn(p); p = p * 2.03 + 17.1; a *= 0.5; } return s; }
+float mask(vec2 p){ vec2 uv = vec2((p.x + 17.0) / 32.0, (17.0 - p.y) / 34.0); return any(lessThan(uv, vec2(0.0))) || any(greaterThan(uv, vec2(1.0))) ? 0.0 : texture2D(tMask, uv).r; }   /* 밖은 0 (가장자리 값이 번지지 않게) */
+void main(){
+  vec2 p = vP; float t = uTime;
+  vec2 q = vec2(p.x * 0.17, p.y * 0.11 - t * 1.7);
+  float w = fbm(q * 1.6 + vec2(0.0, -t * 0.8));
+  float n = fbm(q + vec2(w * 1.3, w * 0.7));                                             /* 위로 흐르며 휘감기는 불꽃 결 */
+  vec2 pw = p + vec2((w - 0.5) * 2.4, 0.0);
+  float body = mask(pw);
+  float up = max(mask(pw - vec2(0.0, 1.7)) * 0.9, mask(pw - vec2((n - 0.5) * 2.4, 3.6)) * 0.65);
+  up = max(up, mask(pw - vec2((w - 0.5) * 3.0, 6.0)) * 0.4);                              /* 로고 위로 넘실대는 불꽃 혀 */
+  float shape = max(body, up * smoothstep(0.38, 0.78, n));
+  float ign = smoothstep(uIgnite + 1.5, uIgnite - 3.0, p.y + (n - 0.5) * 7.0);          /* 아래에서 붙어 위로 번진다 (경계도 불길처럼 들쭉날쭉) */
+  float d = dot(p, uDir), alive = smoothstep(uBandD - 0.3, uBandD + 1.4, d);              /* 은빛 띠가 지나간 자리는 꺼진다 */
+  float T = clamp((shape * (0.3 + 0.8 * n) * 1.1 - 0.12) * ign * alive * uFire, 0.0, 1.0);   /* 하얀 백열은 가장 뜨거운 곳에만 */
+  vec3 col = texture2D(tLut, vec2(T, 0.5)).rgb * smoothstep(0.03, 0.2, T);
+  float glow = 0.0;                                                                       /* 불 둘레로 번지는 주황 빛 */
+  for (int i = 0; i < 8; i++) { float a = float(i) * 0.785; glow += mask(p + vec2(cos(a), sin(a) * 1.3) * 2.6) + mask(p + vec2(cos(a + 0.4), sin(a + 0.4) * 1.3) * 5.0) * 0.6; }
+  col += vec3(0.55, 0.13, 0.02) * glow / 12.8 * ign * alive * uFire * (0.7 + 0.3 * n);
+  float gl = exp(-pow((d - uBandD) / 0.5, 2.0)) * clamp(body * 1.4 + up * 0.4, 0.0, 1.0) * uGlint;   /* 은빛 띠 */
+  col += vec3(0.88, 0.92, 1.0) * gl * 1.5;
+  float a = clamp(max(col.r, max(col.g, col.b)), 0.0, 1.0);
+  gl_FragColor = vec4(min(col, vec3(1.0)), a);                                            /* premultiplied */
 }`;
 
 const WALL_VS = /* glsl */`
@@ -232,13 +274,13 @@ export function createHomeScene({ canvas, cells, small }){
 
   const shadowRT = new WebGLRenderTarget(SM, SM, { depthTexture: new DepthTexture(SM, SM, UnsignedIntType) });
   const lightCam = new OrthographicCamera(-40, 40, 40, -40, 1, 200);
-  const L = new Vector3(-0.42, 0.62, 0.66).normalize(), Lt = new Vector3();
+  const L = new Vector3(-0.42, 0.62, 0.66).normalize(), Lt = new Vector3(), DIR = new Vector2(0.53, 0.85);   /* DIR: 은빛 띠가 쓸고 가는 방향 (왼쪽 아래 → 오른쪽 위) */
   const model = new Matrix4(), euler = new Euler(0, 0, 0, 'XYZ');
   const posTex = { value: null }, velTex = { value: null };
   const common = {
     tShadow: { value: shadowRT.depthTexture }, uLVP: { value: new Matrix4() }, uLRange: { value: 160 }, uSoft: { value: 0.09 }, uShadowW: { value: 80 },
     uTexel: { value: 1 / SM }, uLI: { value: 2.6 }, uPoolR: { value: 30 }, uMode: { value: 1 }, uL: { value: L }, uLCol: { value: new Vector3(1.0, 0.96, 0.9) },
-    uModel: { value: model }, uScale: { value: 1 }, uTime: { value: 0 }, uFlat: { value: 0 }, uLive: { value: 0 }
+    uModel: { value: model }, uScale: { value: 1 }, uTime: { value: 0 }, uFlat: { value: 0 }
   };
 
   const box = new BoxGeometry(1, 1, 1), geo = new InstancedBufferGeometry();
@@ -248,7 +290,7 @@ export function createHomeScene({ canvas, cells, small }){
   geo.instanceCount = n;
   const cubeMat = new ShaderMaterial({
     vertexShader: CUBE_VS, fragmentShader: CUBE_FS, defines: { NB: 8, NP: 12 },
-    uniforms: { ...common, tPos: posTex, tVel: velTex, tCell: { value: tCell }, uNOff: { value: 0.1 }, uBias: { value: 0.03 }, uFront: { value: -1e3 }, uBand: { value: 0 },
+    uniforms: { ...common, tPos: posTex, tVel: velTex, tCell: { value: tCell }, uNOff: { value: 0.1 }, uBias: { value: 0.03 }, uFront: { value: -1e3 }, uBand: { value: 0 }, uDir: { value: DIR },
       uAlb: { value: new Vector3(0.3567, 0.3567, 0.3567) }, uRef: { value: 2 }, uAmb: { value: 0.35 },   /* uAlb = #A0A0A0 (선형) */
       uKey: { value: new Vector3(0.905, 1.0, 0.087) } }
   });
@@ -258,9 +300,20 @@ export function createHomeScene({ canvas, cells, small }){
     uniforms: { ...common, uWallZ: { value: -5.5 }, uBiasW: { value: 0.05 } }
   });
   const wall = new Mesh(new PlaneGeometry(600, 400), wallMat); wall.frustumCulled = false; wall.renderOrder = -1;
-  const SWEEP0 = 0.15, SWEEP = 1.15, WARM = new Vector3(1.0, 0.74, 0.5), NEUTRAL = new Vector3(1, 1, 1), UNDER = new Vector3(0.1, -0.8, 0.55).normalize();
+  /* 입장 불: 로고 마스크(32×34) + Spectral.js 불 그러데이션 (검붉음 → 주황 → 노랑 → 백열) */
+  const mk = new Uint8Array(32 * 34 * 4);
+  cells.forEach(c => { const o = ((c.gy + 16.5) * 32 + (c.gx + 16.5)) * 4; mk[o] = mk[o + 1] = mk[o + 2] = mk[o + 3] = 255; });
+  const tMask = new DataTexture(mk, 32, 34, RGBAFormat); tMask.minFilter = tMask.magFilter = LinearFilter; tMask.needsUpdate = true;
+  const SC = h => new spectral.Color(h), STOPS = [[SC('#050000'), 0], [SC('#7a0c02'), 0.22], [SC('#e3420a'), 0.45], [SC('#ff9a1c'), 0.62], [SC('#ffd84a'), 0.8], [SC('#fff6dc'), 1]];
+  const lut = new Uint8Array(256 * 4);
+  for (let i = 0; i < 256; i++) { const hx = spectral.gradient(i / 255, ...STOPS).toString(); lut[i * 4] = parseInt(hx.slice(1, 3), 16); lut[i * 4 + 1] = parseInt(hx.slice(3, 5), 16); lut[i * 4 + 2] = parseInt(hx.slice(5, 7), 16); lut[i * 4 + 3] = 255; }
+  const tLut = new DataTexture(lut, 256, 1, RGBAFormat); tLut.minFilter = tLut.magFilter = LinearFilter; tLut.needsUpdate = true;
+  const fireMat = new ShaderMaterial({ vertexShader: FIRE_VS, fragmentShader: FIRE_FS, transparent: true, premultipliedAlpha: true, depthTest: false, depthWrite: false,
+    uniforms: { uModel: common.uModel, uScale: common.uScale, uTime: common.uTime, tMask: { value: tMask }, tLut: { value: tLut }, uIgnite: { value: -99 }, uFire: { value: 0 }, uBandD: { value: -99 }, uGlint: { value: 0 }, uDir: { value: DIR } } });
+  const fire = new Mesh(new PlaneGeometry(44, 50), fireMat); fire.frustumCulled = false; fire.renderOrder = 5; fire.visible = false;
+  const IGN = 0.12, BURN = 0.85, FLASH = 1.25, PASS = 0.5, NEUTRAL = new Vector3(1, 1, 1);   /* 불 붙음 → 다 번짐 → 은빛 띠 출발 → 띠가 지나가는 시간 (초) */
   let introS = null;
-  const scene = new Scene(); scene.add(wall, cubes);
+  const scene = new Scene(); scene.add(wall, cubes, fire);
   const depthMat = new ShaderMaterial({ vertexShader: DEPTH_VS, fragmentShader: 'void main(){ gl_FragColor = vec4(1.0); }', colorWrite: false,
     uniforms: { tPos: posTex, tVel: velTex, tCell: { value: tCell }, uModel: common.uModel, uScale: common.uScale, uTime: common.uTime } });
   const shadowCubes = new Mesh(geo, depthMat); shadowCubes.frustumCulled = false;
@@ -294,21 +347,17 @@ export function createHomeScene({ canvas, cells, small }){
       tA.needsUpdate = tB.needsUpdate = true;
       simUntil = Math.max(simUntil, t + Math.max(...delay) + 2.5);
     },
-    /* 첫 입장 — 빛으로 드러나는 로고: 픽셀은 처음부터 제자리에 있지만 어둠 속이라 보이지 않는다.
-       아래에서 낮게 깔린 따뜻한 불빛이 위로 쓸고 올라가고, 빛이 지나는 픽셀이 하나씩 화면 면에서 솟아 긴 그림자를 드리운다.
-       빛은 올라가며 정위치(천천히 도는 키 라이트)로 돌아가고 불빛 색은 중립색으로 식는다. 반환: land = 제목·헤더가 올라오는 시각 */
-    intro(t, v){
-      let y0 = 1e9, y1 = -1e9;
-      for (let i = 0; i < n; i++) { const y = bData[i * 4 + 1]; if (y < y0) y0 = y; if (y > y1) y1 = y; }
-      y0 -= 1.5; y1 += 1.5;
+    /* 첫 입장: 불이 아래에서 붙어 로고 전체로 타오른 뒤, 은빛 띠가 대각선으로 쓸고 가며 지나간 자리부터 픽셀 큐브로 솟는다.
+       큐브는 이미 제자리 (setTargets snap) — 솟는 시각만 정한다. 반환: land = 제목·헤더가 올라오는 시각 */
+    intro(t){
+      let y0 = 1e9, y1 = -1e9, d0 = 1e9, d1 = -1e9;
+      for (let i = 0; i < n; i++) { const x = bData[i * 4], y = bData[i * 4 + 1], d = x * DIR.x + y * DIR.y; if (y < y0) y0 = y; if (y > y1) y1 = y; if (d < d0) d0 = d; if (d > d1) d1 = d; }
       const ap = appear.array;
-      for (let i = 0; i < n; i++) {
-        const p = (bData[i * 4 + 1] - y0) / (y1 - y0);
-        ap[i] = t + SWEEP0 + SWEEP * Math.acos(1 - 2 * p) / Math.PI + rand() * 0.12;   /* 빛의 앞머리가 이 높이에 닿는 때 (+ 픽셀마다 살짝 다르게) */
-      }
+      for (let i = 0; i < n; i++) ap[i] = t + FLASH + PASS * ((bData[i * 4] * DIR.x + bData[i * 4 + 1] * DIR.y - d0) / (d1 - d0)) + rand() * 0.03;
       appear.needsUpdate = true;
-      introS = { t0: t, y0, y1 };
-      return { land: t + SWEEP0 + SWEEP * 0.9, end: t + SWEEP0 + SWEEP + 1 };
+      introS = { t0: t, y0: y0 - 2, y1: y1 + 8, d0: d0 - 1, d1: d1 + 1 };
+      fire.visible = true;
+      return { land: t + FLASH + PASS * 0.7, end: t + FLASH + PASS + 0.9 };
     },
     /* 매 프레임: st = g (cx·cy·s·yaw·pitch·mode·flat·wall) + 빛 방향, cellFx = 칸마다 [dx,dy,dz,glow] (옛 좌표), cellM = [사라짐, 반짝임] */
     render(st){
@@ -322,17 +371,18 @@ export function createHomeScene({ canvas, cells, small }){
       wallMat.uniforms.uWallZ.value = st.wall;
       common.uPoolR.value = 45 * st.s + 2000 * (1 - st.mode) * (1 - st.mode);
       Lt.set(st.light[0], st.light[1], st.light[2]).normalize();
-      common.uLI.value = 2.6; common.uLCol.value.copy(NEUTRAL); cubeMat.uniforms.uBand.value = 0; common.uLive.value = st.live || 0;
+      common.uLI.value = 2.6; common.uLCol.value.copy(NEUTRAL); cubeMat.uniforms.uBand.value = 0;
       if (introS) {
-        /* 입장: 빛의 앞머리가 아래에서 위로 (사인 가감속). 빛은 아래에서 스치는 불빛 → 정위치로 올라가며 식는다 */
-        const it = t - introS.t0, p = Math.min(1, Math.max(0, (it - SWEEP0) / SWEEP)), ez = (1 - Math.cos(Math.PI * p)) / 2;
-        const k = Math.min(1, Math.max(0, (it - 0.15) / (SWEEP0 + SWEEP + 0.5))), kk = k * k * (3 - 2 * k);
-        cubeMat.uniforms.uFront.value = introS.y0 + (introS.y1 - introS.y0) * ez; cubeMat.uniforms.uBand.value = 1 - p * p;
-        common.uLI.value = 2.6 * Math.min(1, it / 0.35);
-        Lt.lerpVectors(UNDER, Lt, kk).normalize(); common.uLCol.value.lerpVectors(WARM, NEUTRAL, kk);
-        if (it > SWEEP0 + SWEEP + 1) introS = null;
-        L.copy(Lt);
-      } else L.lerp(Lt, st.snapLight ? 1 : 1 - Math.exp(-dt * 3)).normalize();
+        const it = t - introS.t0, fu = fireMat.uniforms, ig = Math.min(1, Math.max(0, (it - IGN) / BURN)), fp = (it - FLASH) / PASS;
+        fu.uIgnite.value = introS.y0 + (introS.y1 - introS.y0) * (1 - (1 - ig) * (1 - ig));   /* 불길이 아래에서 위로 */
+        fu.uFire.value = Math.min(1, Math.max(0, (it - 0.05) / 0.25)) * (1 - Math.min(1, Math.max(0, (fp - 0.75) / 0.35)));   /* 띠가 끝나면 남은 불꽃 혀도 꺼진다 */
+        fu.uBandD.value = fp <= 0 ? -99 : introS.d0 + (introS.d1 - introS.d0) * Math.min(1, fp);
+        fu.uGlint.value = fp > 0 && fp < 1.15 ? 1 - Math.max(0, fp - 0.85) / 0.3 : 0;
+        cubeMat.uniforms.uFront.value = fu.uBandD.value; cubeMat.uniforms.uBand.value = fu.uGlint.value;
+        if (fp > 1.3) { fire.visible = false; }
+        if (fp > 3) introS = null;
+      }
+      L.lerp(Lt.set(st.light[0], st.light[1], st.light[2]).normalize(), st.snapLight ? 1 : 1 - Math.exp(-dt * 3)).normalize();
       /* 기준 밝기: 이 각도의 앞면이 빛을 받을 때 = 1 (로고 색 그대로) */
       const Lr = Lt.set(st.light[0], st.light[1], st.light[2]).normalize().clone(), fN = Lt.set(0, 0, 1).applyMatrix4(model), am = cubeMat.uniforms.uAmb.value;
       cubeMat.uniforms.uRef.value = 2.6 * Math.max(fN.dot(Lr), 0.25) + am * (0.6 + 0.4 * (fN.y * 0.5 + 0.5));   /* 쉬는 빛 기준 — 입장 중엔 어둑했다가 로고 색으로 */
@@ -364,7 +414,7 @@ export function createHomeScene({ canvas, cells, small }){
     },
     dispose(){
       gpu.dispose(); shadowRT.dispose(); tA.dispose(); tB.dispose(); tCell.dispose(); box.dispose(); geo.dispose();
-      cubeMat.dispose(); wallMat.dispose(); depthMat.dispose(); wall.geometry.dispose(); renderer.dispose();
+      cubeMat.dispose(); wallMat.dispose(); depthMat.dispose(); wall.geometry.dispose(); fireMat.dispose(); fire.geometry.dispose(); tMask.dispose(); tLut.dispose(); renderer.dispose();
     }
   };
 }

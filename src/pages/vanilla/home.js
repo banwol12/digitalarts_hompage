@@ -335,7 +335,7 @@
         S3D.setTargets(tp, td, now, snap3 || initial);
         if (initial) {
           for (var k4 = 0; k4 < N; k4++) { var b4 = boxes[k4]; b4.cur = { x: b4.to.x, y: b4.to.y, z: b4.to.z }; b4.from = null; b4.tl = now - 10; }   /* 코드 조각 자리 계산용 (첫 화면에선 안 보임) */
-          if (!introReduce) scLand = S3D.intro(now, { W: W, H: H, cx: fr.cx, cy: fr.cy, s: fr.s, F: Math.min(W, H) * 1.45, D: 72, pitch: c.pitch }).land;   /* 화면 격자가 타고 로고만 남는다 */
+          if (!introReduce) scLand = S3D.intro(now).land;                     /* 로고가 불타오른 뒤 은빛 띠에 픽셀로 바뀐다 */
         }
       }
     }
@@ -604,14 +604,15 @@
       requestAnimationFrame(render);
     }
     function renderSC(t, yaw, pitch, F, D, S, OX, OY, pal){
-      var hasFlow = g.flow > 0.01, nFr = 0, liveK = introDone ? Math.min(1, (t - introAt) / 1.5) : 0;
+      var hasFlow = g.flow > 0.01, nFr = 0, lv = g.live * (introDone ? Math.min(1, (t - introAt) / 1.5) : 0);
       for (var i = 0; i < N; i++) {
         var b = boxes[i], p = Math.max(0, Math.min(1, (t - b.t0) / b.dur));
         if (b.from && b.to) { var e = easeOut4(p), arc = Math.sin(Math.PI * e); b.cur.x = b.from.x + (b.to.x - b.from.x) * e + b.ax * arc; b.cur.y = b.from.y + (b.to.y - b.from.y) * e + b.ay * arc; b.cur.z = b.from.z + (b.to.z - b.from.z) * e + b.az * arc; b.m = b.mFrom + (b.mTo - b.mFrom) * e; }
-        /* 3D 의 살아 있는 움직임은 픽셀 단위 물결(셰이더). 칸 단위로는 03 필드의 물결과 데이터 패킷만 */
-        var bob = hasFlow ? Math.sin(t * 1.4 + b.fc * 0.35 + b.fr * 0.6) * 0.5 * g.flow : 0;
+        /* 살아 있는 로고: 칸마다 아주 느리게 오르내리는 부드러운 물결 — 짧은 파동 셋이 겹쳐 위로 흐르고 이웃 칸은 함께 움직인다 (툭 튀는 칸 없음) */
+        var bob = hasFlow ? Math.sin(t * 1.4 + b.fc * 0.35 + b.fr * 0.6) * 0.5 * g.flow : 0, lvz = 0;
+        if (lv > 0.001) lvz = lv * 0.06 * (Math.sin(b.gx * 0.4 + b.gy * 0.55 + t * 0.8) * 0.45 + Math.sin(-b.gx * 0.5 + b.gy * 0.35 + t * 0.6 + 1.7) * 0.35 + Math.sin(b.gx * 0.22 + b.gy * 0.75 + t * 1.0 + 4.2) * 0.2);
         b.pulse = 0;
-        CFX[i * 4] = 0; CFX[i * 4 + 1] = 0; CFX[i * 4 + 2] = bob; CFX[i * 4 + 3] = boost[i] * g.flow;
+        CFX[i * 4] = 0; CFX[i * 4 + 1] = 0; CFX[i * 4 + 2] = bob + lvz; CFX[i * 4 + 3] = boost[i] * g.flow;
         CM[i * 2] = b.m; CM[i * 2 + 1] = 0;
         if (b.m > 0.001) ORDER[nFr++] = i;
       }
@@ -619,7 +620,7 @@
       var fw = g.flow, fx3 = Math.sin(t * 0.2) * 0.08, fy3 = 0.71, fz3 = 0.71;
       LV[0] = L[0] + (fx3 - L[0]) * fw; LV[1] = -L[1] + (fy3 + L[1]) * fw; LV[2] = -L[2] + (fz3 + L[2]) * fw;
       S3D.render({ t: t, dt: lastFrameT ? t - lastFrameT : 1 / 60, cx: OX, cy: OY, s: S, yaw: yaw, pitch: pitch, mode: g.mode, flat: g.flat, wall: g.wall, F: F, D: D,
-        cellFx: CFX, cellM: CM, light: LV, live: g.live * liveK });
+        cellFx: CFX, cellM: CM, light: LV });
       lastFrameT = t;
       /* 02 챕터 코드 조각만 2D 로 (예전 투영 그대로) */
       var cy = Math.cos(yaw), sy = Math.sin(yaw), cp = Math.cos(pitch), sp = Math.sin(pitch);
