@@ -6,7 +6,6 @@ const PortfolioPage = lazy(() => import('./pages/PortfolioPage'));
 const SubmitPage = lazy(() => import('./pages/SubmitPage'));
 const AdminPage = lazy(() => import('./pages/AdminPage'));
 const CreditsPage = lazy(() => import('./pages/CreditsPage'));
-const LabSandPage = lazy(() => import('./pages/LabSandPage'));
 
 function LoadingFallback() {
   return (
@@ -45,7 +44,6 @@ export default function App() {
         <Route path="/admin.html" element={<AdminPage />} />
         <Route path="/credits" element={<CreditsPage />} />
         <Route path="/credits.html" element={<CreditsPage />} />
-        <Route path="/lab/sand" element={<LabSandPage />} />
         <Route path="*" element={<HomePage />} />
       </Routes>
     </Suspense>

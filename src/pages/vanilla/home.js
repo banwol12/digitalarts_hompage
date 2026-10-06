@@ -109,12 +109,12 @@
   };
   /* 챕터별 회전·동작 설정. 위치와 크기는 frameFor() 가 화면과 텍스트를 실측해 "빈 영역"에 맞춘다 */
   var CHAPTERS = [
-    { form: 'logo',  yaw: 0,    pitch: -0.08, sway: 0,    spin: 0,    morph: 0, flow: 0, live: 1,   sMax: 1.0,  sMin: 0.2,  fit: 0.9  },   /* sway 0: 첫 챕터는 카메라가 전혀 돌지 않는다 (인트로 끝에 흔들림이 시작되는 게 회전처럼 보였다) */
-    { form: 'logo',  yaw: -0.25, pitch: -0.06, sway: 0.10, spin: 0,   morph: 0, flow: 0, live: 0,   sMax: 0.85, sMin: 0.2,  fit: 0.9, flat: 1 },   /* live 0: 01 챕터는 픽셀이 숨쉬거나 튀어나오지 않는다 (사용자 2026-09-28) */
-    { form: 'burst', yaw: 0.15, pitch: -0.1,  sway: 0.20, spin: 0,    morph: 1, flow: 0, live: 0,   sMax: 0.85, sMin: 0.2,  fit: 0.86 },
-    { form: 'field', yaw: 0,    pitch: -1.1,  sway: 0.02, spin: 0,    morph: 0, flow: 1, live: 0,   sMax: 1.0,  sMin: 0.3,  fit: 0.9  },
-    { form: 'logo',  yaw: 0.1,  pitch: -0.1,  sway: 0.15, spin: 0,    morph: 0, flow: 0, live: 0.4, sMax: 1.0,  sMin: 0.18, fit: 0.92, alpha: 0.14 },
-    { form: 'logo',  yaw: 0,    pitch: -0.05, sway: 0.18, spin: 0,    morph: 0, flow: 0, live: 0.6, sMax: 0.6,  sMin: 0.18, fit: 0.9  }
+    { form: 'logo',  yaw: 0,    pitch: -0.08, sway: 0,    spin: 0,    morph: 0, flow: 0, live: 1,   sMax: 1.0,  sMin: 0.2,  fit: 0.9, wall: -5.5 },   /* sway 0: 첫 챕터는 카메라가 전혀 돌지 않는다 (인트로 끝에 흔들림이 시작되는 게 회전처럼 보였다) */
+    { form: 'logo',  yaw: -0.25, pitch: -0.06, sway: 0.10, spin: 0,   morph: 0, flow: 0, live: 0,   sMax: 0.85, sMin: 0.2,  fit: 0.9, flat: 1, wall: -5.5 },   /* live 0: 01 챕터는 픽셀이 숨쉬거나 튀어나오지 않는다 (사용자 2026-09-28) */
+    { form: 'burst', yaw: 0.15, pitch: -0.1,  sway: 0.20, spin: 0,    morph: 1, flow: 0, live: 0,   sMax: 0.85, sMin: 0.2,  fit: 0.86, wall: -16 },
+    { form: 'field', yaw: 0,    pitch: -1.1,  sway: 0.02, spin: 0,    morph: 0, flow: 1, live: 0,   sMax: 1.0,  sMin: 0.3,  fit: 0.9, wall: -2.6 },   /* 3D: 벽이 필드 바로 아래 바닥이 된다 */
+    { form: 'logo',  yaw: 0.1,  pitch: -0.1,  sway: 0.15, spin: 0,    morph: 0, flow: 0, live: 0.4, sMax: 1.0,  sMin: 0.18, fit: 0.92, alpha: 0.14, wall: -5.5 },
+    { form: 'logo',  yaw: 0,    pitch: -0.05, sway: 0.18, spin: 0,    morph: 0, flow: 0, live: 0.6, sMax: 0.6,  sMin: 0.18, fit: 0.9, wall: -5.5 }
   ];
   var VW = function(){ return document.documentElement.clientWidth || window.innerWidth; };
   var VH = function(){ return document.documentElement.clientHeight || window.innerHeight; };
@@ -125,6 +125,15 @@
 
   if (canvas && canvas.getContext) {
     var ctx = canvas.getContext('2d'), shownOp = '';
+    /* 3D 씬 (three.js, src/lib/homeScene.js): 로고 칸마다 픽셀 큐브 여러 개 + 실제 조명·부드러운 그림자. 2D 캔버스는 02 챕터 코드 조각만 그린다.
+       WebGL2 가 안 되면(또는 ?flat2d=1) 예전 2D 큐브 렌더러가 그대로 돈다 */
+    var canvas3d = document.getElementById('scene3d'), S3D = null, scLand = 0, windDown = false, LV = [0, 0, 1];
+    if (canvas3d && window.__createHomeScene && !/[?&]flat2d=1/.test(location.search)) {
+      try { S3D = window.__createHomeScene({ canvas: canvas3d, cells: boxes.map(function(b){ return { gx: b.gx, gy: b.gy, h: b.h }; }), small: mqMob.matches || window.matchMedia('(pointer: coarse)').matches }); }
+      catch (e) { console.warn('3D scene unavailable — 2D fallback', e); S3D = null; }
+    }
+    if (!S3D && canvas3d) canvas3d.remove();
+    var CFX = new Float32Array(N * 4), CM = new Float32Array(N * 2), lastFrameT = 0;
     var HS = 0.5;                                                      /* 큐브 반폭: 0.47 이면 이웃 사이에 틈이 생겨 흰 격자 줄로 보였다 (사용자 2026-09-28) → 딱 붙게 */
     /* 프레임마다 다시 만들지 않는 버퍼: 꼭짓점·면 조명·정렬 순서·상자 기록 */
     var PX = new Float32Array(8), PY = new Float32Array(8), RX = new Float32Array(8), RY = new Float32Array(8), RZ = new Float32Array(8);
@@ -161,6 +170,7 @@
       var cw = Math.round(W * DPR), ch = Math.round(H * DPR);
       if (canvas.width !== cw || canvas.height !== ch) { canvas.width = cw; canvas.height = ch; lastFont = null; }   /* 캔버스를 새로 만들면 글꼴 설정도 풀린다 */
       canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
+      if (S3D) S3D.resize(W, H, Math.min(DPR, 2, Math.sqrt(4.2e6 / (W * H))));
       var sh = document.querySelector('.chapter .shell');
       if (sh) { var cs = getComputedStyle(sh); SHELL = sh.clientWidth - (parseFloat(cs.paddingLeft) || 0) - (parseFloat(cs.paddingRight) || 0); }
       if (!sh || SHELL < 200) SHELL = W;
@@ -234,7 +244,7 @@
     }
 
     var f0 = frameFor(0), c0 = CHAPTERS[0];
-    var g = { cx: f0.cx, cy: f0.cy, s: f0.s, yaw: c0.yaw, pitch: c0.pitch, sway: c0.sway, spin: c0.spin, mode: 1, flow: 0, live: c0.live, alpha: 1, flat: 0 };
+    var g = { cx: f0.cx, cy: f0.cy, s: f0.s, yaw: c0.yaw, pitch: c0.pitch, sway: c0.sway, spin: c0.spin, mode: 1, flow: 0, live: c0.live, alpha: 1, flat: 0, wall: c0.wall };
     var gFrom = null, gTo = null, gT0 = 0, gDur = 0.9;
     var active = 0, start = performance.now(), lastSpin = 0, spinAcc = 0;
 
@@ -288,7 +298,7 @@
       var shx = fr.cx - g.cx, shy = fr.cy - g.cy, shl = Math.sqrt(shx * shx + shy * shy), dvx = shl > 40 ? shx / shl : 0, dvy = shl > 40 ? shy / shl : 0;
       var keys = [], kMin = 1e9, kMax = -1e9;
       for (var k0 = 0; k0 < N; k0++) { var c0b = boxes[k0].cur, kv = (dvx || dvy) ? -(c0b.x * dvx + c0b.y * dvy) : Math.sqrt(c0b.x * c0b.x + c0b.y * c0b.y); keys.push(kv); if (kv < kMin) kMin = kv; if (kv > kMax) kMax = kv; }
-      if (initial && !introReduce) buildGrid(fr, c, now);
+      if (initial && !introReduce && !S3D) buildGrid(fr, c, now);
       if (instant) grid = null;
       for (var k = 0; k < N; k++) {
         var b = boxes[k], t = fn(b, k), fd;
@@ -312,15 +322,26 @@
         if ((initial ? introReduce : reduce) || instant) { b.cur = { x: t.x, y: t.y, z: t.z }; b.m = c.morph; b.t0 = now - 10; b.tw = now - 10; b.tl = now - 10; b.sa = 0; b.ax = b.ay = b.az = 0; }
         if (b.tl + 0.5 * PACE > flightEnd) flightEnd = b.tl + 0.5 * PACE;
       }
-      gFrom = { cx: g.cx, cy: g.cy, s: g.s, yaw: g.yaw, pitch: g.pitch, sway: g.sway, spin: g.spin, mode: g.mode, flow: g.flow, live: g.live, alpha: g.alpha, flat: g.flat };
-      gTo = { cx: fr.cx, cy: fr.cy, s: fr.s, yaw: c.yaw, pitch: c.pitch, sway: c.sway, spin: c.spin, mode: chapters[i].getAttribute('data-mode') === 'ink' ? 1 : 0, flow: c.flow, live: c.live || 0, alpha: (MOBILE() || c.alpha === undefined) ? 1 : c.alpha, flat: c.flat || 0 };
+      gFrom = { cx: g.cx, cy: g.cy, s: g.s, yaw: g.yaw, pitch: g.pitch, sway: g.sway, spin: g.spin, mode: g.mode, flow: g.flow, live: g.live, alpha: g.alpha, flat: g.flat, wall: g.wall };
+      gTo = { cx: fr.cx, cy: fr.cy, s: fr.s, yaw: c.yaw, pitch: c.pitch, sway: c.sway, spin: c.spin, mode: chapters[i].getAttribute('data-mode') === 'ink' ? 1 : 0, flow: c.flow, live: c.live || 0, alpha: (MOBILE() || c.alpha === undefined) ? 1 : c.alpha, flat: c.flat || 0, wall: c.wall };
       gFrom.yaw = g.yaw + spinAcc; spinAcc = 0;
       var dyaw = gTo.yaw - gFrom.yaw; dyaw = Math.atan2(Math.sin(dyaw), Math.cos(dyaw)); gFrom.yaw = gTo.yaw - dyaw;
       gT0 = now; gDur = (initial || reduce || instant) ? 0.01 : 0.8 * PACE;                     /* 카메라(위치·크기·각도): 스크롤과 함께 바로 출발 */
       if (initial && !introReduce) { gFrom.yaw = c.yaw; gFrom.pitch = c.pitch; gFrom.sway = 0; gFrom.s = fr.s; gT0 = now + 0.6 * IK; gDur = 1.2 * IK; }   /* 카메라 회전 없음 (사용자 요청): 처음부터 정면, 흔들림만 서서히 */
+      if (S3D) {
+        /* 3D: 칸 목표와 출발 지연을 넘기면 큐브들이 힘으로 날아간다. 첫 입장은 모래 줄기 (화면 왼쪽 밖 → 왼쪽부터 쌓임) */
+        var tp = new Float32Array(N * 3), td = new Float32Array(N), snap3 = (initial ? introReduce : reduce) || !!instant;
+        for (var k3 = 0; k3 < N; k3++) { var b3 = boxes[k3]; tp[k3 * 3] = b3.to.x; tp[k3 * 3 + 1] = b3.to.y; tp[k3 * 3 + 2] = b3.to.z; td[k3] = initial ? 0 : Math.max(0, b3.t0 - now); }
+        S3D.setTargets(tp, td, now, snap3 || initial);
+        if (initial) {
+          for (var k4 = 0; k4 < N; k4++) { var b4 = boxes[k4]; b4.cur = { x: b4.to.x, y: b4.to.y, z: b4.to.z }; b4.from = null; b4.tl = now - 10; }   /* 코드 조각 자리 계산용 (첫 화면에선 안 보임) */
+          if (!introReduce) { var Fv = Math.min(W, H) * 1.45; scLand = S3D.intro(now, { left: -fr.cx * 72 / (Fv * fr.s), right: (W - fr.cx) * 72 / (Fv * fr.s) }).land; }
+        }
+      }
     }
     setFormation(0, true);
-    var introDone = false, INTRO_T = 1.55 * IK, sceneT = 0, introAt = 0;   /* 1.3초: 제목·헤더가 올라오기 시작 (바깥 로고 픽셀이 닿는 1.6초와 겹쳐 1.9초에 모두 끝난다) */
+    var introDone = false, INTRO_T = 1.55 * IK, sceneT = 0, introAt = 0;
+    if (S3D && scLand) INTRO_T = scLand;                                    /* 3D: 모래가 대부분 내려앉을 때 제목·헤더가 올라온다 */   /* 1.3초: 제목·헤더가 올라오기 시작 (바깥 로고 픽셀이 닿는 1.6초와 겹쳐 1.9초에 모두 끝난다) */
     /* ── 이스터에그: 02 챕터의 코드 조각을 마우스·손가락으로 잡아 던지면 얼마쯤 날아갔다가 스프링처럼 제자리로 돌아온다.
        점수나 안내 없이 숨어 있다 (조각 위에서 커서가 손 모양으로 바뀌는 것만 힌트) ── */
     var play = { on: false, drag: null, last: 0, trail: [], gx: 0, gy: 0 };
@@ -426,6 +447,7 @@
     var PERF = /[?&]perf=1/.test(location.search), perfLog = [], lastDraw = 0;
     if (PERF) window.__perf = perfLog;
     function render(now){
+      if (!canvas.isConnected) { if (S3D) { S3D.dispose(); S3D = null; } return; }   /* 다른 페이지로 가면 멈춘다 */
       var p0 = PERF ? performance.now() : 0;
       var t = (now - start) / 1000; sceneT = t;
       var busy = !!(gFrom && gTo) || !introDone || t < flightEnd;
@@ -452,9 +474,10 @@
       var pal = { dark: mix(PAL_PAPER.dark, PAL_INK.dark, g.mode), mid: mix(PAL_PAPER.mid, PAL_INK.mid, g.mode), light: mix(PAL_PAPER.light, PAL_INK.light, g.mode), sky: mix(PAL_PAPER.sky, PAL_INK.sky, g.mode), fog: mix(PAL_PAPER.fog, PAL_INK.fog, g.mode) };
       /* 반투명 워터마크 챕터: 로고는 불투명하게 그리고 투명도는 캔버스 자체(CSS opacity)에 준다 — 겹침 얼룩이 없고 합성은 브라우저가 공짜로 한다.
          (전에는 오프스크린 캔버스에 그린 뒤 화면 전체를 매 프레임 다시 합성해 데스크톱에서 프레임이 떨어졌다. 그 캔버스 한 장 몫의 메모리도 뺐다) */
-      var op = g.alpha < 0.999 ? g.alpha.toFixed(3) : ''; if (op !== shownOp) { shownOp = op; canvas.style.opacity = op; }
+      var op = g.alpha < 0.999 ? g.alpha.toFixed(3) : ''; if (op !== shownOp) { shownOp = op; canvas.style.opacity = op; if (S3D) canvas3d.style.opacity = op; }
       ctx.setTransform(DPR, 0, 0, DPR, 0, 0); ctx.clearRect(0, 0, W, H);
 
+      if (S3D) renderSC(t, yaw, pitch, F, D, S, OX, OY, pal); else {
       /* 프레임 상수: 면 6개의 회전된 법선과 조명은 모든 상자에 같다 → 한 번만 계산 (전에는 상자마다 6번, 3,000번 넘게 반복) */
       for (var f0 = 0; f0 < 6; f0++) {
         var fnn = FACES[f0].n, fnx1 = fnn[0] * cy + fnn[2] * sy, fnz1 = -fnn[0] * sy + fnn[2] * cy, fny2 = fnn[1] * cp - fnz1 * sp, fnz2 = fnn[1] * sp + fnz1 * cp;
@@ -574,10 +597,41 @@
         }
         if (m > 0.001) { bx.drawK = k2; drawFragment(bx, X + (bx.ox || 0), Y + (bx.oy || 0), sz, null, it.a * m, pal); lastStyle = null; }
       }
+      }
       ctx.globalAlpha = 1;
       if (PERF) { perfLog.push(+(performance.now() - p0).toFixed(2)); if (perfLog.length > 600) perfLog.shift(); }   /* 검수용: 최근 600 프레임의 그리기 비용(ms) */
       if (!introDone && t > INTRO_T) introFinish();
       requestAnimationFrame(render);
+    }
+    function renderSC(t, yaw, pitch, F, D, S, OX, OY, pal){
+      var hasLive = g.live > 0.01, hasFlow = g.flow > 0.01, nFr = 0;
+      for (var i = 0; i < N; i++) {
+        var b = boxes[i], p = Math.max(0, Math.min(1, (t - b.t0) / b.dur));
+        if (b.from && b.to) { var e = easeOut4(p), arc = Math.sin(Math.PI * e); b.cur.x = b.from.x + (b.to.x - b.from.x) * e + b.ax * arc; b.cur.y = b.from.y + (b.to.y - b.from.y) * e + b.ay * arc; b.cur.z = b.from.z + (b.to.z - b.from.z) * e + b.az * arc; b.m = b.mFrom + (b.mTo - b.mFrom) * e; }
+        var lx = 0, ly = 0, lz = 0, bob = hasFlow ? Math.sin(t * 1.4 + b.fc * 0.35 + b.fr * 0.6) * 0.5 * g.flow : 0;
+        b.pulse = 0;
+        if (hasLive) {
+          var lv = g.live, liveK = introDone ? Math.min(1, (t - introAt) / 1.5) : 0;
+          lz += Math.sin(t * b.bw + b.seed * 6.283) * 0.025 * lv; lx += Math.sin(t * 0.455 + b.seed2 * 6.283) * 0.018 * lv; ly += Math.cos(t * 0.52 + b.seed * 6.283) * 0.018 * lv;
+          var ph = ((t + b.po) % b.pp) / b.pp;
+          if (ph < 0.1) { var bump = Math.sin(Math.PI * ph / 0.1); b.pulse = bump * bump * lv * liveK; lz -= b.pulse * 0.3; }
+        }
+        CFX[i * 4] = lx; CFX[i * 4 + 1] = ly; CFX[i * 4 + 2] = lz + bob; CFX[i * 4 + 3] = boost[i] * g.flow;
+        CM[i * 2] = b.m; CM[i * 2 + 1] = b.pulse * 0.3;
+        if (b.m > 0.001) ORDER[nFr++] = i;
+      }
+      /* 빛: 커서가 있으면 커서 쪽에서, 없으면 예전처럼 천천히 돈다 (옛 좌표 → three: y·z 뒤집기) */
+      if (!(S3D.lightFromPointer(LV))) { LV[0] = L[0]; LV[1] = -L[1]; LV[2] = -L[2]; }
+      S3D.render({ t: t, dt: lastFrameT ? t - lastFrameT : 1 / 60, cx: OX, cy: OY, s: S, yaw: yaw, pitch: pitch, mode: g.mode, flat: g.flat, wall: g.wall, F: F, D: D,
+        cellFx: CFX, cellM: CM, light: LV, wind: introDone && active !== 2 && !play.on });
+      lastFrameT = t;
+      /* 02 챕터 코드 조각만 2D 로 (예전 투영 그대로) */
+      var cy = Math.cos(yaw), sy = Math.sin(yaw), cp = Math.cos(pitch), sp = Math.sin(pitch);
+      for (var k = 0; k < nFr; k++) {
+        var bx = boxes[ORDER[k]], px = bx.cur.x * S, py = bx.cur.y * S, pz = bx.cur.z * S;
+        var cx0 = px * cy + pz * sy, cz0 = -px * sy + pz * cy, cy0 = py * cp - cz0 * sp, cz1 = py * sp + cz0 * cp, scC = F / (cz1 + D);
+        bx.drawK = k; drawFragment(bx, OX + cx0 * scC + (bx.ox || 0), OY + cy0 * scC + (bx.oy || 0), HS * S * scC, null, bx.m, pal);
+      }
     }
     function introFinish(){
       if (introDone) return;
@@ -593,9 +647,11 @@
     requestAnimationFrame(render);
 
     function evOK(e){ var el = e.target && e.target.nodeType === 1 ? e.target : null; return !(el && el.closest && el.closest('a, button, input, textarea, select, .cards')); }
-    document.addEventListener('mousedown', function(e){ if (e.button !== 0 || !evOK(e)) return; if (dragStart(e.clientX, e.clientY)) { e.preventDefault(); document.body.style.cursor = 'grabbing'; } });
-    document.addEventListener('mousemove', function(e){ if (play.drag) { dragMove(e.clientX, e.clientY); return; } if (active === 2 && introDone && !TOUCH) document.body.style.cursor = codeAt(e.clientX, e.clientY) ? 'grab' : ''; });
-    document.addEventListener('mouseup', function(){ if (play.drag) { dragEnd(); document.body.style.cursor = 'grab'; } });
+    var emptyAt = function(e){ var el = e.target && e.target.nodeType === 1 ? e.target : null; return !(el && el.closest && el.closest('p, h1, h2, h3, li, a, button, input, textarea, select, label, .cards, .wordmark, .site-header, .stack')); };
+    document.addEventListener('mousedown', function(e){ if (e.button !== 0 || !evOK(e)) return; if (dragStart(e.clientX, e.clientY)) { e.preventDefault(); document.body.style.cursor = 'grabbing'; return; }
+      if (S3D && !TOUCH && emptyAt(e)) { windDown = true; S3D.pointer(e.clientX, e.clientY, true); e.preventDefault(); } });   /* 빈 곳을 누른 채 끌면 큐브가 쓸렸다가 다시 모인다 */
+    document.addEventListener('mousemove', function(e){ if (S3D && !TOUCH) S3D.pointer(e.clientX, e.clientY, windDown); if (play.drag) { dragMove(e.clientX, e.clientY); return; } if (active === 2 && introDone && !TOUCH) document.body.style.cursor = codeAt(e.clientX, e.clientY) ? 'grab' : ''; });
+    document.addEventListener('mouseup', function(e){ if (windDown) { windDown = false; if (S3D) S3D.pointer(e.clientX, e.clientY, false); } if (play.drag) { dragEnd(); document.body.style.cursor = 'grab'; } });
     var playTouchMove = function(e){ if (!play.drag) return; var tt = e.touches[0]; dragMove(tt.clientX, tt.clientY); if (e.cancelable) e.preventDefault(); };
     var playTouchEnd = function(){ if (play.drag) dragEnd(); document.removeEventListener('touchmove', playTouchMove); document.removeEventListener('touchend', playTouchEnd); document.removeEventListener('touchcancel', playTouchEnd); };
     document.addEventListener('touchstart', function(e){ if (!evOK(e)) return; var tt = e.touches[0]; if (dragStart(tt.clientX, tt.clientY)) { document.addEventListener('touchmove', playTouchMove, { passive: false }); document.addEventListener('touchend', playTouchEnd, { passive: true }); document.addEventListener('touchcancel', playTouchEnd, { passive: true }); } }, { passive: true });   /* 끌 때만 non-passive 리스너 */

@@ -4,6 +4,7 @@ import HOME_MARKUP from './vanilla/home.html?raw';
 import HOME_SCRIPT from './vanilla/home.js?raw';
 import { useVanillaPage } from './vanilla/useVanillaPage';
 import { installAnime } from '../lib/anime';
+import { createHomeScene } from '../lib/homeScene';
 
 /* 홈 — 정적 판 index.html 의 CSS·마크업·스크립트 그대로 (./vanilla/home.*, 사용자 디자인).
    인트로 동안 헤더를 숨기는 booting 클래스는 스크립트가 인트로를 마치면(1.3초) 풀고, 스크립트가 못 돌면 3초 뒤에 푼다 */
@@ -12,7 +13,9 @@ function setup() {
   root.classList.add('cs-inverse', 'booting');
   const timer = setTimeout(() => root.classList.remove('booting'), 3000);
   installAnime();
+  window.__createHomeScene = createHomeScene;                        /* home.js 가 3D 씬을 만든다 (three.js 는 모듈이라 전역으로 넘긴다) */
   return () => {
+    delete window.__createHomeScene;
     clearTimeout(timer);
     root.classList.remove('cs-inverse', 'booting', 'js', 'touch-paging');
   };
