@@ -619,7 +619,7 @@
       /* 빛: 예전처럼 천천히 돈다 (옛 좌표 → three: y·z 뒤집기). 03 필드(g.flow)는 정면과 위 사이 45° 대각선에서 — 막대가 오르내리는 게 명암·그림자로 보인다 */
       var fw = g.flow, fx3 = Math.sin(t * 0.2) * 0.08, fy3 = 0.71, fz3 = 0.71, hd = g.head;   /* 00 은 빛이 카메라 위치에서 (g.head) */
       LV[0] = L[0] + (fx3 - L[0]) * fw; LV[1] = -L[1] + (fy3 + L[1]) * fw; LV[2] = -L[2] + (fz3 + L[2]) * fw;
-      LV[0] *= 1 - hd; LV[1] *= 1 - hd; LV[2] += (1 - LV[2]) * hd;
+      LV[0] += (-0.27 - LV[0]) * hd; LV[1] += (0.38 - LV[1]) * hd; LV[2] += (0.88 - LV[2]) * hd;   /* 카메라에 달린 조명: 렌즈 약간 위·왼쪽 */
       S3D.render({ t: t, dt: lastFrameT ? t - lastFrameT : 1 / 60, cx: OX, cy: OY, s: S, yaw: yaw, pitch: pitch, mode: g.mode, flat: g.flat, wall: g.wall, F: F, D: D,
         cellFx: CFX, cellM: CM, light: LV, head: g.head });
       lastFrameT = t;
