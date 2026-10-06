@@ -630,9 +630,58 @@
         bx.drawK = k; drawFragment(bx, OX + cx0 * scC + (bx.ox || 0), OY + cy0 * scC + (bx.oy || 0), HS * S * scC, null, bx.m, pal);
       }
     }
+    /* ── 블롭 트래킹 (Originkit 'Vector Wordmark' 에서 추적 박스만 차용): 제목 위를 네모 셋이 0.2초마다 가까운 격자 칸으로 착착 옮겨 가며 훑고,
+       점선 삼각형으로 이어지며 좌표 라벨이 붙는다. 첫 챕터에서 입장이 끝난 뒤에만, 동작 줄이기면 멈춘 채 ── */
+    var trk = (function(){
+      var wm = document.querySelector('.intro .wordmark'), title = wm && wm.querySelector('.intro-title');
+      if (!wm || !title || STATIC) return null;
+      var NS = 'http://www.w3.org/2000/svg', el = document.createElement('div'), svg = document.createElementNS(NS, 'svg'), R = [], Ln = [], Lb = [];
+      el.className = 'trk'; el.setAttribute('aria-hidden', 'true'); el.appendChild(svg);
+      for (var i = 0; i < 3; i++) { Ln.push(svg.appendChild(document.createElementNS(NS, 'line'))); }
+      for (var j = 0; j < 3; j++) { R.push(svg.appendChild(document.createElementNS(NS, 'rect'))); Lb.push(el.appendChild(document.createElement('span'))); }
+      wm.appendChild(el);
+      var M = { l: 0, w: 1, t: 0, h: 1, y: 0, size: 40 }, cells = [{ x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }], tx = -0.5, clk = 1, drift = 0, last = 0, raf = 0, on = false;
+      function measure(){                                                                /* 제목 글자 상자 (워드마크 기준 px) — 훑는 범위·좌표의 기준 */
+        var wr = wm.getBoundingClientRect(), tr = title.getBoundingClientRect();          /* 제목 상자 (글자가 올라오는 중에도 크기가 그대로) */
+        M.l = tr.left - wr.left; M.w = tr.width || 1; M.t = tr.top - wr.top; M.h = tr.height || 1; M.y = M.t + M.h * 0.55; M.size = Math.max(26, M.h * 0.62);
+      }
+      function snap(x, y, cw, ch){
+        var cx = Math.floor(x / cw), cy = Math.floor(y / ch), f = [];
+        for (var a = -1; a <= 1; a++) for (var b = -1; b <= 1; b++) { var px = (cx + a + 0.5) * cw, py = (cy + b + 0.5) * ch; f.push({ x: px, y: py, d: Math.hypot(px - x, py - y) }); }
+        f.sort(function(p, q){ return p.d - q.d; });
+        for (var k = 0; k < 3; k++) { cells[k].x = f[k + 1].x; cells[k].y = f[k + 1].y; }   /* 가장 가까운 칸은 비우고 그 다음 셋 */
+      }
+      function draw(dt){
+        var cw = M.size * 1.55, ch = cw * 0.6, hs = M.size / 2, V = [];
+        tx += dt * 0.4; if (tx > 1.15) tx = -0.15;                                        /* 제목 글자 폭을 약 3초에 한 번 왼쪽 → 오른쪽 */
+        clk += dt; if (clk >= 0.2) { clk = 0; snap(M.l + tx * M.w, M.y, cw, ch); }
+        drift += dt;
+        for (var k = 0; k < 3; k++) {
+          var c = cells[k], h1 = Math.abs(Math.sin(c.x * 127.1 + c.y * 311.7) * 43758.5453) % 1, h2 = Math.abs(Math.sin(c.x * 269.5 + c.y * 183.3) * 43758.5453) % 1;
+          var x = c.x + 0.08 * cw * Math.sin(drift * 1.3 + h1 * 6.283), y = c.y + 0.04 * ch * Math.sin(drift * 1.69 + h2 * 6.283);
+          V.push([x, y]);
+          R[k].setAttribute('x', (x - hs).toFixed(1)); R[k].setAttribute('y', (y - hs).toFixed(1)); R[k].setAttribute('width', M.size.toFixed(1)); R[k].setAttribute('height', M.size.toFixed(1));
+          Lb[k].style.transform = 'translate(' + (x - hs).toFixed(1) + 'px,' + (y - hs).toFixed(1) + 'px)';
+          Lb[k].textContent = Math.round(Math.max(0, Math.min(100, (x - M.l) / M.w * 100))) + ', ' + Math.round(Math.max(0, Math.min(100, 100 - (y - M.t) / M.h * 100)));
+        }
+        for (var q = 0; q < 3; q++) { var a1 = V[q], a2 = V[(q + 1) % 3]; Ln[q].setAttribute('x1', a1[0].toFixed(1)); Ln[q].setAttribute('y1', a1[1].toFixed(1)); Ln[q].setAttribute('x2', a2[0].toFixed(1)); Ln[q].setAttribute('y2', a2[1].toFixed(1)); }
+      }
+      function frame(now){ raf = 0; if (!on || !el.isConnected) return; var dt = last ? Math.min(0.1, (now - last) / 1000) : 0; last = now; draw(dt); raf = requestAnimationFrame(frame); }
+      return {
+        show: function(v){
+          if (v === on) return; on = v; el.classList.toggle('on', v);
+          if (!v) return;
+          measure(); last = 0;
+          if (reduce) { tx = 0.5; clk = 1; draw(0); return; }                             /* 동작 줄이기: 제목 가운데에 멈춘 채 */
+          if (!raf) raf = requestAnimationFrame(frame);
+        },
+        measure: measure
+      };
+    })();
     function introFinish(){
       if (introDone) return;
       introDone = true; introAt = sceneT; revealWordmark(); document.documentElement.classList.remove('booting');
+      if (trk && active === 0) setTimeout(function(){ if (active === 0) trk.show(true); }, 450);   /* 제목이 올라온 뒤 추적 박스 */
       window.removeEventListener('wheel', lockWheel); window.removeEventListener('keydown', lockKeys);   /* 이제부터 스크롤은 브라우저가 알아서 (JS 를 기다리지 않는다) */
       if (pendingHash !== null) { var ph = pendingHash; pendingHash = null; setTimeout(function(){ goTo(ph); }, 450); }   /* #c3 같은 주소로 들어와도 인트로를 본 뒤에 그 챕터로 */
     }
@@ -736,6 +785,7 @@
       links.forEach(function(a){ var on = parseInt(a.getAttribute('data-ch'), 10) === i; a.classList.toggle('is-active', on); if (on) a.setAttribute('aria-current', 'true'); else a.removeAttribute('aria-current'); if (on && a.parentNode && a.parentNode.classList.contains('subnav')) { var pn = a.parentNode; pn.scrollTo({ left: a.offsetLeft - pn.clientWidth / 2 + a.offsetWidth / 2, behavior: 'smooth' }); } });
       body.classList.toggle('cs-inverse', chapters[i].getAttribute('data-mode') === 'ink');
       setFormation(i, false);
+      if (trk) trk.show(i === 0 && introDone);
       if (prev !== i) motionExit(prev);
       motionEnter(i, i >= prev ? 1 : -1);
       moveInd(i);
@@ -804,7 +854,7 @@
       document.addEventListener('touchcancel', tEnd, { passive: true });
       if (STATIC) window.__paging = { goTo: goTo };
     }
-    window.addEventListener('resize', function(){ resize(); setFormation(active, false, true); pick(); moveInd(active, true); });
+    window.addEventListener('resize', function(){ resize(); setFormation(active, false, true); pick(); moveInd(active, true); if (trk) trk.measure(); });
     if (document.fonts && document.fonts.ready) document.fonts.ready.then(function(){ resize(); if (active !== 0) setFormation(active, false, true); });
     pick();
     if (/[?&]debug=1/.test(location.search)) window.__play = { play: play, boxes: boxes, codeAt: codeAt, isDone: function(){ return introDone; } };   /* 검수용 */
