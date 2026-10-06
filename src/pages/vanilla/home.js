@@ -335,7 +335,7 @@
         S3D.setTargets(tp, td, now, snap3 || initial);
         if (initial) {
           for (var k4 = 0; k4 < N; k4++) { var b4 = boxes[k4]; b4.cur = { x: b4.to.x, y: b4.to.y, z: b4.to.z }; b4.from = null; b4.tl = now - 10; }   /* 코드 조각 자리 계산용 (첫 화면에선 안 보임) */
-          if (!introReduce) { var kv = 72 / (Math.min(W, H) * 1.45 * fr.s); scLand = S3D.intro(now, { k: kv, left: -fr.cx * kv, right: (W - fr.cx) * kv, top: fr.cy * kv, bottom: -(H - fr.cy) * kv }).land; }   /* 보이는 화면 (로고 좌표) */
+          if (!introReduce) scLand = S3D.intro(now, { W: W, H: H, cx: fr.cx, cy: fr.cy, s: fr.s, F: Math.min(W, H) * 1.45, D: 72, pitch: c.pitch }).land;   /* 화면 격자가 타고 로고만 남는다 */
         }
       }
     }
@@ -620,7 +620,9 @@
         CM[i * 2] = b.m; CM[i * 2 + 1] = b.pulse * 0.3;
         if (b.m > 0.001) ORDER[nFr++] = i;
       }
-      LV[0] = L[0]; LV[1] = -L[1]; LV[2] = -L[2];                                    /* 빛: 예전처럼 천천히 돈다 (옛 좌표 → three: y·z 뒤집기) */
+      /* 빛: 예전처럼 천천히 돈다 (옛 좌표 → three: y·z 뒤집기). 03 필드(g.flow)는 왼쪽 위에서 낮게 비스듬히 스치는 빛 — 막대가 오르내리는 게 명암·그림자로 보인다 */
+      var fw = g.flow, fx3 = -0.85 + Math.sin(t * 0.2) * 0.06, fy3 = 0.5, fz3 = 0.12;
+      LV[0] = L[0] + (fx3 - L[0]) * fw; LV[1] = -L[1] + (fy3 + L[1]) * fw; LV[2] = -L[2] + (fz3 + L[2]) * fw;
       S3D.render({ t: t, dt: lastFrameT ? t - lastFrameT : 1 / 60, cx: OX, cy: OY, s: S, yaw: yaw, pitch: pitch, mode: g.mode, flat: g.flat, wall: g.wall, F: F, D: D,
         cellFx: CFX, cellM: CM, light: LV });
       lastFrameT = t;

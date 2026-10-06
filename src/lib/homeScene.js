@@ -1,6 +1,7 @@
 /* 메인 홈 3D 씬 (three.js) — 로고 픽셀 530칸을 각각 작은 픽셀 큐브 여러 개로 채운다.
-   · 큐브는 GPU 에서 힘으로 움직인다: 첫 입장은 화면 전체에 숨어 있던 픽셀(화면을 빈틈없이 덮는 격자)이 가운데부터 켜졌다가
-     로고로 빨려 들어가 뭉친다. 챕터가 바뀌면 칸마다 정해진 순서로 새 자리로 날아간다. 날 때만 기울고 내려앉으면 반듯하다.
+   · 첫 입장: 화면 전체에 숨어 있던 픽셀 격자가 켜지고, 아래에서 위로 불길이 번지며 로고 밖 픽셀은 타서 불티로 날아가고
+     로고 자리 픽셀만 남아 그 자리에서 입체로 솟는다. 챕터가 바뀌면 큐브가 GPU 에서 힘으로 새 자리로 날아간다 (날 때만 기운다).
+   · 색: 빛을 정면으로 받는 앞면 = 로고 파일 색 #A0A0A0 그대로. 그늘·옆면만 밝기가 달라진다.
    · 빛: 천천히 도는 키 라이트 + 하늘·바닥 반사광. 그림자는 빛에서 본 깊이 지도에서
      가리는 큐브를 찾아 거리만큼 번지게 하는 PCSS — 가까우면 또렷하고 멀면 퍼진다.
    · 배경은 페이지 색 그대로(잉크 = 검정). 페이퍼 챕터에서만 로고 뒤 투명한 벽에 그림자가 남는다.
@@ -9,7 +10,7 @@
 import {
   WebGLRenderer, Scene, PerspectiveCamera, OrthographicCamera, BoxGeometry, InstancedBufferGeometry,
   InstancedBufferAttribute, Mesh, PlaneGeometry, ShaderMaterial, WebGLRenderTarget, DepthTexture, UnsignedIntType,
-  DataTexture, RGBAFormat, FloatType, HalfFloatType, NearestFilter, Vector3, Matrix4, Euler
+  DataTexture, RGBAFormat, FloatType, HalfFloatType, NearestFilter, Vector2, Vector3, Matrix4, Euler
 } from 'three';
 import { GPUComputationRenderer } from 'three/addons/misc/GPUComputationRenderer.js';
 
@@ -96,51 +97,90 @@ vec3 outColor(vec3 c){ return pow(aces(c * 1.1), vec3(1.0 / 2.2)) + (ign(gl_Frag
 const CUBE_VS = /* glsl */`
 uniform sampler2D tPos, tVel, tCell;
 uniform mat4 uModel;
-uniform float uScale, uTime, uGridSz;
+uniform float uScale, uTime;
 attribute vec4 aRef;   /* xy 시뮬레이션 uv · z 칸 u · w 깊이 AO */
 attribute vec4 aSize;  /* xyz 큐브 크기 · w 무작위 */
-attribute float aAppear;  /* 첫 입장: 화면 픽셀로 켜지는 시각 */
+attribute float aAppear;  /* 첫 입장: 불길이 지나가며 솟아오르는 시각 */
 varying vec3 vN, vW, vBox;
-varying float vAo, vGlow, vFlk, vSeed, vDim;
+varying float vAo, vGlow, vFlk, vSeed, vHeat;
 mat3 rotAxis(vec3 a, float t){ float c = cos(t), s = sin(t), o = 1.0 - c;
   return mat3(c + a.x * a.x * o, a.y * a.x * o + a.z * s, a.z * a.x * o - a.y * s, a.x * a.y * o - a.z * s, c + a.y * a.y * o, a.z * a.y * o + a.x * s, a.x * a.z * o + a.y * s, a.y * a.z * o - a.x * s, c + a.z * a.z * o); }
 void main(){
   vec4 P = texture2D(tPos, aRef.xy), V = texture2D(tVel, aRef.xy);
   vec4 C0 = texture2D(tCell, vec2(aRef.z, 0.25)), C1 = texture2D(tCell, vec2(aRef.z, 0.75));
   float s = aSize.w, tilt = clamp(length(V.xyz) * 0.04, 0.0, 1.0);                    /* 나는 동안만 기울고, 멈추면 반듯하게 */
-  float sz = smoothstep(aAppear, aAppear + 0.2, uTime) * mix(uGridSz, 1.0, P.w);           /* 화면 픽셀일 땐 작고 어둡다가 로고가 되며 제 크기·밝기 */
+  float lit = step(aAppear, uTime), e = smoothstep(aAppear, aAppear + 0.45, uTime);   /* 화면 면에서 납작하게 시작해 로고 두께로 솟는다 */
   vec3 ax = normalize(vec3(fract(s * 7.13), fract(s * 3.37), fract(s * 5.71)) - 0.5 + 1e-3);
   mat3 R = rotAxis(ax, tilt * ((s - 0.5) * 5.0 + sin(uTime * (1.5 + s * 2.5) + s * 40.0) * 1.2));
-  vec3 local = R * (position * aSize.xyz * sz * (1.0 - C1.x));                         /* C1.x: 02 챕터에서 코드 조각으로 바뀌며 사라짐 */
-  vec4 w = uModel * vec4((P.xyz + C0.xyz + local) * uScale, 1.0);
+  vec3 grow = vec3(mix(0.7, 1.0, e), mix(0.7, 1.0, e), mix(0.04, 1.0, e)) * lit;
+  vec3 local = R * (position * aSize.xyz * grow * (1.0 - C1.x));                       /* C1.x: 02 챕터에서 코드 조각으로 바뀌며 사라짐 */
+  vec4 w = uModel * vec4((vec3(P.xy, P.z * e) + C0.xyz + local) * uScale, 1.0);
   vW = w.xyz; vN = mat3(uModel) * (R * normal); vBox = position;
-  vAo = aRef.w; vGlow = C0.w; vFlk = C1.y; vSeed = s; vDim = mix(0.2, 1.0, P.w * P.w);
+  vAo = aRef.w; vGlow = C0.w; vFlk = C1.y; vSeed = s; vHeat = lit * (1.0 - smoothstep(aAppear, aAppear + 0.9, uTime));
   gl_Position = projectionMatrix * viewMatrix * w;
 }`;
 
 const CUBE_FS = /* glsl */`
-uniform vec3 uAlbInk, uAlbPaper, uSkyInk, uSkyPaper, uGroundInk, uGroundPaper, uKey;
-uniform float uFlat, uNOff, uBias;
+uniform vec3 uAlb, uKey;
+uniform float uFlat, uNOff, uBias, uRef, uAmb;
 varying vec3 vN, vW, vBox;
-varying float vAo, vGlow, vFlk, vSeed, vDim;
+varying float vAo, vGlow, vFlk, vSeed, vHeat;
 ${LIGHT}
+vec3 fire(float x){                                                                    /* 1 = 하얗게 달아오름 → 노랑 → 주황 → 0 = 꺼져 가는 붉은 불씨 */
+  return x > 0.66 ? mix(vec3(1.0, 0.82, 0.38), vec3(1.0, 0.97, 0.86), (x - 0.66) / 0.34)
+       : x > 0.33 ? mix(vec3(1.0, 0.42, 0.08), vec3(1.0, 0.82, 0.38), (x - 0.33) / 0.33)
+       : mix(vec3(0.35, 0.05, 0.01), vec3(1.0, 0.42, 0.08), x / 0.33);
+}
 void main(){
   vec3 n = normalize(vN);
-  vec3 q = abs(vBox) * 2.0;                                                             /* 면 안에서 모서리까지 — 픽셀마다 얇은 테두리 그늘 */
+  vec3 q = abs(vBox) * 2.0;                                                             /* 픽셀 테두리: 아주 옅게 */
   float e2 = q.x + q.y + q.z - max(q.x, max(q.y, q.z)) - min(q.x, min(q.y, q.z));
-  float edge = smoothstep(0.72, 1.0, e2);
-  vec3 alb = mix(uAlbPaper, uAlbInk, uMode) * (0.84 + 0.32 * fract(vSeed * 13.71));     /* 픽셀마다 밝기가 조금씩 다르다 */
+  float edge = smoothstep(0.8, 1.0, e2);
   float sh = pcss(vW + n * uNOff, uBias), ndl = max(dot(n, uL), 0.0);
+  float hemi = uAmb * (0.6 + 0.4 * (n.y * 0.5 + 0.5)) * vAo;
+  float shade = (uLI * ndl * sh * spot(vW) + hemi) / uRef;                              /* 빛을 정면으로 받는 앞면 = 1 → 로고 파일 색 그대로 */
   vec3 V = normalize(cameraPosition - vW), H = normalize(uL + V);
-  float nh = max(dot(n, H), 0.0), spec = pow(nh, 60.0) * 0.35 * ndl;
-  vec3 key = uLCol * uLI * spot(vW) * sh;
-  vec3 hemi = mix(mix(uGroundPaper, uGroundInk, uMode), mix(uSkyPaper, uSkyInk, uMode), n.y * 0.5 + 0.5) * vAo;
-  vec3 col = alb * (key * ndl + hemi) * (1.0 - 0.28 * edge) + key * spec * (1.0 - edge);
-  col *= (1.0 + vFlk * 0.9) * vDim;
-  col = mix(col, uKey * (1.4 + 0.6 * ndl), clamp(vGlow, 0.0, 0.85));                   /* 03 챕터 데이터 패킷 */
-  vec3 c = outColor(col);
-  vec3 flatC = mix(vec3(0.235, 0.24, 0.255), vec3(0.62, 0.62, 0.63), uMode);             /* 01 챕터: 모든 면을 한 색으로 (사용자 2026-09-28) */
-  gl_FragColor = vec4(mix(c, flatC, uFlat), 1.0);
+  float spec = pow(max(dot(n, H), 0.0), 80.0) * 0.08 * ndl * sh;
+  vec3 col = uAlb * shade * (0.98 + 0.04 * fract(vSeed * 13.71)) * (1.0 - 0.08 * edge) + spec;
+  col *= 1.0 + vFlk * 0.9;
+  col = mix(col, uKey * (1.0 + 0.4 * ndl), clamp(vGlow, 0.0, 0.85));                    /* 03 챕터 데이터 패킷 */
+  vec3 c = pow(clamp(col, 0.0, 1.0), vec3(1.0 / 2.2)) + (ign(gl_FragCoord.xy + 17.0) - 0.5) / 255.0;
+  c = mix(c, fire(vHeat * 0.9), vHeat * 0.75);                                                /* 막 솟은 픽셀은 불에 달궈졌다 식는다 */
+  gl_FragColor = vec4(mix(c, vec3(0.627), uFlat), 1.0);                                  /* 01 챕터: 모든 면을 로고 색 하나로 */
+}`;
+
+/* 첫 입장 화면 격자: 화면 픽셀 좌표 그대로 그린다 (카메라와 무관). 불이 닿으면 로고 밖은 불티가 되어 위로 날아가고, 로고 안은 번쩍인 뒤 솟는 큐브에 자리를 넘긴다 */
+const GRID_VS = /* glsl */`
+uniform float uTime;
+uniform vec2 uRes;
+attribute vec4 aP;   /* x·y(px) · 크기(px) · 켜지는 시각 */
+attribute vec4 aB;   /* 불이 닿는 시각 · 로고 안 1 / 밖 0 · 무작위 · 불티 수명 */
+varying vec4 vC;
+vec3 fire(float x){                                                                    /* 1 = 하얗게 달아오름 → 노랑 → 주황 → 0 = 꺼져 가는 붉은 불씨 */
+  return x > 0.66 ? mix(vec3(1.0, 0.82, 0.38), vec3(1.0, 0.97, 0.86), (x - 0.66) / 0.34)
+       : x > 0.33 ? mix(vec3(1.0, 0.42, 0.08), vec3(1.0, 0.82, 0.38), (x - 0.33) / 0.33)
+       : mix(vec3(0.35, 0.05, 0.01), vec3(1.0, 0.42, 0.08), x / 0.33);
+}
+void main(){
+  float t = uTime, b = t - aB.x, s = aB.z, on = smoothstep(aP.w, aP.w + 0.2, t);
+  vec2 p = aP.xy; float size = aP.z * on;
+  float heat = smoothstep(-0.12, 0.0, b) * step(b, 0.0);                                /* 불길 바로 앞은 먼저 달아오른다 */
+  float a = (0.42 + 0.3 * heat) * on;
+  vec4 col = vec4(mix(vec3(0.62), fire(0.45), heat) * a, a);                           /* premultiplied */
+  if (b > 0.0) {
+    if (aB.y > 0.5) { float f = clamp(b / 0.35, 0.0, 1.0); col = vec4(fire(0.85 * (1.0 - f)) * (1.0 - f) * 0.8, 0.0); size *= 1.0 - 0.4 * f; }
+    else {
+      float spark = step(0.85, s);                                                      /* 15% 만 불티로 날아오르고 나머지는 그 자리에서 붉게 타 꺼진다 */
+      float pr = clamp(b / mix(0.2 + 0.15 * fract(s * 7.3), aB.w, spark), 0.0, 1.0);
+      p.y -= pow(b, 1.35) * mix(14.0, 60.0 + 110.0 * fract(s * 3.1), spark);
+      p.x += sin(b * (3.0 + 5.0 * s) + s * 40.0) * mix(2.0, 14.0, spark) * b;
+      size *= pow(1.0 - pr, 0.7);
+      col = vec4(fire(0.85 * (1.0 - pr)) * pow(1.0 - pr, 1.6) * mix(0.65, 1.0, spark), 0.0);   /* 빛만 더한다 */
+    }
+  }
+  vC = col;
+  vec2 q = p + vec2(position.x, -position.y) * size;                                    /* 화면 y 는 아래로 — 뒤집어 앞면 유지 */
+  gl_Position = vec4(q.x / uRes.x * 2.0 - 1.0, 1.0 - q.y / uRes.y * 2.0, 0.0, 1.0);
 }`;
 
 const WALL_VS = /* glsl */`
@@ -167,15 +207,15 @@ void main(){
 const DEPTH_VS = /* glsl */`
 uniform sampler2D tPos, tVel, tCell;
 uniform mat4 uModel;
-uniform float uScale;
-uniform float uTime, uGridSz;
+uniform float uScale, uTime;
 attribute vec4 aRef;
 attribute vec4 aSize;
 attribute float aAppear;
 void main(){
   vec4 P = texture2D(tPos, aRef.xy), C0 = texture2D(tCell, vec2(aRef.z, 0.25)), C1 = texture2D(tCell, vec2(aRef.z, 0.75));
-  float sz = smoothstep(aAppear, aAppear + 0.2, uTime) * mix(uGridSz, 1.0, P.w);
-  gl_Position = projectionMatrix * viewMatrix * uModel * vec4((P.xyz + C0.xyz + position * aSize.xyz * sz * (1.0 - C1.x)) * uScale, 1.0);
+  float e = smoothstep(aAppear, aAppear + 0.45, uTime);
+  vec3 grow = vec3(mix(0.7, 1.0, e), mix(0.7, 1.0, e), mix(0.04, 1.0, e)) * step(aAppear, uTime);
+  gl_Position = projectionMatrix * viewMatrix * uModel * vec4((vec3(P.xy, P.z * e) + C0.xyz + position * aSize.xyz * grow * (1.0 - C1.x)) * uScale, 1.0);
 }`;
 
 function rng(seed){ return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
@@ -230,20 +270,18 @@ export function createHomeScene({ canvas, cells, small }){
   const common = {
     tShadow: { value: shadowRT.depthTexture }, uLVP: { value: new Matrix4() }, uLRange: { value: 160 }, uSoft: { value: 0.09 }, uShadowW: { value: 80 },
     uTexel: { value: 1 / SM }, uLI: { value: 2.6 }, uPoolR: { value: 30 }, uMode: { value: 1 }, uL: { value: L }, uLCol: { value: new Vector3(1.0, 0.96, 0.9) },
-    uModel: { value: model }, uScale: { value: 1 }, uTime: { value: 0 }, uFlat: { value: 0 }, uGridSz: { value: 1 }
+    uModel: { value: model }, uScale: { value: 1 }, uTime: { value: 0 }, uFlat: { value: 0 }
   };
 
   const box = new BoxGeometry(1, 1, 1), geo = new InstancedBufferGeometry();
   geo.index = box.index; geo.setAttribute('position', box.getAttribute('position')); geo.setAttribute('normal', box.getAttribute('normal'));
-  const appear = new InstancedBufferAttribute(new Float32Array(n), 1);
+  const appear = new InstancedBufferAttribute(new Float32Array(n).fill(-10), 1);
   geo.setAttribute('aRef', new InstancedBufferAttribute(aRef, 4)); geo.setAttribute('aSize', new InstancedBufferAttribute(aSize, 4)); geo.setAttribute('aAppear', appear);
   geo.instanceCount = n;
   const cubeMat = new ShaderMaterial({
     vertexShader: CUBE_VS, fragmentShader: CUBE_FS, defines: { NB: 8, NP: 12 },
     uniforms: { ...common, tPos: posTex, tVel: velTex, tCell: { value: tCell }, uNOff: { value: 0.1 }, uBias: { value: 0.03 },
-      uAlbInk: { value: new Vector3(0.36, 0.36, 0.37) }, uAlbPaper: { value: new Vector3(0.075, 0.077, 0.085) },
-      uSkyInk: { value: new Vector3(0.07, 0.075, 0.085) }, uSkyPaper: { value: new Vector3(0.42, 0.42, 0.44) },
-      uGroundInk: { value: new Vector3(0.012, 0.012, 0.014) }, uGroundPaper: { value: new Vector3(0.2, 0.2, 0.2) },
+      uAlb: { value: new Vector3(0.3567, 0.3567, 0.3567) }, uRef: { value: 2 }, uAmb: { value: 0.35 },   /* uAlb = #A0A0A0 (선형) */
       uKey: { value: new Vector3(0.905, 1.0, 0.087) } }
   });
   const cubes = new Mesh(geo, cubeMat); cubes.frustumCulled = false;
@@ -252,9 +290,15 @@ export function createHomeScene({ canvas, cells, small }){
     uniforms: { ...common, uWallZ: { value: -5.5 }, uBiasW: { value: 0.05 } }
   });
   const wall = new Mesh(new PlaneGeometry(600, 400), wallMat); wall.frustumCulled = false; wall.renderOrder = -1;
-  const scene = new Scene(); scene.add(wall, cubes);
+  const gridGeo = new InstancedBufferGeometry(), quad = new PlaneGeometry(1, 1);
+  gridGeo.index = quad.index; gridGeo.setAttribute('position', quad.getAttribute('position')); gridGeo.instanceCount = 0;
+  const gridMat = new ShaderMaterial({ vertexShader: GRID_VS, fragmentShader: 'varying vec4 vC; void main(){ gl_FragColor = vC; }', transparent: true, premultipliedAlpha: true, depthTest: false, depthWrite: false,
+    uniforms: { uTime: common.uTime, uRes: { value: new Vector2(1, 1) } } });
+  const grid = new Mesh(gridGeo, gridMat); grid.frustumCulled = false; grid.renderOrder = 10; grid.visible = false;
+  let gridEnd = 0;
+  const scene = new Scene(); scene.add(wall, cubes, grid);
   const depthMat = new ShaderMaterial({ vertexShader: DEPTH_VS, fragmentShader: 'void main(){ gl_FragColor = vec4(1.0); }', colorWrite: false,
-    uniforms: { tPos: posTex, tVel: velTex, tCell: { value: tCell }, uModel: common.uModel, uScale: common.uScale, uTime: common.uTime, uGridSz: common.uGridSz } });
+    uniforms: { tPos: posTex, tVel: velTex, tCell: { value: tCell }, uModel: common.uModel, uScale: common.uScale, uTime: common.uTime } });
   const shadowCubes = new Mesh(geo, depthMat); shadowCubes.frustumCulled = false;
   const shadowScene = new Scene(); shadowScene.add(shadowCubes);
 
@@ -286,39 +330,37 @@ export function createHomeScene({ canvas, cells, small }){
       tA.needsUpdate = tB.needsUpdate = true;
       simUntil = Math.max(simUntil, t + Math.max(...delay) + 2.5);
     },
-    /* 첫 입장 (예전 인트로와 같은 생각): 검은 화면을 덮는 규칙적인 픽셀 격자(간격 8px, 폰 6px — 평소엔 느끼지 못하는 화면의 해상도).
-       격자 한 칸에 큐브 몇 개가 겹쳐 있다가 로고로 빨려 들어간다. 로고 중심에서 본 방향이 같은 부채꼴끼리, 안쪽은 안쪽·바깥은 바깥과 짝지어
-       화면 전체가 엉킴 없이 가운데로 오므라든다. 가운데부터 켜지고 가운데부터 출발. 반환: land = 제목·헤더가 올라오는 시각 */
-    intro(t, view){
-      const k = view.k, pitch = Math.max(small ? 6 : 8, Math.sqrt(W * H / 20000)) * k;
-      const cols = Math.max(2, Math.floor((view.right - view.left) / pitch)), rows = Math.max(2, Math.floor((view.top - view.bottom) / pitch)), G = cols * rows;
-      const x0 = (view.left + view.right) / 2 - (cols - 1) * pitch / 2, y0 = (view.top + view.bottom) / 2 + (rows - 1) * pitch / 2;
-      const pts = Array.from({ length: n }, (_, j) => { const q = Math.floor(j * G / n); return [x0 + (q % cols) * pitch, y0 - Math.floor(q / cols) * pitch]; });
-      const tg = Array.from({ length: n }, (_, i) => [bData[i * 4], bData[i * 4 + 1], i]);
-      const ang = a => Math.atan2(a[1], a[0]), rad = a => a[0] * a[0] + a[1] * a[1];
-      tg.sort((a, b) => ang(a) - ang(b)); pts.sort((a, b) => ang(a) - ang(b));
-      const SECT = Math.max(24, Math.round(Math.sqrt(n) * 0.7)), rMax = Math.sqrt(Math.max(...pts.map(rad)));
-      const pd = pos0.image.data, vd = vel0.image.data, ap = appear.array;
-      let land = 0;
-      for (let b = 0; b < SECT; b++) {
-        const lo = Math.floor(b * n / SECT), hi = Math.floor((b + 1) * n / SECT);
-        const ts = tg.slice(lo, hi).sort((a, c) => rad(a) - rad(c)), ss = pts.slice(lo, hi).sort((a, c) => rad(a) - rad(c));
-        for (let j = 0; j < ts.length; j++) {
-          const i = ts[j][2], sp = ss[j], rN = Math.sqrt(rad(sp)) / rMax;
-          pd[i * 4] = sp[0]; pd[i * 4 + 1] = sp[1]; pd[i * 4 + 2] = 0; pd[i * 4 + 3] = 0;
-          vd[i * 4] = vd[i * 4 + 1] = vd[i * 4 + 2] = vd[i * 4 + 3] = 0;
-          ap[i] = t + 0.02 + 0.2 * rN + rand() * 0.03;                                    /* 켜짐: 가운데 → 바깥 */
-          const cap = t + 0.38 + 0.22 * rN + rand() * 0.03;                               /* 잠깐 보인 뒤 가운데 칸부터 출발 */
-          aData[i * 4] = bData[i * 4]; aData[i * 4 + 1] = bData[i * 4 + 1]; aData[i * 4 + 2] = bData[i * 4 + 2]; aData[i * 4 + 3] = cap; bData[i * 4 + 3] = -1e9;
-          if (cap > land) land = cap;
-        }
+    /* 첫 입장: 검은 화면을 덮는 픽셀 격자(8px, 폰 6px — 평소엔 느끼지 못하는 화면의 해상도)가 가운데부터 켜진다.
+       곧 아래에서 위로 불길이 촤라락 번진다 (불이 닿는 시각 = 높이 + 세로로 길쭉한 노이즈 → 불꽃 혓바닥 모양의 경계).
+       로고 밖 픽셀은 불티가 되어 날아가고, 로고 자리 픽셀은 번쩍인 뒤 그 자리에서 로고 큐브가 솟는다 (큐브는 이미 제자리, 날지 않는다).
+       view: 화면 크기·첫 챕터 배치(cx·cy·s)·옛 투영(F·D·pitch). 반환: land = 제목·헤더가 올라오는 시각 */
+    intro(t, v){
+      const h2 = (x, y) => { const q = Math.sin(x * 127.1 + y * 311.7) * 43758.5453; return q - Math.floor(q); };
+      const vn = (x, y) => { const xi = Math.floor(x), yi = Math.floor(y), u = x - xi, w = y - yi, a = u * u * (3 - 2 * u), b = w * w * (3 - 2 * w);
+        return (h2(xi, yi) * (1 - a) + h2(xi + 1, yi) * a) * (1 - b) + (h2(xi, yi + 1) * (1 - a) + h2(xi + 1, yi + 1) * a) * b; };
+      const fbm = (x, y) => vn(x, y) * 0.5 + vn(x * 2.1 + 5.2, y * 2.1) * 0.3 + vn(x * 4.3, y * 4.3 + 1.7) * 0.2;
+      const burnAt = (X, Y) => t + 0.42 + 0.6 * (1 - Y / v.H) + 0.24 * (fbm(X * 0.005, Y * 0.0028) - 0.5) * 2 + rand() * 0.03;
+      const occ = new Set(cells.map(c => Math.floor(c.gx) + ',' + Math.floor(c.gy)));
+      const P = Math.max(small ? 6 : 8, Math.sqrt(v.W * v.H / 20000)), cols = Math.floor(v.W / P), rows = Math.floor(v.H / P), G = cols * rows;
+      const x0 = (v.W - (cols - 1) * P) / 2, y0 = (v.H - (rows - 1) * P) / 2, cp = Math.cos(v.pitch), sp = Math.sin(v.pitch);
+      const aP = new Float32Array(G * 4), aB = new Float32Array(G * 4);
+      gridEnd = 0;
+      for (let j = 0; j < G; j++) {
+        const X = x0 + (j % cols) * P, Y = y0 + Math.floor(j / cols) * P;
+        const yr = Y - v.cy, wy = yr * v.D / (cp * v.F - yr * sp), wx = (X - v.cx) * (wy * sp + v.D) / v.F;   /* 화면 → 로고 좌표 (옛 투영의 역) */
+        const inside = occ.has(Math.floor(wx / v.s) + ',' + Math.floor(wy / v.s));
+        const rN = Math.min(1, Math.hypot((X - v.W / 2) / (v.W / 2), (Y - v.H / 2) / (v.H / 2)) / 1.42);
+        const tb = burnAt(X, Y), life = 0.45 + rand() * 0.55;
+        aP[j * 4] = X; aP[j * 4 + 1] = Y; aP[j * 4 + 2] = P * 0.7; aP[j * 4 + 3] = t + 0.02 + 0.22 * rN + rand() * 0.03;
+        aB[j * 4] = tb; aB[j * 4 + 1] = inside ? 1 : 0; aB[j * 4 + 2] = rand(); aB[j * 4 + 3] = life;
+        if (tb + life > gridEnd) gridEnd = tb + life;
       }
-      common.uGridSz.value = pitch * 0.7 * M;                                             /* 격자일 땐 칸의 70% 크기 → 날아가며 제 크기로 */
-      appear.needsUpdate = true; tA.needsUpdate = tB.needsUpdate = true; pos0.needsUpdate = vel0.needsUpdate = true;
-      gpu.renderTexture(pos0, posVar.renderTargets[0]); gpu.renderTexture(pos0, posVar.renderTargets[1]);
-      gpu.renderTexture(vel0, velVar.renderTargets[0]); gpu.renderTexture(vel0, velVar.renderTargets[1]);
-      snapNext = false; simUntil = land + 3;
-      return { land: land + 0.55, end: land + 1.3 };
+      gridGeo.setAttribute('aP', new InstancedBufferAttribute(aP, 4)); gridGeo.setAttribute('aB', new InstancedBufferAttribute(aB, 4)); gridGeo.instanceCount = G;
+      /* 로고 큐브: 이미 제자리 (setTargets snap). 불길이 그 자리를 지날 때 솟는다 */
+      const ap = appear.array, k = v.s * v.F / v.D;
+      for (let i = 0; i < n; i++) ap[i] = burnAt(v.cx + bData[i * 4] * k, v.cy - bData[i * 4 + 1] * k) + 0.02;
+      appear.needsUpdate = true;
+      return { land: t + 1.05, end: gridEnd };
     },
     /* 매 프레임: st = g (cx·cy·s·yaw·pitch·mode·flat·wall) + 빛 방향, cellFx = 칸마다 [dx,dy,dz,glow] (옛 좌표), cellM = [사라짐, 반짝임] */
     render(st){
@@ -330,8 +372,12 @@ export function createHomeScene({ canvas, cells, small }){
       model.makeRotationFromEuler(euler.set(st.pitch, -st.yaw, 0, 'XYZ'));
       common.uScale.value = st.s; common.uMode.value = st.mode; common.uFlat.value = st.flat; common.uTime.value = t;
       wallMat.uniforms.uWallZ.value = st.wall;
-      common.uPoolR.value = 30 * st.s + 2000 * (1 - st.mode) * (1 - st.mode);
+      common.uPoolR.value = 45 * st.s + 2000 * (1 - st.mode) * (1 - st.mode);
       L.lerp(Lt.set(st.light[0], st.light[1], st.light[2]).normalize(), st.snapLight ? 1 : 1 - Math.exp(-dt * 3)).normalize();
+      /* 기준 밝기: 이 각도의 앞면이 빛을 받을 때 = 1 (로고 색 그대로) */
+      const fN = Lt.set(0, 0, 1).applyMatrix4(model), am = cubeMat.uniforms.uAmb.value;
+      cubeMat.uniforms.uRef.value = common.uLI.value * Math.max(fN.dot(L), 0.25) + am * (0.6 + 0.4 * (fN.y * 0.5 + 0.5));
+      grid.visible = t < gridEnd; gridMat.uniforms.uRes.value.set(W, H);
 
       for (let k = 0; k < N; k++) {
         const fx = st.cellFx, cm = st.cellM, o = k * 4, o2 = (N + k) * 4;
@@ -359,7 +405,7 @@ export function createHomeScene({ canvas, cells, small }){
     },
     dispose(){
       gpu.dispose(); shadowRT.dispose(); tA.dispose(); tB.dispose(); tCell.dispose(); box.dispose(); geo.dispose();
-      cubeMat.dispose(); wallMat.dispose(); depthMat.dispose(); wall.geometry.dispose(); renderer.dispose();
+      cubeMat.dispose(); wallMat.dispose(); depthMat.dispose(); wall.geometry.dispose(); gridGeo.dispose(); quad.dispose(); gridMat.dispose(); renderer.dispose();
     }
   };
 }
