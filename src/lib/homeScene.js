@@ -1,5 +1,5 @@
 /* 메인 홈 3D 씬 (three.js) — 로고 픽셀 530칸을 각각 작은 픽셀 큐브 여러 개로 채운다.
-   · 첫 입장 (사용자 지정): 초점이 살짝 나간 화면에 크기·깊이가 제각각인 큐브가 떠 있다가 초점이 맞으며 → 1.5초 동안 일정한 양이
+   · 첫 입장 (사용자 지정): 초점이 살짝 나간 화면에 크기·깊이가 제각각인 큐브가 떠 있다가 초점이 다 맞기 직전(0.8초) 카메라가 z축으로 출발 → 1초 남짓 일정한 양이
      가속하며 카메라를 스치고(z축, 가까이 지나가는 큐브는 초점 밖이라 흐리고 잔상이 남는다) → 0.45초 동안 촥 빨려 들며 다 지나가 버린다.
      이어 로고 칸들이 소실점에서 튀어나와 가운데부터 바깥으로 촤라락 펼쳐지며 제자리에 급제동해 박힌다 (옆으로 모이지 않는다).
    · 첫 챕터의 빛은 카메라에 달린 조명 (렌즈 약간 위·왼쪽, 카메라를 따라간다, 가까울수록 밝다).
@@ -101,21 +101,21 @@ vec3 aces(vec3 x){ return clamp((x * (2.51 * x + 0.03)) / (x * (2.43 * x + 0.59)
 vec3 outColor(vec3 c){ return pow(aces(c * 1.1), vec3(1.0 / 2.2)) + (ign(gl_FragCoord.xy + 17.0) - 0.5) / 255.0; }`;
 
 /* 첫 입장 (위치는 시간으로 바로 계산 — 시뮬레이션 밖, 큐브는 이미 제자리에 있다):
-   field — 큐브 5% 가 크기 제각각인 정육면체로 굴러가며 0.35초 떠 있다가 1.5초 가속(속도 ∝ 진행³). 카메라를 지나치면 저 멀리서
+   field — 큐브 5% 가 크기 제각각인 정육면체로 굴러가며 0.8초 떠 있다가(초점이 맞는 동안 카메라는 거의 서 있다) 1.05초 가속(속도 ∝ 진행² — 출발이 바로 보인다). 카메라를 지나치면 저 멀리서
            새 자리·새 크기로 다시 나타나 양이 일정하다. 막판 0.45초는 촥 빨려 들며(∝ 진행²) 다시 나타나지 않고 다 지나가 버린다.
            꼬리 = 큐브가 직전 0.08초 동안 실제로 지나온 길 (그 시각 위치를 다시 계산해 뒷면을 그곳에 둔다) → 프레임 사이가 끊기지 않는 잔상.
    land  — 로고 칸(4×4 큐브 한 덩어리)이 통째로 제자리 바로 뒤 먼 곳(-300)에서 z 축을 따라 날아와 급제동(진행⁴)하며 박힌다.
            원근 때문에 소실점에서 튀어나와 바깥으로 펼쳐지는 것처럼 보이고, 순서도 가운데부터 바깥으로. 박히는 순간 살짝 번쩍이며 툭 */
 const FIELD = /* glsl */`
-const float F_FLOAT = 0.35, F_ACC = 1.5, F_SUCK = 0.45, F_RANGE = 240.0, F_VMAX = 480.0, F_VTOP = 1700.0;
+const float F_FLOAT = 0.8, F_ACC = 1.05, F_SUCK = 0.45, F_RANGE = 240.0, F_VMAX = 480.0, F_VTOP = 1700.0;
 const float L_START = 2.05, L_SPREAD = 0.38, L_DUR = 0.6, L_DEPTH = 300.0, TRAIL = 0.08, INTRO_END = ${INTRO_END.toFixed(2)};
 float fh(vec2 p){ vec3 p3 = fract(vec3(p.xyx) * 0.1031); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y) * p3.z); }
 float vn2(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(fh(i), fh(i + vec2(1.0, 0.0)), f.x), mix(fh(i + vec2(0.0, 1.0)), fh(i + 1.0), f.x), f.y); }
 vec3 field(vec2 id, float T, out vec3 size, out float bright, out vec4 rot, out float cyc){   /* T: 입장 시각 (꼬리는 조금 전 시각으로 다시 부른다) */
   float ta = clamp(T, 0.0, F_FLOAT + F_ACC), ua = clamp((ta - F_FLOAT) / F_ACC, 0.0, 1.0), us = clamp((T - F_FLOAT - F_ACC) / F_SUCK, 0.0, 1.0);
-  float dist = 3.0 * ta + (F_VMAX - 3.0) * F_ACC * ua * ua * ua * ua / 4.0 + F_VMAX * F_SUCK * us + (F_VTOP - F_VMAX) * F_SUCK * us * us * us / 3.0;
+  float dist = 3.0 * ta + (F_VMAX - 3.0) * F_ACC * ua * ua * ua / 3.0 + F_VMAX * F_SUCK * us + (F_VTOP - F_VMAX) * F_SUCK * us * us * us / 3.0;
   float r0 = fh(id * 297.0 + 3.3), c = r0 * F_RANGE + dist, k = floor(c / F_RANGE), fr = fract(c / F_RANGE);
-  float ks = floor((r0 * F_RANGE + 3.0 * (F_FLOAT + F_ACC) + (F_VMAX - 3.0) * F_ACC / 4.0) / F_RANGE);   /* 빨려 들기 시작할 때의 바퀴 */
+  float ks = floor((r0 * F_RANGE + 3.0 * (F_FLOAT + F_ACC) + (F_VMAX - 3.0) * F_ACC / 3.0) / F_RANGE);   /* 빨려 들기 시작할 때의 바퀴 */
   float z = uCamZ + 1.0 - F_RANGE + fr * F_RANGE;                                         /* 멀리서 카메라 뒤까지 한 바퀴 */
   vec2 kid = id + k * 0.137;
   float r1 = fh(kid * 711.0), r2 = fh(kid * 1373.0 + 7.1), r5 = fh(kid * 419.0 + 5.5), r4 = fh(id * 911.0 + 1.9), r6 = fh(kid * 157.0 + 2.7), r7 = fh(kid * 883.0 + 9.4);
