@@ -20,7 +20,7 @@ import {
 } from 'three';
 import { GPUComputationRenderer } from 'three/addons/misc/GPUComputationRenderer.js';
 
-const INTRO_END = 3.3;
+const INTRO_END = 3.3, INTRO_RATE = 1.2;   /* 입장 시계 배율: 모든 입장 시각(초)을 이만큼 빨리 — 1.2 = 전체가 같은 비율로 약 0.5초 짧게 (사용자 2026-10-07) */
 const NOISE = /* glsl */`
 vec4 permute(vec4 x){ return mod(((x * 34.0) + 1.0) * x, 289.0); }
 vec4 taylorInvSqrt(vec4 r){ return 1.79284291400159 - 0.85373472095314 * r; }
@@ -390,7 +390,7 @@ export function createHomeScene({ canvas, cells, small }){
       introS = { t0: t, clock: 0, last: null };
       const v = renderer.getDrawingBufferSize(dbs), rt = (o) => new WebGLRenderTarget(v.x, v.y, o);
       freePost(); post = { scene: rt({ samples: 4, generateMipmaps: true, minFilter: LinearMipmapLinearFilter }), acc: [rt({ type: HalfFloatType }), rt({ type: HalfFloatType })], i: 0 };
-      return { land: t + 2.65, end: t + INTRO_END };
+      return { land: t + 2.65 / INTRO_RATE, end: t + INTRO_END / INTRO_RATE };
     },
     /* 매 프레임: st = g (cx·cy·s·yaw·pitch·mode·flat·wall) + 빛 방향, cellFx = 칸마다 [dx,dy,dz,glow] (옛 좌표), cellM = [사라짐, 반짝임] */
     render(st){
@@ -405,7 +405,7 @@ export function createHomeScene({ canvas, cells, small }){
       common.uPoolR.value = 45 * st.s + 2000 * (1 - st.mode) * (1 - st.mode);
       Lt.set(st.light[0], st.light[1], st.light[2]).normalize();
       common.uLI.value = 2.6; common.uLCol.value.copy(NEUTRAL);
-      if (introS) { if (introS.last !== null) introS.clock += Math.min(Math.max(t - introS.last, 0), 1 / 30); introS.last = t; }   /* 입장 시계는 프레임마다 최대 1/30초씩 — 멈칫한 프레임이 있어도 장면을 건너뛰지 않는다 */
+      if (introS) { if (introS.last !== null) introS.clock += Math.min(Math.max(t - introS.last, 0), 1 / 30) * INTRO_RATE; introS.last = t; }   /* 입장 시계는 프레임마다 최대 1/30초씩 — 멈칫한 프레임이 있어도 장면을 건너뛰지 않는다 */
       const cu = cubeMat.uniforms, it = introS ? introS.clock : -1;
       cu.uIT.value = depthMat.uniforms.uIT.value = it; cu.uCamZ.value = D / st.s; cu.uTanH.value = H / 2 / F; cu.uAsp.value = W / H;
       if (introS && it > INTRO_END + 0.5) introS = null;
