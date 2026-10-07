@@ -6,7 +6,14 @@
   <title>서울예술대학교 디지털아트전공 · Digital Arts Archive</title>
   <meta name="description" content="서울예술대학교 디지털아트전공 — 코드와 도구를 예술의 재료로, 아직 세상에 없는 예술을 만드는 곳" />
   <meta name="theme-color" content="#000000" />
-  <style>html,body{background:#000}</style><!-- 스타일·스크립트가 오기 전 흰 화면이 번쩍이지 않게 (사이트 첫 화면은 둘 다 검정) -->
+  <style>html,body{background:#000}
+    /* 로딩: 로고가 아래에서 위로 한 줄(34줄)씩 차오른다 — 스크립트가 오기 전에도, 페이지 조각을 받는 동안에도(App.jsx) 같은 모양 */
+    .boot{display:flex;align-items:center;justify-content:center;min-height:100vh;min-height:100svh;background:#000}
+    .boot-logo{position:relative;width:56px;aspect-ratio:1882/2000;background:rgba(160,160,160,.14);-webkit-mask:url(/logo.png) center/contain no-repeat;mask:url(/logo.png) center/contain no-repeat}
+    .boot-logo::after{content:"";position:absolute;inset:0;background:#a0a0a0;animation:boot-fill 1.4s steps(34,end) infinite}
+    @keyframes boot-fill{0%{clip-path:inset(100% 0 0 0)}80%,100%{clip-path:inset(0)}}
+    @media (prefers-reduced-motion:reduce){.boot-logo::after{animation:none;clip-path:inset(40% 0 0 0)}}
+  </style><!-- 스타일·스크립트가 오기 전 흰 화면이 번쩍이지 않게 (사이트 첫 화면은 둘 다 검정) -->
   <link rel="preconnect" href="https://bahikfjsschmlvaazdub.supabase.co" crossorigin />
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -17,7 +24,7 @@
 
 </head>
 <body>
-  <div id="root"></div>
+  <div id="root"><div class="boot" role="status" aria-label="로딩 중"><div class="boot-logo"></div></div></div>
   <script type="module" src="/src/main.jsx"></script>
 </body>
 </html>

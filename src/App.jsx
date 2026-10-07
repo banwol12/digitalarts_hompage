@@ -7,23 +7,11 @@ const SubmitPage = lazy(() => import('./pages/SubmitPage'));
 const AdminPage = lazy(() => import('./pages/AdminPage'));
 const CreditsPage = lazy(() => import('./pages/CreditsPage'));
 
+/* 로고가 차오르는 로더 (스타일은 index.html — 스크립트 오기 전 첫 화면과 같은 모양) */
 function LoadingFallback() {
   return (
-    <div
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        minHeight: '100vh',
-        background: '#000000',
-        color: '#e9eae4',
-        fontSize: '12px',
-        letterSpacing: '0.14em',
-        textTransform: 'uppercase',
-        fontFamily: '"Pretendard", sans-serif'
-      }}
-    >
-      <span>로딩 중…</span>
+    <div className="boot" role="status" aria-label="로딩 중">
+      <div className="boot-logo" />
     </div>
   );
 }
