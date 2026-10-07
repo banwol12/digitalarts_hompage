@@ -6,25 +6,58 @@
   <title>서울예술대학교 디지털아트전공 · Digital Arts Archive</title>
   <meta name="description" content="서울예술대학교 디지털아트전공 — 코드와 도구를 예술의 재료로, 아직 세상에 없는 예술을 만드는 곳" />
   <meta name="theme-color" content="#000000" />
+  <script>
+    /* 로딩 로고 상태 (그리기는 body 의 #boot 아래 스크립트). 글꼴 CSS 의 onload 가 먼저 올 수 있어 맨 앞에서 만든다.
+       stage(v): 진행 목표 올리기 · css(): 글꼴 CSS 하나 도착 · done(cb): 다 채운 뒤 cb (이미 끝났으면 바로) */
+    window.__boot = { over: false, goal: 0.1, fin: false, cssLeft: 2, cbs: [],
+      stage: function(v){ if (v > this.goal) this.goal = v; },
+      css: function(){ this.cssLeft--; },
+      done: function(cb){ if (cb) { if (this.over) cb(); else this.cbs.push(cb); } this.fin = true; } };
+  </script>
   <style>html,body{background:#000}
-    /* 로딩: 로고가 아래에서 위로 한 줄(34줄)씩 차오른다 — 스크립트가 오기 전에도, 페이지 조각을 받는 동안에도(App.jsx) 같은 모양 */
+    /* 로딩: 로고가 받은 만큼 아래에서 위로 한 줄(34줄)씩 차오르고, 다 차야 사라지며 입장한다 (#boot + 아래 스크립트).
+       페이지를 옮길 때 잠깐 뜨는 로더(App.jsx, .loop)는 진행을 알 수 없어 차오르기를 되풀이한다 */
     .boot{display:flex;align-items:center;justify-content:center;min-height:100vh;min-height:100svh;background:#000}
-    .boot-logo{position:relative;width:56px;aspect-ratio:1882/2000;background:rgba(160,160,160,.14);-webkit-mask:url(/logo.png) center/contain no-repeat;mask:url(/logo.png) center/contain no-repeat}
-    .boot-logo::after{content:"";position:absolute;inset:0;background:#a0a0a0;animation:boot-fill 1.4s steps(34,end) infinite}
+    #boot{position:fixed;inset:0;z-index:9999;transition:opacity .3s}
+    #boot.out{opacity:0;pointer-events:none}
+    .boot-logo{--logo:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 34' shape-rendering='crispEdges'%3E%3Cpath d='M22 0h1v1h-1zM12 1h5v1h-5zM22 1h1v1h-1zM9 2h12v1h-12zM23 2h1v1h-1zM7 3h15v1h-15zM23 3h1v1h-1zM6 4h16v1h-16zM23 4h1v1h-1zM5 5h17v1h-17zM23 5h1v1h-1zM26 5h1v1h-1zM4 6h13v1h-13zM18 6h4v1h-4zM23 6h1v1h-1zM26 6h1v1h-1zM3 7h14v1h-14zM18 7h4v1h-4zM23 7h1v1h-1zM26 7h2v1h-2zM2 8h15v1h-15zM19 8h2v1h-2zM23 8h1v1h-1zM25 8h3v1h-3zM1 9h16v1h-16zM19 9h1v1h-1zM22 9h2v1h-2zM25 9h3v1h-3zM1 10h16v1h-16zM19 10h1v1h-1zM22 10h1v1h-1zM25 10h4v1h-4zM30 10h1v1h-1zM1 11h10v1h-10zM12 11h5v1h-5zM21 11h2v1h-2zM25 11h4v1h-4zM30 11h1v1h-1zM0 12h11v1h-11zM13 12h4v1h-4zM21 12h2v1h-2zM24 12h2v1h-2zM27 12h2v1h-2zM30 12h1v1h-1zM0 13h12v1h-12zM13 13h4v1h-4zM20 13h2v1h-2zM24 13h2v1h-2zM27 13h1v1h-1zM30 13h2v1h-2zM0 14h12v1h-12zM14 14h2v1h-2zM20 14h2v1h-2zM24 14h2v1h-2zM27 14h1v1h-1zM29 14h3v1h-3zM0 15h12v1h-12zM14 15h2v1h-2zM20 15h2v1h-2zM24 15h2v1h-2zM27 15h1v1h-1zM29 15h3v1h-3zM0 16h12v1h-12zM14 16h2v1h-2zM19 16h3v1h-3zM24 16h2v1h-2zM29 16h3v1h-3zM0 17h12v1h-12zM14 17h2v1h-2zM18 17h4v1h-4zM25 17h1v1h-1zM29 17h3v1h-3zM0 18h8v1h-8zM9 18h3v1h-3zM14 18h1v1h-1zM18 18h4v1h-4zM25 18h1v1h-1zM29 18h3v1h-3zM0 19h7v1h-7zM9 19h2v1h-2zM18 19h5v1h-5zM25 19h2v1h-2zM29 19h3v1h-3zM0 20h7v1h-7zM9 20h2v1h-2zM18 20h5v1h-5zM26 20h1v1h-1zM29 20h3v1h-3zM1 21h6v1h-6zM9 21h2v1h-2zM14 21h2v1h-2zM19 21h4v1h-4zM28 21h1v1h-1zM30 21h2v1h-2zM1 22h6v1h-6zM9 22h1v1h-1zM13 22h3v1h-3zM19 22h5v1h-5zM30 22h1v1h-1zM1 23h6v1h-6zM9 23h1v1h-1zM13 23h2v1h-2zM20 23h4v1h-4zM30 23h1v1h-1zM2 24h5v1h-5zM9 24h2v1h-2zM13 24h2v1h-2zM20 24h5v1h-5zM29 24h2v1h-2zM2 25h6v1h-6zM10 25h1v1h-1zM14 25h2v1h-2zM21 25h5v1h-5zM29 25h1v1h-1zM3 26h3v1h-3zM7 26h1v1h-1zM14 26h2v1h-2zM18 26h1v1h-1zM21 26h5v1h-5zM28 26h1v1h-1zM4 27h2v1h-2zM15 27h1v1h-1zM18 27h1v1h-1zM23 27h3v1h-3zM28 27h1v1h-1zM5 28h2v1h-2zM16 28h1v1h-1zM18 28h2v1h-2zM24 28h1v1h-1zM27 28h1v1h-1zM6 29h2v1h-2zM19 29h3v1h-3zM7 30h2v1h-2zM11 30h3v1h-3zM20 30h3v1h-3zM11 31h3v1h-3zM20 31h4v1h-4zM11 32h4v1h-4zM21 32h3v1h-3zM12 33h3v1h-3z'/%3E%3C/svg%3E");position:relative;width:56px;aspect-ratio:32/34;background:rgba(160,160,160,.14);-webkit-mask:var(--logo) center/contain no-repeat;mask:var(--logo) center/contain no-repeat}   /* 로고 = logo-grid.json 32×34 칸 그대로 (SVG 를 안에 넣어 바로 보인다) */
+    .boot-logo::after{content:"";position:absolute;inset:0;background:#a0a0a0;clip-path:inset(calc(100% - var(--p, 0) * 100%) 0 0 0)}
+    .boot-logo.loop::after{animation:boot-fill 1.4s steps(34,end) infinite}
     @keyframes boot-fill{0%{clip-path:inset(100% 0 0 0)}80%,100%{clip-path:inset(0)}}
-    @media (prefers-reduced-motion:reduce){.boot-logo::after{animation:none;clip-path:inset(40% 0 0 0)}}
   </style><!-- 스타일·스크립트가 오기 전 흰 화면이 번쩍이지 않게 (사이트 첫 화면은 둘 다 검정) -->
   <link rel="preconnect" href="https://bahikfjsschmlvaazdub.supabase.co" crossorigin />
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="icon" type="image/png" href="/logo.png" />
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard-dynamic-subset.min.css" />
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500&display=swap" />
+  <!-- 글꼴 CSS 는 화면을 막지 않게 받는다 (막으면 로딩 로고조차 그려지지 않는다). 로딩 로고는 이 둘이 도착해야 끝난다 (__boot.css) -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard-dynamic-subset.min.css" media="print" onload="this.media='all';__boot.css()" onerror="__boot.css()" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500&display=swap" media="print" onload="this.media='all';__boot.css()" onerror="__boot.css()" />
 
 </head>
 <body>
-  <div id="root"><div class="boot" role="status" aria-label="로딩 중"><div class="boot-logo"></div></div></div>
+  <div id="boot" class="boot" role="status" aria-label="로딩 중"><div class="boot-logo"></div></div>
+  <script>
+    /* 로딩 로고 그리기: 파일이 하나 도착할 때마다, 그리고 앱 → 페이지 조각 → 3D 준비 단계(stage)를 지날 때마다 목표가 올라가고 그만큼 차오른다.
+       done 이 불리고 글꼴 CSS 둘이 다 오면 마저 채운 뒤 사라지며 cb 들을 부른다 (홈은 입장 시작). 무엇이 막혀도 10초 뒤엔 걷힌다 */
+    (function(){
+      var B = window.__boot, el = document.getElementById('boot'), logo = el.firstChild, p = 0;
+      try { new PerformanceObserver(function(l){ B.goal = Math.min(0.9, B.goal + (0.9 - B.goal) * 0.15 * l.getEntries().length); }).observe({ type: 'resource', buffered: true }); } catch (e) {}
+      setTimeout(function(){ B.fin = true; B.cssLeft = 0; }, 10000);
+      (function tick(){
+        var end = B.fin && B.cssLeft <= 0;
+        p += ((end ? 1 : B.goal) - p) * (end ? 0.22 : 0.06);
+        logo.style.setProperty('--p', Math.ceil(p * 34 - 0.05) / 34);
+        if (end && p > 0.985) {
+          logo.style.setProperty('--p', 1);
+          setTimeout(function(){ B.over = true; el.className += ' out'; B.cbs.splice(0).forEach(function(f){ f(); }); setTimeout(function(){ el.remove(); }, 320); }, 140);   /* 꽉 찬 로고를 잠깐 보여 준 뒤 */
+          return;
+        }
+        requestAnimationFrame(tick);
+      })();
+    })();
+  </script>
+  <div id="root"></div>
   <script type="module" src="/src/main.jsx"></script>
 </body>
 </html>

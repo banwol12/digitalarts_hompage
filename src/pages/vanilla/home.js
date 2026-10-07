@@ -339,9 +339,7 @@
         }
       }
     }
-    setFormation(0, true);
     var introDone = false, INTRO_T = 1.55 * IK, sceneT = 0, introAt = 0;
-    if (S3D && scLand) INTRO_T = scLand;                                    /* 3D: 모래가 대부분 내려앉을 때 제목·헤더가 올라온다 */   /* 1.3초: 제목·헤더가 올라오기 시작 (바깥 로고 픽셀이 닿는 1.6초와 겹쳐 1.9초에 모두 끝난다) */
     /* ── 이스터에그: 02 챕터의 코드 조각을 마우스·손가락으로 잡아 던지면 얼마쯤 날아갔다가 스프링처럼 제자리로 돌아온다.
        점수나 안내 없이 숨어 있다 (조각 위에서 커서가 손 모양으로 바뀌는 것만 힌트) ── */
     var play = { on: false, drag: null, last: 0, trail: [], gx: 0, gy: 0 };
@@ -639,12 +637,19 @@
       window.removeEventListener('wheel', lockWheel); window.removeEventListener('keydown', lockKeys);   /* 이제부터 스크롤은 브라우저가 알아서 (JS 를 기다리지 않는다) */
       if (pendingHash !== null) { var ph = pendingHash; pendingHash = null; setTimeout(function(){ goTo(ph); }, 450); }   /* #c3 같은 주소로 들어와도 인트로를 본 뒤에 그 챕터로 */
     }
-    if (introReduce) introFinish(); else setTimeout(introFinish, 3000 * IK);   /* 탭이 가려져 프레임이 멈춰도 3초 뒤엔 풀린다 */
     /* 인트로가 끝나기 전에는 휠·키보드·터치로 넘어갈 수 없다 */
     var lockWheel = function(e){ if (!introDone && e.cancelable) e.preventDefault(); }, lockKeys = function(e){ if (!introDone && [' ', 'PageDown', 'PageUp', 'ArrowDown', 'ArrowUp', 'End', 'Home'].indexOf(e.key) >= 0) e.preventDefault(); };
     window.addEventListener('wheel', lockWheel, { passive: false });
     window.addEventListener('keydown', lockKeys);
-    requestAnimationFrame(render);
+    /* 시작: 로딩 로고가 다 차면 (index.html 의 __boot) 그때부터 입장 시계가 돈다 — 3D 씬은 이미 위에서 만들어 두었다 (셰이더 준비가 로딩 안에 들어간다) */
+    function begin(){
+      start = performance.now();
+      setFormation(0, true);
+      if (S3D && scLand) INTRO_T = scLand;                                    /* 3D: 모래가 대부분 내려앉을 때 제목·헤더가 올라온다 */   /* 1.3초: 제목·헤더가 올라오기 시작 (바깥 로고 픽셀이 닿는 1.6초와 겹쳐 1.9초에 모두 끝난다) */
+      if (introReduce) introFinish(); else setTimeout(introFinish, 3000 * IK);   /* 탭이 가려져 프레임이 멈춰도 3초 뒤엔 풀린다 */
+      requestAnimationFrame(render);
+    }
+    if (window.__boot) window.__boot.done(begin); else begin();
 
     function evOK(e){ var el = e.target && e.target.nodeType === 1 ? e.target : null; return !(el && el.closest && el.closest('a, button, input, textarea, select, .cards')); }
     document.addEventListener('mousedown', function(e){ if (e.button !== 0 || !evOK(e)) return; if (dragStart(e.clientX, e.clientY)) { e.preventDefault(); document.body.style.cursor = 'grabbing'; } });
