@@ -158,9 +158,10 @@ void main(){
     float tl = cellT(P.xy);
     if (uIT < tl) {                                                                       /* 스쳐 가는 큐브 */
       vec4 rot, rt; vec3 st; float bt, k0, k1;
-      base = field(aRef.xy, uIT, size, bright, rot, k0); R = rotAxis(rot.xyz, rot.w);
+      base = field(aRef.xy, uIT, size, bright, rot, k0);
       tailB = field(aRef.xy, uIT - TRAIL, st, bt, rt, k1);
       if (k1 != k0) tailB = base;                                                         /* 막 다시 나타난 큐브는 꼬리 없이 */
+      R = rotAxis(rot.xyz, rot.w * (1.0 - smoothstep(0.5, 3.0, distance(base, tailB) / max(size.x, 1e-3))));   /* 빨라질수록 굴림이 풀려 진행 방향으로 반듯하게 (꼬리가 비틀리지 않게) */
       bev = 1.0;
     } else {                                                                              /* 로고 칸: 뒤에서 날아와 급제동하며 박힌다 */
       float p = clamp((uIT - tl) / L_DUR, 0.0, 1.0), q = 1.0 - p, a = uIT - tl - L_DUR, zo = -L_DEPTH * q * q * q * q;
@@ -171,7 +172,7 @@ void main(){
     }
   }
   vec3 lp = R * (position * size);
-  float hd = step(0.0, lp.z);                                                             /* 앞쪽 꼭짓점은 지금 자리, 뒤쪽은 꼬리 끝 → 지나온 길을 덮는 기둥 */
+  float hd = step(0.0, position.z);                                                       /* 앞면 꼭짓점은 지금 자리, 뒷면은 꼬리 끝 → 지나온 길을 덮는 기둥. 회전 전 좌표로 나눠 굴러도 꼭짓점이 앞뒤를 오가지 않는다 (꼬리가 갑자기 뒤집히던 버그) */
   vTail = hd; vStr = clamp(distance(base, tailB) / (3.0 * max(size.x, 1e-3)), 0.0, 0.95);   /* 꼬리 끝일수록 어둡게 = 잔상 */
   vec4 w = uModel * vec4((mix(tailB, base, hd) + lp) * uScale, 1.0);
   mat3 MR = mat3(uModel) * R;

@@ -311,6 +311,7 @@ html.touch-paging .cards{touch-action:pan-x}
 @media (max-width:359px){.site-header .cta-label{display:none}.site-header .btn.sm{padding:8px 10px}}   /* 320px: 화살표만 (읽는 이름은 aria-label) */
 .ln{display:block;overflow:hidden;padding:.1em 0;margin:-.1em 0}
 .ln>span{display:inline-block}
+.wm-done .wordmark .ln{overflow:visible}
 .am .reveal,.am .intro .wordmark{transition:none;transform:none}
 .static .reveal,.static .intro .wordmark,.static .intro .hint{opacity:1!important;transform:none!important;transition:none!important}
 .only-mode .chapter:not(.only){display:none}

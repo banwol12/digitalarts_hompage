@@ -718,8 +718,9 @@
       var A = AM(); chapters[0].classList.add('is-ready');
       if (!A || introReduce) return;
       var wl = all(chapters[0], '.wordmark .ln > span');
-      A.utils.set(wl, { y: '112%' });
-      A.animate(wl, { y: '0%', duration: Math.round(500 * IK / PACE), ease: 'out(4)', delay: A.stagger(Math.round(50 * IK / PACE)) });   /* 실제 0.5초·0.05초 간격 (엔진 속도가 1/PACE) — 인트로 1.9초 안에 */
+      A.utils.set(wl, { y: '140%' });                                               /* 가림 영역(.ln 아래 여백)보다 확실히 아래에서 출발 — Safari 에서 글자 윗부분이 제목 밑에 줄처럼 보였다 */
+      A.animate(wl, { y: '0%', duration: Math.round(500 * IK / PACE), ease: 'out(4)', delay: A.stagger(Math.round(50 * IK / PACE)),
+        onComplete: function(){ wl.forEach(function(el){ el.style.transform = ''; }); chapters[0].classList.add('wm-done'); } });   /* 다 올라오면 가림막을 풀어 그 자리를 다시 그린다 (남은 조각 지우기) */   /* 실제 0.5초·0.05초 간격 (엔진 속도가 1/PACE) — 인트로 1.9초 안에 */
     }
     /* 헤더 메뉴 밑줄: 현재 챕터 메뉴 밑으로 스프링처럼 옮겨 간다 (00 에서는 숨김) */
     var navInd = document.querySelector('.nav-ind');
