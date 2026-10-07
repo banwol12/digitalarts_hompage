@@ -4,7 +4,8 @@
      이어 로고 칸들이 소실점에서 튀어나와 가운데부터 바깥으로 촤라락 펼쳐지며 제자리에 급제동해 박힌다 (옆으로 모이지 않는다).
    · 첫 챕터의 빛은 카메라에 달린 조명 (렌즈 약간 위·왼쪽, 카메라를 따라간다, 가까울수록 밝다).
    · 큐브 모서리는 살짝 깎아(베벨) 빛이 모서리에 걸린다 — 입장 중엔 또렷하게, 다 모이면 옅게.
-     챕터가 바뀌면 큐브가 GPU 에서 힘으로 새 자리로 날아간다 (날 때만 기운다).
+     챕터가 바뀌면 큐브가 GPU 에서 힘으로 새 자리로 날아간다 (날 때만 기운다). 나는 동안엔 속도만큼 짧은 꼬리 + 화면에 옅은 잔상이 남아
+     픽셀이 코드·블럭으로 바뀌고 되돌아가는 움직임이 눈에 잘 들어온다.
    · 살아 있는 로고: 칸 단위로 아주 느리게 오르내리는 부드러운 물결 (home.js — 이웃 칸이 함께 움직여 툭 튀지 않는다).
    · 색: 빛을 정면으로 받는 앞면 = 로고 파일 색 #A0A0A0 그대로. 그늘·옆면만 밝기가 달라진다.
    · 빛: 천천히 도는 키 라이트 + 하늘·바닥 반사광. 그림자는 빛에서 본 깊이 지도에서
@@ -15,7 +16,7 @@
 import {
   WebGLRenderer, Scene, PerspectiveCamera, OrthographicCamera, BoxGeometry, InstancedBufferGeometry,
   InstancedBufferAttribute, Mesh, PlaneGeometry, ShaderMaterial, WebGLRenderTarget, DepthTexture, UnsignedIntType,
-  DataTexture, RGBAFormat, FloatType, HalfFloatType, NearestFilter, NoBlending, Vector2, Vector3, Matrix4, Euler
+  DataTexture, FramebufferTexture, RGBAFormat, FloatType, HalfFloatType, NearestFilter, NoBlending, Vector2, Vector3, Matrix4, Euler
 } from 'three';
 import { GPUComputationRenderer } from 'three/addons/misc/GPUComputationRenderer.js';
 
@@ -102,18 +103,17 @@ vec3 outColor(vec3 c){ return pow(aces(c * 1.1), vec3(1.0 / 2.2)) + (ign(gl_Frag
 /* 첫 입장 (위치는 시간으로 바로 계산 — 시뮬레이션 밖, 큐브는 이미 제자리에 있다):
    field — 큐브 5% 가 크기 제각각인 정육면체로 굴러가며 0.35초 떠 있다가 1.5초 가속(속도 ∝ 진행³). 카메라를 지나치면 저 멀리서
            새 자리·새 크기로 다시 나타나 양이 일정하다. 막판 0.45초는 촥 빨려 들며(∝ 진행²) 다시 나타나지 않고 다 지나가 버린다.
-           빨라질수록 진행 방향 뒤로 꼬리가 늘어나고 꼬리 끝은 어두워진다 (잔상).
+           꼬리 = 큐브가 직전 0.08초 동안 실제로 지나온 길 (그 시각 위치를 다시 계산해 뒷면을 그곳에 둔다) → 프레임 사이가 끊기지 않는 잔상.
    land  — 로고 칸(4×4 큐브 한 덩어리)이 통째로 제자리 바로 뒤 먼 곳(-300)에서 z 축을 따라 날아와 급제동(진행⁴)하며 박힌다.
            원근 때문에 소실점에서 튀어나와 바깥으로 펼쳐지는 것처럼 보이고, 순서도 가운데부터 바깥으로. 박히는 순간 살짝 번쩍이며 툭 */
 const FIELD = /* glsl */`
 const float F_FLOAT = 0.35, F_ACC = 1.5, F_SUCK = 0.45, F_RANGE = 240.0, F_VMAX = 480.0, F_VTOP = 1700.0;
-const float L_START = 2.05, L_SPREAD = 0.38, L_DUR = 0.6, L_DEPTH = 300.0, INTRO_END = ${INTRO_END.toFixed(2)};
+const float L_START = 2.05, L_SPREAD = 0.38, L_DUR = 0.6, L_DEPTH = 300.0, TRAIL = 0.08, INTRO_END = ${INTRO_END.toFixed(2)};
 float fh(vec2 p){ vec3 p3 = fract(vec3(p.xyx) * 0.1031); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y) * p3.z); }
 float vn2(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(fh(i), fh(i + vec2(1.0, 0.0)), f.x), mix(fh(i + vec2(0.0, 1.0)), fh(i + 1.0), f.x), f.y); }
-vec3 field(vec2 id, out vec3 size, out float bright, out float speed, out vec4 rot){
-  float ta = min(uIT, F_FLOAT + F_ACC), ua = clamp((ta - F_FLOAT) / F_ACC, 0.0, 1.0), us = clamp((uIT - F_FLOAT - F_ACC) / F_SUCK, 0.0, 1.0);
+vec3 field(vec2 id, float T, out vec3 size, out float bright, out vec4 rot, out float cyc){   /* T: 입장 시각 (꼬리는 조금 전 시각으로 다시 부른다) */
+  float ta = clamp(T, 0.0, F_FLOAT + F_ACC), ua = clamp((ta - F_FLOAT) / F_ACC, 0.0, 1.0), us = clamp((T - F_FLOAT - F_ACC) / F_SUCK, 0.0, 1.0);
   float dist = 3.0 * ta + (F_VMAX - 3.0) * F_ACC * ua * ua * ua * ua / 4.0 + F_VMAX * F_SUCK * us + (F_VTOP - F_VMAX) * F_SUCK * us * us * us / 3.0;
-  speed = us > 0.0 ? F_VMAX + (F_VTOP - F_VMAX) * us * us : 3.0 + (F_VMAX - 3.0) * ua * ua * ua;
   float r0 = fh(id * 297.0 + 3.3), c = r0 * F_RANGE + dist, k = floor(c / F_RANGE), fr = fract(c / F_RANGE);
   float ks = floor((r0 * F_RANGE + 3.0 * (F_FLOAT + F_ACC) + (F_VMAX - 3.0) * F_ACC / 4.0) / F_RANGE);   /* 빨려 들기 시작할 때의 바퀴 */
   float z = uCamZ + 1.0 - F_RANGE + fr * F_RANGE;                                         /* 멀리서 카메라 뒤까지 한 바퀴 */
@@ -121,10 +121,10 @@ vec3 field(vec2 id, out vec3 size, out float bright, out float speed, out vec4 r
   float r1 = fh(kid * 711.0), r2 = fh(kid * 1373.0 + 7.1), r5 = fh(kid * 419.0 + 5.5), r4 = fh(id * 911.0 + 1.9), r6 = fh(kid * 157.0 + 2.7), r7 = fh(kid * 883.0 + 9.4);
   float spawn = k < 0.5 ? max(F_RANGE * (1.0 - r0), 3.0) : F_RANGE;                      /* 처음엔 제 깊이에(렌즈 바로 앞까지), 다음 바퀴부턴 맨 끝에서 화면 고르게 */
   vec2 xy = (vec2(r1, r2) * 2.0 - 1.0) * spawn * uTanH * vec2(uAsp, 1.0) * 1.1
-          + (vec2(r6, r7) - 0.5) * (0.12 * fr * F_RANGE + 1.2 * sin(uTime * 0.7 + r6 * 6.28));   /* 큐브마다 조금씩 비스듬히 흘러 결이 다양하다 */
+          + (vec2(r6, r7) - 0.5) * (0.12 * fr * F_RANGE + 1.2 * sin(T * 0.7 + r6 * 6.28));   /* 큐브마다 조금씩 비스듬히 흘러 결이 다양하다 */
   size = vec3(0.25 * (0.7 + 2.6 * r5 * r5) * step(r4, 0.05) * step(k, ks));             /* 빨려 든 뒤엔 다시 나타나지 않는다 */
   if (k < 0.5 && r0 > 0.9) size *= step(r6, 0.35);                                         /* 렌즈 바로 앞 큰 큐브는 몇 개만 (초점 밖이라 흐린 덩어리) */
-  bright = smoothstep(0.0, 0.3, uIT);
+  bright = smoothstep(0.0, 0.3, T); cyc = k;
   rot = vec4(normalize(vec3(r1, r2, r5) - 0.5 + 1e-3), (r5 - 0.5) * 6.0 + uTime * (0.6 + 1.6 * r1));   /* 굴러가는 축·각 */
   return vec3(xy, z);
 }
@@ -149,27 +149,31 @@ void main(){
   float s = aSize.w, tilt = clamp(length(V.xyz) * 0.04, 0.0, 1.0);                    /* 나는 동안만 기울고, 멈추면 반듯하게 */
   float u = clamp((uTime - aAppear) / 0.6, 0.0, 1.0), e = 1.0 - (1.0 - u) * (1.0 - u) * (1.0 - u), lit = step(aAppear, uTime);
   vec3 base = vec3(P.xy, P.z * e) + C0.xyz, size = aSize.xyz * vec3(mix(0.8, 1.0, e), mix(0.8, 1.0, e), mix(0.04, 1.0, e)) * lit * (1.0 - C1.x);   /* C1.x: 02 챕터 코드 조각으로 바뀌며 사라짐 */
-  float bright = smoothstep(0.0, 0.4, u) * lit, stretch = 1.0, flash = 0.0, bev = 0.3, cov = 1.0;
+  float bright = smoothstep(0.0, 0.4, u) * lit, flash = 0.0, bev = 0.3, cov = 1.0;
+  vec3 tailB = base - V.xyz * 0.008;                                                      /* 꼬리 끝: 챕터 전환 땐 반 프레임 전 자리 (180° 셔터) (멈추면 꼬리 없음), 입장 땐 아래에서 */
   vec3 ax = normalize(vec3(fract(s * 7.13), fract(s * 3.37), fract(s * 5.71)) - 0.5 + 1e-3);
   mat3 R = rotAxis(ax, tilt * ((s - 0.5) * 5.0 + sin(uTime * (1.5 + s * 2.5) + s * 40.0) * 1.2));
   if (uIT >= 0.0 && uIT < INTRO_END) {
     float tl = cellT(P.xy);
     if (uIT < tl) {                                                                       /* 스쳐 가는 큐브 */
-      float spd; vec4 rot;
-      base = field(aRef.xy, size, bright, spd, rot); R = rotAxis(rot.xyz, rot.w);
-      stretch = 1.0 + min(spd / (120.0 * size.x + 1e-3), 40.0); bev = 1.0;               /* 꼬리 = 반 프레임 동안 움직인 거리 (영화 카메라 180° 셔터) */
+      vec4 rot, rt; vec3 st; float bt, k0, k1;
+      base = field(aRef.xy, uIT, size, bright, rot, k0); R = rotAxis(rot.xyz, rot.w);
+      tailB = field(aRef.xy, uIT - TRAIL, st, bt, rt, k1);
+      if (k1 != k0) tailB = base;                                                         /* 막 다시 나타난 큐브는 꼬리 없이 */
+      bev = 1.0;
       cov = smoothstep(4.0, 30.0, uCamZ - base.z);                                         /* 렌즈 바로 앞은 어두워지는 대신 투명해진다 (초점 밖이라 부드럽게) */
     } else {                                                                              /* 로고 칸: 뒤에서 날아와 급제동하며 박힌다 */
       float p = clamp((uIT - tl) / L_DUR, 0.0, 1.0), q = 1.0 - p, a = uIT - tl - L_DUR, zo = -L_DEPTH * q * q * q * q;
-      stretch = 1.0 + min(4.0 * q * q * q * L_DEPTH / L_DUR * 0.022, 26.0);
+      float qt = 1.0 - clamp((uIT - tl - TRAIL) / L_DUR, 0.0, 1.0);
+      tailB = base - vec3(0.0, 0.0, L_DEPTH * qt * qt * qt * qt);
       if (a > 0.0) { zo += 0.22 * sin(min(a / 0.3, 1.0) * 3.14159) * exp(-a * 6.0); flash = exp(-a * 11.0); }
       base.z += zo; bev = mix(1.0, 0.3, smoothstep(0.0, 0.25, a)); bright *= smoothstep(0.0, 0.12, p);
     }
   }
   vec3 lp = R * (position * size);
-  vTail = clamp(0.5 + lp.z / (1.732 * max(size.x, 1e-4)), 0.0, 1.0); vStr = clamp((stretch - 1.0) / 4.0, 0.0, 0.9);   /* 꼬리 끝일수록 어둡게 = 잔상 */
-  lp.z = lp.z * stretch - (stretch - 1.0) * size.z * 0.5;                                 /* 꼬리는 진행 방향 뒤로만 */
-  vec4 w = uModel * vec4((base + lp) * uScale, 1.0);
+  float hd = step(0.0, lp.z);                                                             /* 앞쪽 꼭짓점은 지금 자리, 뒤쪽은 꼬리 끝 → 지나온 길을 덮는 기둥 */
+  vTail = hd; vStr = clamp(distance(base, tailB) / (3.0 * max(size.x, 1e-3)), 0.0, 0.95);   /* 꼬리 끝일수록 어둡게 = 잔상 */
+  vec4 w = uModel * vec4((mix(tailB, base, hd) + lp) * uScale, 1.0);
   mat3 MR = mat3(uModel) * R;
   vW = w.xyz; vN = MR * normal; vBox = position; vAx = MR[0]; vAy = MR[1]; vAz = MR[2];
   vAo = aRef.w; vGlow = C0.w; vSeed = s; vRise = bright; vFlash = flash; vBev = bev; vCov = cov;
@@ -190,11 +194,12 @@ void main(){
   vec3 V = normalize(cameraPosition - vW), Lw = normalize(mix(uL, normalize(V + uHeadOff), uHead));   /* uHead: 카메라에 달린 조명 (첫 챕터) */
   float att = mix(1.0, clamp(pow(uCamD / max(distance(cameraPosition, vW), 1.0), 2.0), 0.0, 4.0), uHead);   /* 헤드라이트: 가까울수록 밝다 */
   float sh = mix(1.0, pcss(vW + normalize(vN) * uNOff, uBias), uShK), ndl = max(dot(n, Lw), 0.0);
+  ndl = mix(ndl, max(ndl, 0.8), vStr);                                                    /* 꼬리 옆면도 앞면만큼 밝게 (움직임 흐림 = 물체 색이 고르게 번진 것) — 끊긴 구슬처럼 보이지 않게 */
   float hemi = uAmb * (0.6 + 0.4 * (n.y * 0.5 + 0.5)) * vAo;
   float shade = (uLI * ndl * sh * spot(vW) * att + hemi * mix(1.0, min(att, 1.0), uHead)) / uRef * vRise;   /* 빛을 정면으로 받는 앞면 = 1 → 로고 파일 색 그대로 */
   vec3 H = normalize(Lw + V);
   float spec = pow(max(dot(n, H), 0.0), 60.0) * (0.08 + 0.25 * vBev) * ndl * sh;
-  vec3 col = (uAlb * uLCol * shade * (0.98 + 0.04 * fract(vSeed * 13.71)) + spec * uLCol) * (1.0 + vFlash * 0.4) * mix(1.0, smoothstep(0.0, 0.6, vTail), vStr);
+  vec3 col = (uAlb * uLCol * shade * (0.98 + 0.04 * fract(vSeed * 13.71)) + spec * uLCol) * (1.0 + vFlash * 0.4) * mix(1.0, smoothstep(0.0, 1.0, vTail), vStr);
   col = mix(col, uKey * (1.0 + 0.4 * ndl), clamp(vGlow, 0.0, 0.85));                    /* 03 챕터 데이터 패킷 */
   vec3 c = pow(clamp(col, 0.0, 1.0), vec3(1.0 / 2.2)) + (ign(gl_FragCoord.xy + 17.0) - 0.5) / 255.0;
   gl_FragColor = vec4(mix(c, vec3(0.627), uFlat), 1.0);                                  /* 01 챕터: 모든 면을 로고 색 하나로 */
@@ -243,25 +248,27 @@ const QUAD_VS = /* glsl */`varying vec2 vUv; void main(){ vUv = uv; gl_Position 
 const POST_FS = /* glsl */`
 uniform sampler2D tC, tD, tPrev;
 uniform vec2 uPx, uVP;
-uniform float uAper, uFocus, uMaxR, uZoom, uDamp;
+uniform float uAper, uFocus, uMaxR, uZoom, uDamp, uFZ;
 varying vec2 vUv;
 float ign(vec2 p){ return fract(52.9829189 * fract(dot(p, vec2(0.06711056, 0.00583715)))); }
 vec2 vogel(int i, int n, float phi){ float r = sqrt((float(i) + 0.5) / float(n)), t = float(i) * 2.39996323 + phi; return r * vec2(cos(t), sin(t)); }
 vec2 zc(vec2 uv){ float d = texture2D(tD, uv).r, z = 600.0 / (600.0 - d * 599.0); return vec2(z, d > 0.9999 ? 1e3 : min(uAper * abs(1.0 - uFocus / z), uMaxR)); }   /* 빈 배경 = 무한히 멀다 */
 void main(){
   float phi = ign(gl_FragCoord.xy) * 6.2831853, jit = ign(gl_FragCoord.xy + 31.0);
+  vec4 sum = texture2D(tC, vUv); float ws = 1.0;
+  if (uMaxR > 0.5 || uZoom > 1e-4) {
   vec2 c0 = zc(vUv);
   float R = c0.y;
   for (int i = 0; i < 8; i++) { vec2 t = zc(vUv + vogel(i, 8, phi + 0.9) * uMaxR * uPx); if (t.x < c0.x && t.y < 1e2) R = max(R, t.y); }   /* 앞의 흐린 큐브가 번져 올 수 있는 거리 */
   R = min(R, uMaxR);
-  vec4 sum = texture2D(tC, vUv); float ws = 1.0;
   for (int i = 0; i < NT; i++) {
     vec2 o = vogel(i, NT, phi) * R, uv = vUv + o * uPx + (uVP - vUv) * uZoom * (float(i) + jit) / float(NT);
     vec2 t = zc(uv); float ct = t.x > c0.x + 0.5 ? min(t.y, c0.y) : t.y;                  /* 뒤에 있는 건 내 앞으로 번져 오지 못한다 */
     float w = clamp(ct - length(o) + 1.0, 0.0, 1.0);
     sum += texture2D(tC, uv) * w; ws += w;
   }
-  gl_FragColor = max(sum / ws, max(texture2D(tPrev, vUv) * uDamp - 0.002, 0.0));
+  }
+  gl_FragColor = max(sum / ws, max(texture2D(tPrev, uVP + (vUv - uVP) * (1.0 - uFZ)) * uDamp - 0.002, 0.0));   /* 지난 화면을 소실점에서 바깥으로 살짝 키워 흘려보낸다 (피드백) */
 }`;
 
 function rng(seed){ return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
@@ -340,11 +347,14 @@ export function createHomeScene({ canvas, cells, small }){
   let introS = null, post = null;
   const quadMat = { depthTest: false, depthWrite: false, blending: NoBlending };
   const postMat = new ShaderMaterial({ ...quadMat, vertexShader: QUAD_VS, fragmentShader: POST_FS, defines: { NT: small ? 14 : 24 },
-    uniforms: { tC: { value: null }, tD: { value: null }, tPrev: { value: null }, uPx: { value: new Vector2() }, uVP: { value: new Vector2() }, uAper: { value: 0 }, uFocus: { value: 72 }, uMaxR: { value: 0 }, uZoom: { value: 0 }, uDamp: { value: 0 } } });
+    uniforms: { tC: { value: null }, tD: { value: null }, tPrev: { value: null }, uPx: { value: new Vector2() }, uVP: { value: new Vector2() }, uAper: { value: 0 }, uFocus: { value: 72 }, uMaxR: { value: 0 }, uZoom: { value: 0 }, uDamp: { value: 0 }, uFZ: { value: 0 } } });
   const copyMat = new ShaderMaterial({ ...quadMat, vertexShader: QUAD_VS, fragmentShader: 'uniform sampler2D tC; varying vec2 vUv; void main(){ gl_FragColor = texture2D(tC, vUv); }', uniforms: { tC: { value: null } } });
   const quad = new Mesh(new PlaneGeometry(2, 2), postMat); quad.frustumCulled = false;
   const quadScene = new Scene(); quadScene.add(quad);
   const dbs = new Vector2(), vp = new Vector3();
+  /* 챕터 전환 잔상: 지난 화면을 반쯤 어둡게 먼저 깔고 그 위에 지금 장면 → 화면을 복사해 다음 프레임의 잔상으로 (지금 큐브 뒤로만 남는다) */
+  let ghost = null;
+  const ghostMat = new ShaderMaterial({ ...quadMat, vertexShader: QUAD_VS, fragmentShader: 'uniform sampler2D tC; uniform float uDamp; varying vec2 vUv; void main(){ gl_FragColor = max(texture2D(tC, vUv) * uDamp - 1.0 / 255.0, 0.0); }', uniforms: { tC: { value: null }, uDamp: { value: 0 } } });
   function freePost(){ if (post) { post.scene.depthTexture.dispose(); [post.scene, ...post.acc].forEach(r => r.dispose()); post = null; } }
   const scene = new Scene(); scene.add(wall, cubes);
   const depthMat = new ShaderMaterial({ vertexShader: DEPTH_VS, fragmentShader: 'void main(){ gl_FragColor = vec4(1.0); }', colorWrite: false,
@@ -434,7 +444,19 @@ export function createHomeScene({ canvas, cells, small }){
       cubeMat.uniforms.uNOff.value = 0.08 * st.s; cubeMat.uniforms.uBias.value = 0.03 * st.s;
 
       renderer.setRenderTarget(shadowRT); renderer.render(shadowScene, lightCam);
-      if (!post) { renderer.setRenderTarget(null); renderer.render(scene, camera); return; }
+      if (!post) {
+        renderer.setRenderTarget(null);
+        const gk = Math.min(1, Math.max(0, (simUntil - 0.8 - t) / 0.6));                   /* 큐브가 나는 동안만, 다 내려앉을 즈음 서서히 꺼진다 */
+        if (gk <= 0 || it >= 0) { if (ghost) { ghost.dispose(); ghost = null; } renderer.render(scene, camera); return; }
+        const v = renderer.getDrawingBufferSize(dbs);
+        if (!ghost || ghost.image.width !== v.x || ghost.image.height !== v.y) { if (ghost) ghost.dispose(); ghost = new FramebufferTexture(v.x, v.y); ghostMat.uniforms.uDamp.value = 0; }
+        else ghostMat.uniforms.uDamp.value = Math.pow(0.4, dt * 60) * gk;                     /* 아주 약하게: 한 프레임마다 60%씩 사라진다 */
+        renderer.autoClear = false; renderer.clear();
+        ghostMat.uniforms.tC.value = ghost; quad.material = ghostMat; renderer.render(quadScene, camera);
+        renderer.render(scene, camera);
+        renderer.copyFramebufferToTexture(ghost); renderer.autoClear = true;
+        return;
+      }
       /* 입장: 장면 → 초점·방사 블러·잔상 → 화면 */
       const v = renderer.getDrawingBufferSize(dbs), ss = (a, b, x) => { x = Math.min(1, Math.max(0, (x - a) / (b - a))); return x * x * (3 - 2 * x); };
       if (post.scene.width !== v.x || post.scene.height !== v.y) [post.scene, ...post.acc].forEach(r => r.setSize(v.x, v.y));
@@ -444,8 +466,9 @@ export function createHomeScene({ canvas, cells, small }){
       pu.tC.value = post.scene.texture; pu.tD.value = post.scene.depthTexture; pu.tPrev.value = src.texture; pu.uPx.value.set(1 / v.x, 1 / v.y);
       pu.uAper.value = v.y * 0.012 * ap; pu.uMaxR.value = v.y * 0.022 * cut * Math.min(1, ap * 3);   /* 1초 뒤 흐림 40% ↓ (사용자) */ pu.uFocus.value = 6 + (D - 6) * ss(0.2, 1.15, it);
       pu.uZoom.value = 0.09 * Math.pow(Math.sin(Math.PI * sk), 1.5);                                                  /* 빨려 들 때 소실점으로 */
-      const dm = 0.55 + 0.33 * ss(0.4, 1.85, it) + 0.06 * Math.sin(Math.PI * sk);
-      pu.uDamp.value = Math.max(0, 1 - (1 - dm) / 0.6) * (1 - ss(2.4, 3.0, it));     /* 잔상: 빨라질수록 길게(길이는 사용자 요청으로 40% 짧게), 로고가 서면 사라진다 */
+      const dm = 0.55 + 0.33 * ss(0.4, 1.85, it) + 0.06 * Math.sin(Math.PI * sk), fade = 1 - ss(2.4, 3.0, it), f60 = dt * 60;
+      pu.uDamp.value = Math.pow(Math.min(0.62, Math.max(0, 1 - (1 - dm) / 0.6)), f60) * fade;     /* 화면 잔상은 은은하게만 (길이는 큐브 꼬리가 맡는다 — 끊기지 않게), 로고가 서면 사라진다. 120Hz 화면에서도 같게 */
+      pu.uFZ.value = (0.002 + 0.007 * ss(0.6, 1.85, it) + 0.012 * Math.sin(Math.PI * sk)) * f60 * fade;            /* 피드백이 흐르는 속도 = 날아가는 속도를 따라 */
       vp.set(0, 0, -1).transformDirection(model).multiplyScalar(1e4).add(camera.position).project(camera); pu.uVP.value.set(vp.x * 0.5 + 0.5, vp.y * 0.5 + 0.5);
       quad.material = postMat; renderer.setRenderTarget(dst); renderer.render(quadScene, camera);
       copyMat.uniforms.tC.value = dst.texture; quad.material = copyMat; renderer.setRenderTarget(null); renderer.render(quadScene, camera);
@@ -453,7 +476,7 @@ export function createHomeScene({ canvas, cells, small }){
     },
     dispose(){
       gpu.dispose(); shadowRT.dispose(); tA.dispose(); tB.dispose(); tCell.dispose(); box.dispose(); geo.dispose();
-      cubeMat.dispose(); wallMat.dispose(); depthMat.dispose(); wall.geometry.dispose(); freePost(); postMat.dispose(); copyMat.dispose(); quad.geometry.dispose(); renderer.dispose();
+      cubeMat.dispose(); wallMat.dispose(); depthMat.dispose(); wall.geometry.dispose(); freePost(); if (ghost) ghost.dispose(); ghostMat.dispose(); postMat.dispose(); copyMat.dispose(); quad.geometry.dispose(); renderer.dispose();
     }
   };
 }

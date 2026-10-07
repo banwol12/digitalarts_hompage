@@ -475,7 +475,9 @@
       /* 반투명 워터마크 챕터: 로고는 불투명하게 그리고 투명도는 캔버스 자체(CSS opacity)에 준다 — 겹침 얼룩이 없고 합성은 브라우저가 공짜로 한다.
          (전에는 오프스크린 캔버스에 그린 뒤 화면 전체를 매 프레임 다시 합성해 데스크톱에서 프레임이 떨어졌다. 그 캔버스 한 장 몫의 메모리도 뺐다) */
       var op = g.alpha < 0.999 ? g.alpha.toFixed(3) : ''; if (op !== shownOp) { shownOp = op; canvas.style.opacity = op; if (S3D) canvas3d.style.opacity = op; }
-      ctx.setTransform(DPR, 0, 0, DPR, 0, 0); ctx.clearRect(0, 0, W, H);
+      ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+      if (S3D && t < flightEnd && !reduce) { ctx.globalCompositeOperation = 'destination-out'; ctx.fillStyle = 'rgba(0,0,0,0.65)'; ctx.fillRect(0, 0, W, H); ctx.globalCompositeOperation = 'source-over'; }   /* 전환 중엔 지난 장면을 35%만 남겨 코드 조각에 옅은 잔상 (3D 큐브 잔상과 비슷한 세기) */
+      else ctx.clearRect(0, 0, W, H);
 
       if (S3D) renderSC(t, yaw, pitch, F, D, S, OX, OY, pal); else {
       /* 프레임 상수: 면 6개의 회전된 법선과 조명은 모든 상자에 같다 → 한 번만 계산 (전에는 상자마다 6번, 3,000번 넘게 반복) */
