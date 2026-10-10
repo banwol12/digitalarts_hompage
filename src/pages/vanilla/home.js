@@ -14,7 +14,7 @@
   if (STATIC) document.documentElement.classList.add('static');
   if (STATIC) document.documentElement.classList.remove('booting');
   /* 제목 줄 나누기: <br> 로 나뉜 줄마다 마스크(.ln)를 씌운다 — 챕터에 들어올 때 줄 단위로 밀려 올라온다. 00 의 전공명은 낱말 단위 */
-  Array.prototype.forEach.call(document.querySelectorAll('.chapter .h2'), function(h){ h.innerHTML = h.innerHTML.split(/<br\s*\/?>/i).map(function(t){ return '<span class="ln"><span>' + t.trim() + '</span></span>'; }).join(''); });
+  Array.prototype.forEach.call(document.querySelectorAll('.chapter .h2, .trk .h3, .jobs .h3'), function(h){ h.innerHTML = h.innerHTML.split(/<br\s*\/?>/i).map(function(t){ return '<span class="ln"><span>' + t.trim() + '</span></span>'; }).join(''); });
   (function(){ var sub = document.querySelector('.intro-sub'), tt = document.querySelector('.intro-title'); if (sub) sub.innerHTML = '<span class="ln"><span>' + sub.innerHTML + '</span></span>'; if (tt) tt.innerHTML = '<span class="ln">' + tt.textContent.trim().split(/\s+/).map(function(w){ return '<span>' + w + '</span>'; }).join(' ') + '</span>'; })();
   if (ONLY !== null && ONLY !== undefined) { var onlyEl = document.getElementById('c' + ONLY); if (onlyEl) onlyEl.classList.add('only'); document.documentElement.classList.add('only-mode'); }
 
@@ -682,12 +682,12 @@
     }
     function motionEnter(i, dir){
       var A = AM(), sec = chapters[i]; if (!A || !sec || i === 0) return;
-      var R = all(sec, '.reveal'), lines = all(sec, '.reveal .ln > span'), rules = all(sec, '.set, .set li, .tools .col'), media = all(sec, '.card .media'), thumbs = all(sec, '.card .media canvas, .card .media img, .card .media video');
-      var holders = R.filter(function(el){ return el.querySelector('.ln') || el.matches('.set, .tools, .set li, .card'); });
+      var R = all(sec, '.reveal'), lines = all(sec, '.reveal .ln > span'), rules = all(sec, '.set, .set li, .tools .col, .trk, .studio'), media = all(sec, '.card .media'), thumbs = all(sec, '.card .media canvas, .card .media img, .card .media video');
+      var holders = R.filter(function(el){ return el.querySelector('.ln') || el.matches('.set, .tools, .set li, .card, .studio'); });
       var fades = R.filter(function(el){ return holders.indexOf(el) < 0; });
       holders.forEach(function(el){
-        var kids = el.matches('.set') ? all(el, 'li > *') : el.matches('.tools') ? all(el, '.col > *') : el.matches('.set li') ? Array.prototype.slice.call(el.children) : el.matches('.card') ? all(el, ':scope > :not(.media)') : all(el, '.btn');
-        fades = fades.concat(kids);
+        var kids = el.matches('.set') ? all(el, 'li > *') : el.matches('.tools') ? all(el, '.col > *') : el.matches('.set li') ? Array.prototype.slice.call(el.children) : el.matches('.card') ? all(el, ':scope > :not(.media)') : el.matches('.trk') ? all(el, 'summary > *, .sub, .cl li') : el.matches('.studio') ? Array.prototype.slice.call(el.children) : all(el, '.btn');
+        fades = fades.concat(kids.filter(function(k){ return !k.querySelector('.ln'); }));   /* 줄로 쪼갠 제목은 줄 애니메이션이 맡는다 */
       });
       A.utils.remove(R.concat(lines, rules, media, thumbs, fades));
       if (reduce) {                                                                     /* 동작 줄이기: 움직임 없이 짧은 페이드만 */
@@ -695,12 +695,19 @@
         A.utils.set(R, { opacity: 0 }); A.animate(R, { opacity: 1, duration: 280, delay: A.stagger(40) }); return;
       }
       var at = function(el, extra){ return ordOf(el) * 55 + (extra || 0); };   /* 스크롤에 붙어 오도록 (전 40+80·순서) */
+      /* 갈래·직업 칸 안에서는 위에서부터 한 줄씩 읽히게: 칸 사이 0.09초, 줄 사이 0.03초 (한꺼번에 '빡' 뜨지 않게, 사용자 10-11) */
+      var beats = lines.concat(fades);
+      function beat(el){
+        var c = el.closest('.trk, .tools .col, .studio'); if (!c) return 0;
+        var row = c._row || (c._row = all(c, '*').filter(function(e){ return beats.indexOf(e) >= 0; }));
+        return (c.matches('.tools .col') ? Array.prototype.indexOf.call(c.parentNode.children, c) * 90 : 0) + Math.max(0, row.indexOf(el)) * 30;
+      }
       A.utils.set(holders, { opacity: 1, y: 0 });
       /* 제목 줄: 마스크 안에서 0.8초, 줄마다 0.07초 간격 */
       lines.forEach(function(el){
         var k = Array.prototype.indexOf.call(el.parentNode.parentNode.children, el.parentNode);
         A.utils.set(el, { y: dir > 0 ? '108%' : '-108%' });
-        A.animate(el, { y: '0%', duration: 800, ease: 'out(4)', delay: at(el, 70 * k) });
+        A.animate(el, { y: '0%', duration: 800, ease: 'out(4)', delay: at(el, beat(el) || 70 * k) });
       });
       /* 선: 왼쪽에서 오른쪽으로 그어진다 */
       rules.forEach(function(el){
@@ -718,7 +725,7 @@
       fades.forEach(function(el){
         var li = el.closest('.set li'), k = li && !li.classList.contains('reveal') ? Array.prototype.indexOf.call(li.parentNode.children, li) : 0;
         A.utils.set(el, { opacity: 0, y: 10 * dir });
-        A.animate(el, { opacity: 1, y: 0, duration: 600, ease: 'out(3)', delay: at(el, 80 + 45 * k) });
+        A.animate(el, { opacity: 1, y: 0, duration: 600, ease: 'out(3)', delay: at(el, 80 + 45 * k + beat(el)) });
       });
       /* 라벨: 고정폭 글자가 잠깐 뒤섞였다가 제자리 (코드를 재료로 쓰는 전공이라는 표시) */
       all(sec, '.kicker').forEach(function(el){ el.dataset.t = el.dataset.t || el.textContent; A.animate(el, { innerHTML: A.scrambleText({ text: el.dataset.t, chars: 'uppercase' }), delay: at(el) }); });
@@ -800,7 +807,10 @@
     /* 02 커리큘럼: 폰은 세 갈래를 접어 두고 누르면 펼친다 (길어서 위쪽 코드 조각과 겹쳤다). 펼치고 접으면 로고 자리를 다시 잰다 */
     document.querySelectorAll('details.trk').forEach(function(d){
       if (MOBILE()) d.open = false;
-      d.addEventListener('toggle', function(){ if (active === 2) setFormation(2, false, true); });
+      d.addEventListener('toggle', function(){
+        if (active === 2) setFormation(2, false, true);
+        var A = AM(); if (A && d.open && !reduce) { var it = all(d, '.sub, .cl li'); A.utils.set(it, { opacity: 0, y: 8 }); A.animate(it, { opacity: 1, y: 0, duration: 450, ease: 'out(3)', delay: A.stagger(25) }); }   /* 펼칠 때도 한 줄씩 */
+      });
     });
     /* ③ 인터랙션 시연용 포인터: 마우스·손가락을 따라가고, 한동안 없으면 로고 위를 스스로 돈다 */
     var ptr = { x: 0, y: 0, t: -1e9, sx: null, sy: null };
