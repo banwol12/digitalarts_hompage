@@ -442,7 +442,7 @@ export function createHomeScene({ canvas, cells, small }){
       common.uPoolR.value = 45 * st.s + 2000 * (1 - st.mode) * (1 - st.mode);
       Lt.set(st.light[0], st.light[1], st.light[2]).normalize();
       common.uLI.value = 2.6; common.uLCol.value.copy(NEUTRAL);
-      if (introS) { if (introS.last !== null) introS.clock += Math.min(Math.max(t - introS.last, 0), 1 / 30) * INTRO_RATE; introS.last = t; }   /* 입장 시계는 프레임마다 최대 1/30초씩 — 멈칫한 프레임이 있어도 장면을 건너뛰지 않는다 */
+      if (introS) { if (introS.last !== null) introS.clock += Math.min(Math.max(t - introS.last, 0), 1 / 15) * INTRO_RATE; introS.last = t; }   /* 입장 시계는 프레임마다 최대 1/15초씩 — 멈칫한 프레임이 있어도 장면을 크게 건너뛰지 않고, 초당 15장 이상이면 제 속도 */
       const cu = cubeMat.uniforms, it = introS ? introS.clock : -1;
       cu.uIT.value = depthMat.uniforms.uIT.value = it; cu.uCamZ.value = D / st.s; cu.uTanH.value = H / 2 / F; cu.uAsp.value = W / H;
       if (introS && it > INTRO_END + 0.5) introS = null;

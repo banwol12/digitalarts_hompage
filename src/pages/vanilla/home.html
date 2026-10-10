@@ -45,54 +45,117 @@
     <div class="hint" aria-hidden="true"><i></i></div>
   </section>
 
-  <!-- 01 · 전공소개 -->
-  <section class="chapter left" id="c1" data-mode="paper">
-    <div class="shell">
-      <div class="stack">
-        <p class="kicker cs-caption reveal" style="--i:0">About</p>
-        <h2 class="h2 reveal" style="--i:1">아직 세상에 없는 예술</h2>
-        <p class="lead reveal" style="--i:2">2003년에 문을 연 영상학부 디지털아트전공은 과학기술로 ‘새로운 형태의 예술(New Form Art)’을 만듭니다. 3D와 애니메이션, VFX, 인스톨레이션, 인터랙션과 AI까지 도구와 코드를 예술의 재료로 다룹니다.</p>
-        <ol class="set reveal" style="--i:3">
-          <li><span class="cs-caption">01</span><span class="h3">미디어아트와 실감미디어</span></li>
-          <li><span class="cs-caption">02</span><span class="h3">3D, 애니메이션, VFX</span></li>
-          <li><span class="cs-caption">03</span><span class="h3">인터랙션, 게임엔진, AI</span></li>
-        </ol>
-        <ul class="toolrow cs-caption reveal" style="--i:4" aria-label="주요 도구"><li>Maya</li><li>Blender</li><li>Unreal Engine</li><li>Unity</li><li>TouchDesigner</li><li>Arduino</li><li>Python</li></ul>
+  <!-- 01 · 전공소개: 스크롤하면 세 분야가 하나씩 (무대는 붙어 있고 글과 로고만 바뀐다). 로고도 그 분야를 직접 보여 준다
+       ① 빛이 표면을 훑는 프로젝션 매핑 ② 턴테이블처럼 돌며 드러나는 3D ③ 포인터에 반응하는 인터랙션 -->
+  <section class="chapter left steps" id="c1" data-mode="paper" data-step="0">
+    <div class="track">
+      <div class="stage">
+        <div class="shell">
+          <div class="stack">
+            <p class="kicker cs-caption reveal" style="--i:0">About</p>
+            <h2 class="h2 reveal" style="--i:1">아직 세상에 없는 예술</h2>
+            <div class="panels reveal" style="--i:2">
+              <div class="panel" data-s="0">
+                <p class="lead">2003년에 문을 연 영상학부 디지털아트전공은 과학기술로 ‘새로운 형태의 예술(New Form Art)’을 만듭니다. 도구와 코드를 예술의 재료로 다루는 세 분야를 배웁니다.</p>
+                <ol class="set idx">
+                  <li><button type="button" data-go="1"><span class="cs-caption">01</span><span class="h3">미디어아트와 실감미디어</span><span class="cs-caption go">보기 ↓</span></button></li>
+                  <li><button type="button" data-go="2"><span class="cs-caption">02</span><span class="h3">3D, 애니메이션, VFX</span><span class="cs-caption go">보기 ↓</span></button></li>
+                  <li><button type="button" data-go="3"><span class="cs-caption">03</span><span class="h3">인터랙션, 게임엔진, AI</span><span class="cs-caption go">보기 ↓</span></button></li>
+                </ol>
+                <p class="cs-caption hintline">스크롤하면 하나씩 살펴봅니다</p>
+              </div>
+              <div class="panel" data-s="1">
+                <p class="cs-caption num">01 / 03</p>
+                <h3 class="h3 big">미디어아트와 실감미디어</h3>
+                <p class="body">영상·빛·소리·센서를 재료로 쓰는 예술이 미디어아트입니다. 실감미디어는 화면 밖으로 나와 관객이 그 안에 들어가 몸으로 겪는 미디어예요. 벽과 바닥을 덮는 영상, 다가가면 반응하는 공간 같은 것들입니다.</p>
+                <dl class="facts">
+                  <div><dt class="cs-caption">만드는 것</dt><dd>프로젝션 매핑 · 몰입형 전시 · 인터랙티브 설치 · 미디어 퍼포먼스</dd></div>
+                  <div><dt class="cs-caption">수업</dt><dd>미디어와 공간연출 · 디지털 기반의 인스톨레이션 · 모션 기반 미디어아트 · 미디어 퍼포먼스 &amp; 익스프레션</dd></div>
+                  <div><dt class="cs-caption">프로그램</dt><dd>TouchDesigner · Arduino · Unreal Engine</dd></div>
+                </dl>
+                <p class="cs-caption demo">옆의 로고 — 빛을 비춰 표면을 바꾸는 프로젝션 매핑</p>
+              </div>
+              <div class="panel" data-s="2">
+                <p class="cs-caption num">02 / 03</p>
+                <h3 class="h3 big">3D, 애니메이션, VFX</h3>
+                <p class="body">3D는 컴퓨터 안에 형태를 만들고 빛과 재질을 입히는 일, 애니메이션은 그 형태에 시간을 줘 움직이게 하는 일입니다. VFX는 실제로 찍은 영상에 없는 것을 만들어 자연스럽게 합성하는 시각 효과예요.</p>
+                <dl class="facts">
+                  <div><dt class="cs-caption">만드는 것</dt><dd>3D 캐릭터 · 단편 애니메이션 · 모션그래픽 · 영상 합성</dd></div>
+                  <div><dt class="cs-caption">수업</dt><dd>3D 테크닉 I·II · 캐릭터 애니메이션 · 비주얼 이펙트 · 디지털 머티리얼</dd></div>
+                  <div><dt class="cs-caption">프로그램</dt><dd>Maya · Blender · Unreal Engine</dd></div>
+                </dl>
+                <p class="cs-caption demo">옆의 로고 — 돌아가며 두께와 그림자가 보이는 3D 모델</p>
+              </div>
+              <div class="panel" data-s="3">
+                <p class="cs-caption num">03 / 03</p>
+                <h3 class="h3 big">인터랙션, 게임엔진, AI</h3>
+                <p class="body">인터랙션은 관객의 움직임과 소리에 작품이 반응하게 만드는 일입니다. 게임엔진은 화면을 실시간으로 그려 주는 도구로, 게임뿐 아니라 VR과 전시에도 씁니다. AI는 학습한 모델로 이미지와 소리를 만들거나 작품이 상황을 읽고 판단하게 합니다.</p>
+                <dl class="facts">
+                  <div><dt class="cs-caption">만드는 것</dt><dd>인터랙티브 게임 · VR·XR 콘텐츠 · 센서 작품 · AI 창작 도구</dd></div>
+                  <div><dt class="cs-caption">수업</dt><dd>크리에이티브 컴퓨팅 · 피지컬 컴퓨팅 · 게임엔진 테크놀로지 I·II · 유니티 프로그래밍 · 인공지능과 크리에이티브 씽킹</dd></div>
+                  <div><dt class="cs-caption">프로그램</dt><dd>Unity · Unreal Engine · Python · Arduino</dd></div>
+                </dl>
+                <p class="cs-caption demo"><span class="m-only">로고를 눌러 보세요</span><span class="d-only">로고 위로 마우스를 움직여 보세요</span> — 움직임에 반응하는 인터랙션</p>
+              </div>
+            </div>
+            <ol class="dots" aria-hidden="true"><li></li><li></li><li></li><li></li></ol>
+          </div>
+        </div>
       </div>
+      <i class="snap" style="top:0"></i><i class="snap" style="top:25%"></i><i class="snap" style="top:50%"></i><i class="snap" style="top:75%"></i>
     </div>
   </section>
 
-  <!-- 02 · 교육과정 -->
+  <!-- 02 · 교육과정: 01 의 세 분야 그대로 세 갈래 + 모두 모이는 창작 스튜디오 (수업명이 바로 읽히게) -->
   <section class="chapter right" id="c2" data-mode="ink">
     <div class="shell">
       <div class="stack">
         <p class="kicker cs-caption reveal" style="--i:0">Curriculum</p>
-        <h2 class="h2 reveal" style="--i:1">첫 줄의 코드에서<br>공간을 채우는 작품까지</h2>
-        <ol class="set two">
-          <li class="reveal" style="--i:2"><span class="cs-caption">Code</span><span class="h3">매체로 배우는 코드</span><p>크리에이티브 컴퓨팅, 디지털아트 프로그래밍, 뉴미디어 프로그래밍</p></li>
-          <li class="reveal" style="--i:3"><span class="cs-caption">3D</span><span class="h3">움직임을 만드는 3D와 VFX</span><p>3D 테크닉 I·II, 캐릭터 애니메이션, 비주얼 이펙트, 디지털 머티리얼</p></li>
-          <li class="reveal" style="--i:4"><span class="cs-caption">Touch</span><span class="h3">관객과 호흡하는 센서와 장치</span><p>피지컬 컴퓨팅, 디지털 기반의 인스톨레이션, 피지컬 시스템 디자인</p></li>
-          <li class="reveal" style="--i:5"><span class="cs-caption">Space</span><span class="h3">미디어로 연출하는 공간</span><p>미디어와 공간연출, 모션 기반 미디어아트, 미디어 퍼포먼스 &amp; 익스프레션</p></li>
-          <li class="reveal" style="--i:6"><span class="cs-caption">Engine</span><span class="h3">실시간으로 반응하는 엔진과 XR</span><p>게임엔진 테크놀로지 I·II, 가상현실 콘텐츠, 리얼타임 영상 제작, 유니티 프로그래밍</p></li>
-          <li class="reveal" style="--i:7"><span class="cs-caption">AI</span><span class="h3">AI로 넓히는 발상과 창업</span><p>인공지능과 크리에이티브 씽킹, 데이터 분석 및 AI 활용, 창업과 AI 비즈니스</p></li>
-          <li class="reveal" style="--i:8"><span class="cs-caption">Studio</span><span class="h3">기획부터 제작까지</span><p>디지털아트 창작실습 I·II, 산학 프로젝트 스튜디오, 포트폴리오 워크숍</p></li>
-        </ol>
+        <h2 class="h2 reveal" style="--i:1">세 갈래로 배우고<br>스튜디오에서 한 작품으로</h2>
+        <p class="lead reveal" style="--i:2">01에서 본 세 분야가 각각 어떤 수업으로 이어지는지 정리했습니다. 수업 이름은 교육과정에 따라 바뀔 수 있습니다.</p>
+        <div class="tracks">
+          <details class="trk reveal" style="--i:3" open>
+            <summary><p class="cs-caption">01 · Media Art</p><h3 class="h3">미디어아트와 실감미디어</h3><span class="cnt cs-caption">수업 6</span></summary>
+            <p class="sub cs-caption">공간</p>
+            <ul class="cl"><li>미디어와 공간연출</li><li>모션 기반 미디어아트</li><li>미디어 퍼포먼스 &amp; 익스프레션</li></ul>
+            <p class="sub cs-caption">센서·장치</p>
+            <ul class="cl"><li>피지컬 컴퓨팅</li><li>디지털 기반의 인스톨레이션</li><li>피지컬 시스템 디자인</li></ul>
+          </details>
+          <details class="trk reveal" style="--i:4" open>
+            <summary><p class="cs-caption">02 · 3D &amp; VFX</p><h3 class="h3">3D, 애니메이션, VFX</h3><span class="cnt cs-caption">수업 4</span></summary>
+            <p class="sub cs-caption">형태와 움직임</p>
+            <ul class="cl"><li>3D 테크닉 I·II</li><li>캐릭터 애니메이션</li><li>비주얼 이펙트</li><li>디지털 머티리얼</li></ul>
+          </details>
+          <details class="trk reveal" style="--i:5" open>
+            <summary><p class="cs-caption">03 · Interaction</p><h3 class="h3">인터랙션, 게임엔진, AI</h3><span class="cnt cs-caption">수업 10</span></summary>
+            <p class="sub cs-caption">코드</p>
+            <ul class="cl"><li>크리에이티브 컴퓨팅</li><li>디지털아트 프로그래밍</li><li>뉴미디어 프로그래밍</li></ul>
+            <p class="sub cs-caption">엔진·XR</p>
+            <ul class="cl"><li>게임엔진 테크놀로지 I·II</li><li>유니티 프로그래밍</li><li>리얼타임 영상 제작</li><li>가상현실 콘텐츠</li></ul>
+            <p class="sub cs-caption">AI</p>
+            <ul class="cl"><li>인공지능과 크리에이티브 씽킹</li><li>데이터 분석 및 AI 활용</li><li>창업과 AI 비즈니스</li></ul>
+          </details>
+        </div>
+        <div class="studio reveal" style="--i:6">
+          <p class="cs-caption">모두 함께 · Studio</p>
+          <p><b>창작 스튜디오</b> 디지털아트 창작실습 I·II · 산학 프로젝트 스튜디오 · 포트폴리오 워크숍 — 한 해의 작업은 디지털아트페스티벌(DIAF)에서 전시합니다.</p>
+        </div>
       </div>
     </div>
   </section>
 
-  <!-- 03 · 진로와 역량 (상단 중앙 텍스트, 아래에 데이터가 흐르는 픽셀 필드) -->
+  <!-- 03 · 진로와 역량 (상단 중앙 텍스트, 아래에 데이터가 흐르는 픽셀 필드) — 직업명은 크게, 하는 일과 일하는 곳을 한 줄씩 -->
   <section class="chapter top center" id="c3" data-mode="paper">
     <div class="shell">
       <div class="stack">
         <p class="kicker cs-caption reveal" style="--i:0">Careers</p>
         <h2 class="h2 reveal" style="--i:1">우리가 만드는 세계가<br>누군가의 현실로</h2>
-        <p class="lead reveal" style="--i:2">확장 미디어 크리에이션과 테크 크리에이션,<br>두 역량을 핵심 축으로 융합형 인재를 길러냅니다.</p>
-        <div class="tools reveal" style="--i:3">
-          <div class="col"><span class="cs-caption">기획, 연출</span><span class="h3">융복합 콘텐츠 기획자<br>실감미디어 디렉터</span></div>
-          <div class="col"><span class="cs-caption">그래픽, 영상</span><span class="h3">컴퓨터 그래픽 아티스트<br>모션그래픽, VFX</span></div>
-          <div class="col"><span class="cs-caption">인터랙션, 테크</span><span class="h3">인터랙션 프로그래머<br>테크니컬 아티스트, XR</span></div>
-          <div class="col"><span class="cs-caption">미디어아트</span><span class="h3">미디어 아티스트<br>오디오비주얼, 설치, 퍼포먼스</span></div>
+        <p class="lead reveal" style="--i:2">졸업 뒤에는 이런 일을 합니다. 확장 미디어 크리에이션과 테크 크리에이션, 두 역량을 함께 기릅니다.</p>
+        <div class="tools jobs reveal" style="--i:3">
+          <div class="col"><span class="cs-caption">기획 · 연출</span><span class="h3">융복합 콘텐츠 기획자<br>실감미디어 디렉터</span><p>전시·공연·브랜드 공간의 미디어 경험을 기획하고 연출합니다.</p><p class="where cs-caption">미디어 전시 · 공연 · 브랜드 공간</p></div>
+          <div class="col"><span class="cs-caption">그래픽 · 영상</span><span class="h3">컴퓨터 그래픽 아티스트<br>모션그래픽 · VFX 아티스트</span><p>영화·광고·방송·게임에 들어가는 그래픽과 영상을 만듭니다.</p><p class="where cs-caption">영화 · 광고 · 방송 · 게임</p></div>
+          <div class="col"><span class="cs-caption">인터랙션 · 테크</span><span class="h3">인터랙션 프로그래머<br>테크니컬 아티스트 · XR 개발자</span><p>센서와 게임엔진, 코드로 반응하는 작품과 서비스를 만듭니다.</p><p class="where cs-caption">게임 · XR · 인터랙티브 서비스</p></div>
+          <div class="col"><span class="cs-caption">미디어아트</span><span class="h3">미디어 아티스트<br>오디오비주얼 · 설치 작가</span><p>작가로서 전시와 페스티벌, 레지던시에서 작품을 발표합니다.</p><p class="where cs-caption">전시 · 페스티벌 · 레지던시</p></div>
         </div>
       </div>
     </div>

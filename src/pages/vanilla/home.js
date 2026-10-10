@@ -227,7 +227,8 @@
       } else if (i === 1) {
         box = { x0: W / 2 + 28, x1: shellR - 56, y0: hd + M, y1: H - M };
       } else if (i === 2) {
-        box = { x0: shellL, x1: W / 2 - 28, y0: hd + M, y1: H - M };
+        var st2 = sec.querySelector('.stack'), sl2 = st2 ? st2.getBoundingClientRect().left : W / 2;
+        box = { x0: shellL, x1: Math.max(shellL + 160, sl2 - 40), y0: hd + M, y1: H - M };   /* 글 칸(넓어진 커리큘럼) 바로 왼쪽까지 */
       } else if (i === 3) {
         box = { x0: shellL, x1: shellR - 56, y0: hd + 0.07 * H + hOf('.stack') + 36, y1: H - 12 };
       } else if (i === 4) {
@@ -452,7 +453,7 @@
       var liveK = introDone ? Math.min(1, (t - introAt) / 1.5) : 0;
       /* 그리는 간격: 조용할 때(첫 화면 밖에서 전환·인트로·놀이가 없고 숨쉬기만)는 초당 30장, 그 밖엔 60장 안팎 — 화면 박자(cad)의 정수배로 건너뛴다.
          반 박자 여유를 둬 60·90·100·120·144Hz 어디서나 고르고, 절전 모드 30Hz 에선 매 장 그린다 (전에는 한 장 건너 한 장이라 15장이 됐다) */
-      var calm = !STATIC && !busy && !play.on && active !== 0 && g.flow < 0.01;
+      var calm = !STATIC && !busy && !play.on && active !== 0 && g.flow < 0.01 && !(active === 1 && c1step > 0);   /* 01 의 연출 단계는 60장 */
       watchFrames(now, !calm);
       var skipK = Math.max(1, Math.floor((calm ? 33.3 : 16.7) / cad + 0.1));
       if (now - lastDraw < (skipK - 0.5) * cad) { requestAnimationFrame(render); return; }
@@ -605,6 +606,8 @@
     }
     function renderSC(t, yaw, pitch, F, D, S, OX, OY, pal){
       var hasFlow = g.flow > 0.01, nFr = 0, lv = g.live * (introDone ? Math.min(1, (t - introAt) / 1.5) : 0);
+      var s1 = active === 1 && introDone ? c1step : 0, bandP = (t * 0.3) % 1.5 - 0.25, pt = null, pcy, psy, pcp, psp;   /* 01 단계별 로고 연출 */
+      if (s1 === 3) { pcy = Math.cos(yaw); psy = Math.sin(yaw); pcp = Math.cos(pitch); psp = Math.sin(pitch); pt = pointerAt(t, OX, OY); }
       for (var i = 0; i < N; i++) {
         var b = boxes[i], p = Math.max(0, Math.min(1, (t - b.t0) / b.dur));
         if (b.from && b.to) { var e = easeOut4(p), arc = Math.sin(Math.PI * e); b.cur.x = b.from.x + (b.to.x - b.from.x) * e + b.ax * arc; b.cur.y = b.from.y + (b.to.y - b.from.y) * e + b.ay * arc; b.cur.z = b.from.z + (b.to.z - b.from.z) * e + b.az * arc; b.m = b.mFrom + (b.mTo - b.mFrom) * e; }
@@ -613,6 +616,12 @@
         if (lv > 0.001) lvz = lv * 0.06 * (Math.sin(b.gx * 0.4 + b.gy * 0.55 + t * 0.8) * 0.45 + Math.sin(-b.gx * 0.5 + b.gy * 0.35 + t * 0.6 + 1.7) * 0.35 + Math.sin(b.gx * 0.22 + b.gy * 0.75 + t * 1.0 + 4.2) * 0.2);
         b.pulse = 0;
         CFX[i * 4] = 0; CFX[i * 4 + 1] = 0; CFX[i * 4 + 2] = bob + lvz; CFX[i * 4 + 3] = boost[i] * g.flow;
+        if (s1 === 1) { var dd = (b.gx * 0.55 - b.gy * 0.85) / 40 + 0.5 - bandP; CFX[i * 4 + 3] = 0.85 * Math.exp(-dd * dd / 0.004); }   /* ①: 빛 띠가 로고 표면을 훑는다 (프로젝션 매핑) */
+        else if (pt) {                                                                 /* ③: 포인터 가까운 칸이 솟고 빛난다 (인터랙션) */
+          var qx = b.cur.x * S, qy = b.cur.y * S, qz = b.cur.z * S, ax = qx * pcy + qz * psy, az = -qx * psy + qz * pcy, ay = qy * pcp - az * psp, sk = F / (qy * psp + az * pcp + D);
+          var ex = OX + ax * sk - pt.x, ey = OY + ay * sk - pt.y, kk = Math.exp(-(ex * ex + ey * ey) / pt.r2);
+          CFX[i * 4 + 2] -= 2.6 * kk; CFX[i * 4 + 3] = 0.8 * kk;
+        }
         CM[i * 2] = b.m; CM[i * 2 + 1] = 0;
         if (b.m > 0.001) ORDER[nFr++] = i;
       }
@@ -762,6 +771,49 @@
       activate(idx);
     }
     window.addEventListener('scroll', function(){ if (!ticking) { ticking = true; requestAnimationFrame(pick); } }, { passive: true });
+
+    /* ── 01: 스크롤 단계 (0 소개 · 1 미디어아트 · 2 3D · 3 인터랙션) — 글 패널을 바꾸고, 로고 연출(CHAPTERS[1])도 그 단계 것으로 ── */
+    var C1 = CHAPTERS[1], c1El = chapters[1], c1Panels = c1El.querySelectorAll('.panel'), c1Dots = c1El.querySelectorAll('.dots li'), c1step = -1;
+    var C1_STEPS = [C1,
+      Object.assign({}, C1, { flat: 0, yaw: -0.1, pitch: -0.06, sway: 0.03 }),       /* ① 정면 가까이 — 빛 띠가 표면을 훑는다 */
+      Object.assign({}, C1, { flat: 0, yaw: -0.12, pitch: -0.26, sway: 0.3 }),       /* ② 위에서 비스듬히 + 턴테이블처럼 좌우로 — 두께와 그림자 */
+      Object.assign({}, C1, { flat: 0, yaw: 0, pitch: -0.04, sway: 0 })];           /* ③ 정면 — 포인터 쪽 칸이 솟는다 */
+    function setStep(n){
+      if (n === c1step) return;
+      c1step = n; c1El.setAttribute('data-step', n);
+      Array.prototype.forEach.call(c1Panels, function(p, k){ p.classList.toggle('on', k === n); p.inert = k !== n; });
+      Array.prototype.forEach.call(c1Dots, function(d, k){ d.classList.toggle('on', k === n); });
+      CHAPTERS[1] = C1_STEPS[n];
+      if (active === 1 && introDone) setFormation(1, false);
+    }
+    function stepPick(){
+      var p = PAGED ? c1El.scrollTop / Math.max(1, c1El.clientHeight) : (window.scrollY - c1El.offsetTop) / VH();
+      setStep(Math.max(0, Math.min(3, Math.round(p))));
+    }
+    setStep(0);
+    window.addEventListener('scroll', stepPick, { passive: true });
+    c1El.addEventListener('scroll', stepPick, { passive: true });                   /* 터치: 01 은 안에서 스크롤 */
+    c1El.querySelectorAll('[data-go]').forEach(function(btn){ btn.addEventListener('click', function(){
+      var n = +btn.getAttribute('data-go'), how = reduce ? 'auto' : 'smooth';
+      if (PAGED) c1El.scrollTo({ top: n * c1El.clientHeight, behavior: how }); else window.scrollTo({ top: c1El.offsetTop + n * VH(), behavior: how });
+    }); });
+    /* 02 커리큘럼: 폰은 세 갈래를 접어 두고 누르면 펼친다 (길어서 위쪽 코드 조각과 겹쳤다). 펼치고 접으면 로고 자리를 다시 잰다 */
+    document.querySelectorAll('details.trk').forEach(function(d){
+      if (MOBILE()) d.open = false;
+      d.addEventListener('toggle', function(){ if (active === 2) setFormation(2, false, true); });
+    });
+    /* ③ 인터랙션 시연용 포인터: 마우스·손가락을 따라가고, 한동안 없으면 로고 위를 스스로 돈다 */
+    var ptr = { x: 0, y: 0, t: -1e9, sx: null, sy: null };
+    var ptrSet = function(e){ ptr.x = e.clientX; ptr.y = e.clientY; ptr.t = sceneT; };
+    window.addEventListener('pointermove', ptrSet, { passive: true });
+    window.addEventListener('pointerdown', ptrSet, { passive: true });
+    function pointerAt(t, OX, OY){
+      var R = Math.min(W, H) * 0.16, live = t - ptr.t < 2.5;
+      var tx = live ? ptr.x : OX + Math.sin(t * 1.1) * R * 1.2, ty = live ? ptr.y : OY + Math.sin(t * 1.7 + 1) * R * 0.8;
+      if (ptr.sx === null) { ptr.sx = tx; ptr.sy = ty; }
+      ptr.sx += (tx - ptr.sx) * 0.18; ptr.sy += (ty - ptr.sy) * 0.18;
+      return { x: ptr.sx, y: ptr.sy, r2: R * R * 0.45 };
+    }
 
     /* ── 터치 기기: 스와이프를 감지하는 순간 다음/이전 챕터로 부드럽게 이동 (한 번에 한 챕터) ── */
     var paging = false, mainEl = document.querySelector('main');
