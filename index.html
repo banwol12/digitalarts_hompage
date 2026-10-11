@@ -9,10 +9,19 @@
   <script>
     /* 로딩 로고 상태 (그리기는 body 의 #boot 아래 스크립트). 글꼴 CSS 의 onload 가 먼저 올 수 있어 맨 앞에서 만든다.
        stage(v): 진행 목표 올리기 · css(): 글꼴 CSS 하나 도착 · done(cb): 다 채운 뒤 cb (이미 끝났으면 바로) */
-    window.__boot = { over: false, goal: 0.1, fin: false, cssLeft: 2, cbs: [],
+    /* 언어: 직접 고른 적이 있으면 그것, 아니면 접속한 나라가 한국이면 한국어 · 그 밖이면 영어 (/api/geo, Vercel). 나라를 모르면 브라우저 언어.
+       1.5초 안에 답이 없으면 브라우저 언어로. 로딩 로고는 이것까지 기다린다 (cssLeft 의 셋째 몫) — 한국어가 잠깐 보였다 바뀌지 않게 */
+    window.__lang = (function(){
+      var nav = /^ko\b/i.test(navigator.language || '') ? 'ko' : 'en';
+      try { var o = localStorage.getItem('lang'); if (o === 'ko' || o === 'en') return Promise.resolve(o); } catch (e) {}
+      var geo = fetch('/api/geo', { cache: 'no-store' }).then(function(r){ return r.ok ? r.json() : null; }).then(function(j){ return j && j.country ? (j.country === 'KR' ? 'ko' : 'en') : nav; });
+      return Promise.race([geo, new Promise(function(r){ setTimeout(function(){ r(nav); }, 1500); })]).catch(function(){ return nav; });
+    })();
+    window.__boot = { over: false, goal: 0.1, fin: false, cssLeft: 3, cbs: [],
       stage: function(v){ if (v > this.goal) this.goal = v; },
       css: function(){ this.cssLeft--; },
       done: function(cb){ if (cb) { if (this.over) cb(); else this.cbs.push(cb); } this.fin = true; } };
+    window.__lang.then(function(){ window.__boot.css(); });
   </script>
   <style>html,body{background:#000}
     /* 로딩: 로고가 받은 만큼 아래에서 위로 한 줄(34줄)씩 차오르고, 다 차야 사라지며 입장한다 (#boot + 아래 스크립트).

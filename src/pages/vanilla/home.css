@@ -361,7 +361,8 @@ html.touch-paging .chapter.steps{scroll-snap-type:y mandatory}
   .foot .links{gap:var(--space-16)}
   .foot .row>.cs-caption{letter-spacing:.08em}
 }
-@media (max-width:409px){.site-header .cta-long{display:none}.site-header .btn.sm{padding:8px 12px}}   /* 좁은 폰: 헤더 버튼은 '입학처 ↗' 만 — 전에는 375px 이하에서 버튼이 화면 밖으로 잘렸다 */
+@media (max-width:409px){.site-header .cta-long{display:none}.site-header .btn.sm{padding:8px 12px}.site-header .hdr-actions{gap:2px}.site-header .lang-tg{padding:6px 4px}}
+@media (max-width:379px){.brand-text small{letter-spacing:.12em}}   /* 언어 버튼(EN/KO)이 들어온 뒤 360px 에서 입학처 버튼이 밀렸다 */   /* 좁은 폰: 헤더 버튼은 '입학처 ↗' 만 — 전에는 375px 이하에서 버튼이 화면 밖으로 잘렸다 */
 @media (max-width:359px){.site-header .cta-label{display:none}.site-header .btn.sm{padding:8px 10px}}   /* 320px: 화살표만 (읽는 이름은 aria-label) */
 .ln{display:block;overflow:hidden;padding:.1em 0;margin:-.1em 0}
 .ln>span{display:inline-block}

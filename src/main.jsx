@@ -5,9 +5,11 @@ import App from './App';
 import './index.css';
 import { installSiteGlobals } from './lib/siteGlobals';
 import { installPortfolioAPI } from './lib/portfolioApi';
+import { initLang } from './lib/i18n';
 
 installSiteGlobals();
 installPortfolioAPI();
+initLang();
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
