@@ -14,7 +14,7 @@
   if (STATIC) document.documentElement.classList.add('static');
   if (STATIC) document.documentElement.classList.remove('booting');
   /* 제목 줄 나누기: <br> 로 나뉜 줄마다 마스크(.ln)를 씌운다 — 챕터에 들어올 때 줄 단위로 밀려 올라온다. 00 의 전공명은 낱말 단위 */
-  Array.prototype.forEach.call(document.querySelectorAll('.chapter .h2, .trk .h3, .jobs .h3'), function(h){ h.innerHTML = h.innerHTML.split(/<br\s*\/?>/i).map(function(t){ return '<span class="ln"><span>' + t.trim() + '</span></span>'; }).join(''); });
+  Array.prototype.forEach.call(document.querySelectorAll('.chapter .h2'), function(h){ h.innerHTML = h.innerHTML.split(/<br\s*\/?>/i).map(function(t){ return '<span class="ln"><span>' + t.trim() + '</span></span>'; }).join(''); });
   (function(){ var sub = document.querySelector('.intro-sub'), tt = document.querySelector('.intro-title'); if (sub) sub.innerHTML = '<span class="ln"><span>' + sub.innerHTML + '</span></span>'; if (tt) tt.innerHTML = '<span class="ln">' + tt.textContent.trim().split(/\s+/).map(function(w){ return '<span>' + w + '</span>'; }).join(' ') + '</span>'; })();
   if (ONLY !== null && ONLY !== undefined) { var onlyEl = document.getElementById('c' + ONLY); if (onlyEl) onlyEl.classList.add('only'); document.documentElement.classList.add('only-mode'); }
 
@@ -388,7 +388,7 @@
 
     /* 03 챕터: 픽셀 필드 위를 오가는 데이터 패킷 (행·열을 따라 빛이 옮겨 다닌다) */
     var packets = [], boost = new Float32Array(N);
-    for (var p = 0; p < 18; p++) packets.push({ col: p % 3 === 0, line: Math.floor(Math.random() * (p % 3 === 0 ? FCOLS : FROWS)), x: Math.random() * FCOLS, v: (4 + Math.random() * 7) * (Math.random() < 0.5 ? 1 : -1), len: 2 + Math.random() * 2 });
+    for (var p = 0; p < 5; p++) packets.push({ col: false, line: Math.floor(Math.random() * FROWS), x: Math.random() * FCOLS, v: (2 + Math.random() * 2.5) * (Math.random() < 0.5 ? 1 : -1), len: 2 + Math.random() * 2 });   /* 03 필드는 잔잔하게 (사용자 10-11: 글보다 눈에 띈다) — 가로로만, 다섯 줄, 느리게 */
     var lastT = 0;
     function updateFlow(t){
       var dt = Math.min(0.05, t - lastT); lastT = t;
@@ -530,7 +530,7 @@
         }
         var sq = (t - b.tl) / (0.5 * PACE);                                                       /* 착지: 제자리에 닿는 순간 화면 쪽으로 살짝 밀려 나왔다가 자리 잡는다 */
         if (b.sa && sq > 0 && sq < 1) lz -= b.sa * Math.sin(Math.PI * sq) * (1 - sq);
-        var bob = hasFlow ? Math.sin(t * 1.4 + b.fc * 0.35 + b.fr * 0.6) * 0.5 * g.flow : 0;
+        var bob = hasFlow ? Math.sin(t * 0.7 + b.fc * 0.3 + b.fr * 0.5) * 0.18 * g.flow : 0;
         b.pulse = 0;
         if (hasLive) {
           /* 살아 있는 로고: 전에는 위치에 따라 이어지는 물결(sin(gx·0.3+gy·0.18))이 로고 절반을 한 덩어리로 부풀렸다.
@@ -612,7 +612,7 @@
         var b = boxes[i], p = Math.max(0, Math.min(1, (t - b.t0) / b.dur));
         if (b.from && b.to) { var e = easeOut4(p), arc = Math.sin(Math.PI * e); b.cur.x = b.from.x + (b.to.x - b.from.x) * e + b.ax * arc; b.cur.y = b.from.y + (b.to.y - b.from.y) * e + b.ay * arc; b.cur.z = b.from.z + (b.to.z - b.from.z) * e + b.az * arc; b.m = b.mFrom + (b.mTo - b.mFrom) * e; }
         /* 살아 있는 로고: 칸마다 아주 느리게 오르내리는 부드러운 물결 — 짧은 파동 셋이 겹쳐 위로 흐르고 이웃 칸은 함께 움직인다 (툭 튀는 칸 없음) */
-        var bob = hasFlow ? Math.sin(t * 1.4 + b.fc * 0.35 + b.fr * 0.6) * 0.5 * g.flow : 0, lvz = 0;
+        var bob = hasFlow ? Math.sin(t * 0.7 + b.fc * 0.3 + b.fr * 0.5) * 0.18 * g.flow : 0, lvz = 0;
         if (lv > 0.001) lvz = lv * 0.06 * (Math.sin(b.gx * 0.4 + b.gy * 0.55 + t * 0.8) * 0.45 + Math.sin(-b.gx * 0.5 + b.gy * 0.35 + t * 0.6 + 1.7) * 0.35 + Math.sin(b.gx * 0.22 + b.gy * 0.75 + t * 1.0 + 4.2) * 0.2);
         b.pulse = 0;
         CFX[i * 4] = 0; CFX[i * 4 + 1] = 0; CFX[i * 4 + 2] = bob + lvz; CFX[i * 4 + 3] = boost[i] * g.flow;
@@ -682,11 +682,11 @@
     }
     function motionEnter(i, dir){
       var A = AM(), sec = chapters[i]; if (!A || !sec || i === 0) return;
-      var R = all(sec, '.reveal'), lines = all(sec, '.reveal .ln > span'), rules = all(sec, '.set, .set li, .tools .col, .trk, .studio'), media = all(sec, '.card .media'), thumbs = all(sec, '.card .media canvas, .card .media img, .card .media video');
-      var holders = R.filter(function(el){ return el.querySelector('.ln') || el.matches('.set, .tools, .set li, .card, .studio'); });
+      var R = all(sec, '.reveal'), lines = all(sec, '.reveal .ln > span'), rules = all(sec, '.set, .set li, .tools .col'), media = all(sec, '.card .media'), thumbs = all(sec, '.card .media canvas, .card .media img, .card .media video');
+      var holders = R.filter(function(el){ return el.querySelector('.ln') || el.matches('.set, .tools, .set li, .card'); });
       var fades = R.filter(function(el){ return holders.indexOf(el) < 0; });
       holders.forEach(function(el){
-        var kids = el.matches('.set') ? all(el, 'li > *') : el.matches('.tools') ? all(el, '.col > *') : el.matches('.set li') ? Array.prototype.slice.call(el.children) : el.matches('.card') ? all(el, ':scope > :not(.media)') : el.matches('.trk') ? all(el, 'summary > *, .sub, .cl li') : el.matches('.studio') ? Array.prototype.slice.call(el.children) : all(el, '.btn');
+        var kids = el.matches('.set') ? all(el, 'li > *') : el.matches('.tools') ? all(el, '.col > *') : el.matches('.set li') ? Array.prototype.slice.call(el.children) : el.matches('.card') ? all(el, ':scope > :not(.media)') : all(el, '.btn');
         fades = fades.concat(kids.filter(function(k){ return !k.querySelector('.ln'); }));   /* 줄로 쪼갠 제목은 줄 애니메이션이 맡는다 */
       });
       A.utils.remove(R.concat(lines, rules, media, thumbs, fades));
@@ -695,19 +695,12 @@
         A.utils.set(R, { opacity: 0 }); A.animate(R, { opacity: 1, duration: 280, delay: A.stagger(40) }); return;
       }
       var at = function(el, extra){ return ordOf(el) * 55 + (extra || 0); };   /* 스크롤에 붙어 오도록 (전 40+80·순서) */
-      /* 갈래·직업 칸 안에서는 위에서부터 한 줄씩 읽히게: 칸 사이 0.09초, 줄 사이 0.03초 (한꺼번에 '빡' 뜨지 않게, 사용자 10-11) */
-      var beats = lines.concat(fades);
-      function beat(el){
-        var c = el.closest('.trk, .tools .col, .studio'); if (!c) return 0;
-        var row = c._row || (c._row = all(c, '*').filter(function(e){ return beats.indexOf(e) >= 0; }));
-        return (c.matches('.tools .col') ? Array.prototype.indexOf.call(c.parentNode.children, c) * 90 : 0) + Math.max(0, row.indexOf(el)) * 30;
-      }
       A.utils.set(holders, { opacity: 1, y: 0 });
       /* 제목 줄: 마스크 안에서 0.8초, 줄마다 0.07초 간격 */
       lines.forEach(function(el){
         var k = Array.prototype.indexOf.call(el.parentNode.parentNode.children, el.parentNode);
         A.utils.set(el, { y: dir > 0 ? '108%' : '-108%' });
-        A.animate(el, { y: '0%', duration: 800, ease: 'out(4)', delay: at(el, beat(el) || 70 * k) });
+        A.animate(el, { y: '0%', duration: 800, ease: 'out(4)', delay: at(el, 70 * k) });
       });
       /* 선: 왼쪽에서 오른쪽으로 그어진다 */
       rules.forEach(function(el){
@@ -725,7 +718,7 @@
       fades.forEach(function(el){
         var li = el.closest('.set li'), k = li && !li.classList.contains('reveal') ? Array.prototype.indexOf.call(li.parentNode.children, li) : 0;
         A.utils.set(el, { opacity: 0, y: 10 * dir });
-        A.animate(el, { opacity: 1, y: 0, duration: 600, ease: 'out(3)', delay: at(el, 80 + 45 * k + beat(el)) });
+        A.animate(el, { opacity: 1, y: 0, duration: 600, ease: 'out(3)', delay: at(el, 80 + 45 * k) });
       });
       /* 라벨: 고정폭 글자가 잠깐 뒤섞였다가 제자리 (코드를 재료로 쓰는 전공이라는 표시) */
       all(sec, '.kicker').forEach(function(el){ el.dataset.t = el.dataset.t || el.textContent; A.animate(el, { innerHTML: A.scrambleText({ text: el.dataset.t, chars: 'uppercase' }), delay: at(el) }); });
@@ -779,39 +772,38 @@
     }
     window.addEventListener('scroll', function(){ if (!ticking) { ticking = true; requestAnimationFrame(pick); } }, { passive: true });
 
-    /* ── 01: 스크롤 단계 (0 소개 · 1 미디어아트 · 2 3D · 3 인터랙션) — 글 패널을 바꾸고, 로고 연출(CHAPTERS[1])도 그 단계 것으로 ── */
-    var C1 = CHAPTERS[1], c1El = chapters[1], c1Panels = c1El.querySelectorAll('.panel'), c1Dots = c1El.querySelectorAll('.dots li'), c1step = -1;
+    /* ── 스크롤 단계: 01(소개·세 분야) · 02(세 갈래·스튜디오) · 03(네 진로) — 한 화면 스크롤마다 글 패널 하나.
+       01 은 로고 연출(CHAPTERS[1])도 그 단계 것으로 바꾼다. 새 패널의 글은 한 줄씩 짧게 들어온다 (anime.js) ── */
+    var C1 = CHAPTERS[1], c1El = chapters[1], c1step = -1;
     var C1_STEPS = [C1,
       Object.assign({}, C1, { flat: 0, yaw: -0.1, pitch: -0.06, sway: 0.03 }),       /* ① 정면 가까이 — 빛 띠가 표면을 훑는다 */
       Object.assign({}, C1, { flat: 0, yaw: -0.12, pitch: -0.26, sway: 0.3 }),       /* ② 위에서 비스듬히 + 턴테이블처럼 좌우로 — 두께와 그림자 */
       Object.assign({}, C1, { flat: 0, yaw: 0, pitch: -0.04, sway: 0 })];           /* ③ 정면 — 포인터 쪽 칸이 솟는다 */
-    function setStep(n){
-      if (n === c1step) return;
-      c1step = n; c1El.setAttribute('data-step', n);
-      Array.prototype.forEach.call(c1Panels, function(p, k){ p.classList.toggle('on', k === n); p.inert = k !== n; });
-      Array.prototype.forEach.call(c1Dots, function(d, k){ d.classList.toggle('on', k === n); });
-      CHAPTERS[1] = C1_STEPS[n];
-      if (active === 1 && introDone) setFormation(1, false);
+    function stepper(i, looks, onStep){
+      var el = chapters[i], ps = el.querySelectorAll('.panel'), ds = el.querySelectorAll('.dots li'), n = ps.length, cur = -1;
+      function set(k){
+        if (k === cur) return;
+        var A = cur >= 0 && !reduce ? AM() : null, dir = k > cur ? 1 : -1; cur = k; el.setAttribute('data-step', k);
+        Array.prototype.forEach.call(ps, function(p, j){ p.classList.toggle('on', j === k); p.inert = j !== k; });
+        Array.prototype.forEach.call(ds, function(d, j){ d.classList.toggle('on', j === k); });
+        if (A && active === i) { var kids = Array.prototype.slice.call(ps[k].children); A.utils.remove(kids); A.utils.set(kids, { opacity: 0, y: 14 * dir }); A.animate(kids, { opacity: 1, y: 0, duration: 520, ease: 'out(3)', delay: A.stagger(45, { start: 60 }) }); }
+        if (onStep) onStep(k);
+        if (looks) { CHAPTERS[i] = looks[k]; if (active === i && introDone) setFormation(i, false); }
+      }
+      function pickS(){
+        var p = PAGED ? el.scrollTop / Math.max(1, el.clientHeight) : (window.scrollY - el.offsetTop) / VH();
+        set(Math.max(0, Math.min(n - 1, Math.round(p))));
+      }
+      set(0);
+      window.addEventListener('scroll', pickS, { passive: true });
+      el.addEventListener('scroll', pickS, { passive: true });                       /* 터치: 단계 챕터는 안에서 스크롤 */
+      el.querySelectorAll('[data-go]').forEach(function(btn){ btn.addEventListener('click', function(){
+        var k = +btn.getAttribute('data-go'), how = reduce ? 'auto' : 'smooth';
+        if (PAGED) el.scrollTo({ top: k * el.clientHeight, behavior: how }); else window.scrollTo({ top: el.offsetTop + k * VH(), behavior: how });
+      }); });
     }
-    function stepPick(){
-      var p = PAGED ? c1El.scrollTop / Math.max(1, c1El.clientHeight) : (window.scrollY - c1El.offsetTop) / VH();
-      setStep(Math.max(0, Math.min(3, Math.round(p))));
-    }
-    setStep(0);
-    window.addEventListener('scroll', stepPick, { passive: true });
-    c1El.addEventListener('scroll', stepPick, { passive: true });                   /* 터치: 01 은 안에서 스크롤 */
-    c1El.querySelectorAll('[data-go]').forEach(function(btn){ btn.addEventListener('click', function(){
-      var n = +btn.getAttribute('data-go'), how = reduce ? 'auto' : 'smooth';
-      if (PAGED) c1El.scrollTo({ top: n * c1El.clientHeight, behavior: how }); else window.scrollTo({ top: c1El.offsetTop + n * VH(), behavior: how });
-    }); });
-    /* 02 커리큘럼: 폰은 세 갈래를 접어 두고 누르면 펼친다 (길어서 위쪽 코드 조각과 겹쳤다). 펼치고 접으면 로고 자리를 다시 잰다 */
-    document.querySelectorAll('details.trk').forEach(function(d){
-      if (MOBILE()) d.open = false;
-      d.addEventListener('toggle', function(){
-        if (active === 2) setFormation(2, false, true);
-        var A = AM(); if (A && d.open && !reduce) { var it = all(d, '.sub, .cl li'); A.utils.set(it, { opacity: 0, y: 8 }); A.animate(it, { opacity: 1, y: 0, duration: 450, ease: 'out(3)', delay: A.stagger(25) }); }   /* 펼칠 때도 한 줄씩 */
-      });
-    });
+    stepper(1, C1_STEPS, function(k){ c1step = k; });
+    stepper(2); stepper(3);
     /* ③ 인터랙션 시연용 포인터: 마우스·손가락을 따라가고, 한동안 없으면 로고 위를 스스로 돈다 */
     var ptr = { x: 0, y: 0, t: -1e9, sx: null, sy: null };
     var ptrSet = function(e){ ptr.x = e.clientX; ptr.y = e.clientY; ptr.t = sceneT; };
