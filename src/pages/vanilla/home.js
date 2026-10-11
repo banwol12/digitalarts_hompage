@@ -783,7 +783,7 @@
       var el = chapters[i], ps = el.querySelectorAll('.panel'), ds = el.querySelectorAll('.dots li'), n = ps.length, cur = -1;
       function set(k){
         if (k === cur) return;
-        var A = cur >= 0 && !reduce ? AM() : null, dir = k > cur ? 1 : -1; cur = k; el.setAttribute('data-step', k);
+        var A = cur >= 0 && !reduce && !paging ? AM() : null, dir = k > cur ? 1 : -1; cur = k; el.setAttribute('data-step', k);
         Array.prototype.forEach.call(ps, function(p, j){ p.classList.toggle('on', j === k); p.inert = j !== k; });
         Array.prototype.forEach.call(ds, function(d, j){ d.classList.toggle('on', j === k); });
         if (A && active === i) { var kids = Array.prototype.slice.call(ps[k].children); A.utils.remove(kids); A.utils.set(kids, { opacity: 0, y: 14 * dir }); A.animate(kids, { opacity: 1, y: 0, duration: 520, ease: 'out(3)', delay: A.stagger(45, { start: 60 }) }); }
@@ -830,8 +830,12 @@
         setTimeout(function(){ paging = false; }, reduce ? 20 : 640);
         return;
       }
-      var from = window.scrollY, to = chapters[i].offsetTop, t0 = performance.now(), dur = reduce ? 1 : 620, AN = AM();
-      if (AN && !reduce) { var sp = { y: from }; AN.animate(sp, { y: to, duration: Math.min(950, 520 + 90 * Math.abs(i - active)), ease: 'inOut(3)', onUpdate: function(){ window.scrollTo(0, sp.y); }, onComplete: function(){ window.scrollTo(0, to); paging = false; pick(); } }); return; }
+      glide(chapters[i].offsetTop, Math.min(950, 520 + 90 * Math.abs(i - active)));
+    }
+    function glide(to, ms){                                                            /* 데스크톱: 창 스크롤을 부드럽게 to 까지 */
+      var from = window.scrollY, t0 = performance.now(), dur = reduce ? 1 : 620, AN = AM();
+      paging = true;
+      if (AN && !reduce) { var sp = { y: from }; AN.animate(sp, { y: to, duration: ms, ease: 'inOut(3)', onUpdate: function(){ window.scrollTo(0, sp.y); }, onComplete: function(){ window.scrollTo(0, to); paging = false; pick(); } }); return; }
       (function step(now){
         var p = Math.min(1, (now - t0) / dur), e = 1 - Math.pow(1 - p, 3);
         window.scrollTo(0, from + (to - from) * e);
@@ -857,7 +861,13 @@
         var sec = chapters[active];
         if (!tFired && sec.scrollHeight > sec.clientHeight + 2) {                  /* 화면보다 긴 챕터: 안에서 먼저 스크롤, 끝에 닿으면 페이징 */
           var atTop = sec.scrollTop <= 0, atBottom = sec.scrollTop + sec.clientHeight >= sec.scrollHeight - 2;
-          if ((dy < 0 && !atBottom) || (dy > 0 && !atTop)) return;
+          if (dy < 0 && !atBottom) return;
+          if (dy > 0 && !atTop) {
+            if (!sec.classList.contains('steps')) return;
+            if (e.cancelable) e.preventDefault();                                     /* 단계 챕터는 거꾸로 갈 때 한 번에 처음 단계로 (사용자 10-12) */
+            if (Math.abs(dy) > 24) { tFired = true; sec.scrollTo({ top: 0, behavior: reduce ? 'auto' : 'smooth' }); }
+            return;
+          }
         }
         if (e.cancelable) e.preventDefault();
         if (!tFired && Math.abs(dy) > 24) { tFired = true; goTo(active + (dy < 0 ? 1 : -1)); }
@@ -866,6 +876,21 @@
       document.addEventListener('touchend', tEnd, { passive: true });
       document.addEventListener('touchcancel', tEnd, { passive: true });
       if (STATIC) window.__paging = { goTo: goTo };
+    }
+    /* ── 거꾸로 올라갈 땐 단계를 하나하나 되짚지 않고 챕터 단위로 (사용자 10-12): 챕터 중간이면 그 챕터 처음, 처음이면 앞 챕터 처음으로.
+       한 번 굴림(트랙패드 관성 포함)에 한 번만 — 0.22초 쉬었거나, 0.9초 넘게 세게 계속 굴릴 때 다음 것 ── */
+    if (!PAGED && !ONLY) {
+      var wUp = { last: 0, fired: 0 };
+      window.addEventListener('wheel', function(e){
+        if (!introDone || e.ctrlKey || e.deltaY >= 0 || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
+        e.preventDefault();
+        var now = performance.now(), d = -e.deltaY * (e.deltaMode === 1 ? 33 : 1), fresh = now - wUp.last > 220 || (now - wUp.fired > 900 && d >= 40);
+        wUp.last = now;
+        if (!fresh || paging) return;
+        wUp.fired = now;
+        var top = chapters[active].offsetTop;
+        glide(window.scrollY > top + 4 ? top : chapters[Math.max(0, active - 1)].offsetTop, 640);
+      }, { passive: false });
     }
     window.addEventListener('resize', function(){ resize(); setFormation(active, false, true); pick(); moveInd(active, true); });
     if (document.fonts && document.fonts.ready) document.fonts.ready.then(function(){ resize(); if (active !== 0) setFormation(active, false, true); });

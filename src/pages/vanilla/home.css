@@ -269,6 +269,9 @@ html.touch-paging .chapter.steps{scroll-snap-type:y mandatory}
 .center .panel{align-items:center;text-align:center}
 .center .panel .body{margin-inline:auto}
 .center .dots{justify-content:center}
+#c3 .h2{font-size:clamp(14px,1.2vw,calc(20px * var(--k)));color:var(--text-secondary)}   /* 03: 챕터 제목은 작게 · 흐리게, 진로(직업명)가 눈에 먼저 (사용자 10-12: 둘이 비슷해 어디를 볼지 모르겠다) */
+#c3 .h3.big{font-size:clamp(26px,2.8vw,calc(46px * var(--k)));line-height:1.2;letter-spacing:-.01em}
+#c3 .panels{margin-top:var(--space-12)}
 @media (min-width:800px){.top.steps .stage{align-content:start;padding-top:calc(var(--hdr) + 7vh)}}
 .cols3 .col{border-top:1px solid var(--border-strong);padding-top:var(--space-16);display:flex;flex-direction:column;gap:var(--space-8)}
 .rowhead{display:flex;justify-content:space-between;align-items:flex-end;gap:var(--space-24);flex-wrap:wrap;width:100%}
@@ -337,6 +340,8 @@ html.touch-paging .chapter.steps{scroll-snap-type:y mandatory}
   .steps .stage{align-content:end;padding-bottom:var(--space-24);padding-top:calc(var(--hdr) + 12vh)}
   .panel{gap:var(--space-12);text-align:left}
   .panel .body{font-size:12.5px;line-height:1.65;max-width:none}
+  #c3 .h2{font-size:14px}
+  #c3 .h3.big{font-size:23px}
   .facts>div{grid-template-columns:60px minmax(0,1fr);gap:var(--space-12);padding:var(--space-8) 0}
   .facts dd{font-size:12px}
   .set.idx button{grid-template-columns:44px minmax(0,1fr) auto;padding:var(--space-12) 0}
