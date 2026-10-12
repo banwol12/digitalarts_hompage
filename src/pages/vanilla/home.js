@@ -797,6 +797,12 @@
     function syncLinks(){
       links.forEach(function(a){ var on = linkOn(a); a.classList.toggle('is-active', on); if (on) a.setAttribute('aria-current', 'true'); else a.removeAttribute('aria-current'); if (on && a.parentNode && a.parentNode.classList.contains('subnav')) { var pn = a.parentNode; pn.scrollTo({ left: a.offsetLeft - pn.clientWidth / 2 + a.offsetWidth / 2, behavior: 'smooth' }); } });
     }
+    var rail = document.querySelector('.progress'), railSub = document.querySelectorAll('.rail-sub a');
+    function railOn(){                                                               /* 01 세부 인덱스: 01 에 있을 때만 펼치고, 보고 있는 단계를 켠다 */
+      if (!rail) return;
+      rail.classList.toggle('sub-open', active === 1);
+      railSub.forEach(function(a){ a.classList.toggle('on', active === 1 && +a.getAttribute('data-k') === c1step); });
+    }
     function activate(i){
       if (i === active && chapters[i].classList.contains('is-active')) return;
       if (active === 1 && i !== 1) resetPlay();                                     /* 놀이터(01 의 코드 단계)를 떠나면 조각이 제자리로 */
@@ -804,7 +810,7 @@
       active = i;
       if (i === chapters.length - 1) seenEnd = true; else if (i > prev || i === 0) seenEnd = false;   /* 끝까지 봤는지 */
       chapters.forEach(function(s, k){ s.classList.toggle('is-active', k === i); if (PAGED) s.inert = k !== i; });
-      syncLinks();
+      syncLinks(); railOn();
       body.classList.toggle('cs-inverse', chapters[i].getAttribute('data-mode') === 'ink');
       setFormation(i, false);
       if (prev !== i) motionExit(prev);
@@ -883,7 +889,7 @@
         if (PAGED) el.scrollTo({ top: k * el.clientHeight, behavior: how }); else window.scrollTo({ top: el.offsetTop + k * VH(), behavior: how });
       }); });
     }
-    stepper(1, C1_STEPS, function(k){ var was = c1step >= 1; if (c1step === 2 && k === 3 && active === 1 && introDone) boomToCode(); c1step = k; if (k !== 3) resetPlay(); if (active === 1 && was !== (k >= 1)) { syncLinks(); moveInd(1); } });
+    stepper(1, C1_STEPS, function(k){ var was = c1step >= 1; if (c1step === 2 && k === 3 && active === 1 && introDone) boomToCode(); c1step = k; railOn(); if (k !== 3) resetPlay(); if (active === 1 && was !== (k >= 1)) { syncLinks(); moveInd(1); } });
     stepper(2);
     /* ── 터치 기기: 스와이프를 감지하는 순간 다음/이전 챕터로 부드럽게 이동 (한 번에 한 챕터) ── */
     var paging = false, mainEl = document.querySelector('main');
@@ -914,7 +920,7 @@
     }
     document.querySelectorAll('a[href^="#c"]').forEach(function(a){ a.addEventListener('click', function(e){
       var n = parseInt(a.getAttribute('href').slice(2), 10);
-      if (!isNaN(n) && chapters[n]) { e.preventDefault(); goStep(n, a.hasAttribute('data-sub') ? 1 : 0); }
+      if (!isNaN(n) && chapters[n]) { e.preventDefault(); goStep(n, a.hasAttribute('data-k') ? +a.getAttribute('data-k') : a.hasAttribute('data-sub') ? 1 : 0); }
     }); });
     function glide(to, ms){                                                            /* 데스크톱: 창 스크롤을 부드럽게 to 까지 */
       var from = window.scrollY, t0 = performance.now(), dur = reduce ? 1 : 620, AN = AM();

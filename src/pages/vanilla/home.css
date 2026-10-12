@@ -163,6 +163,15 @@ html.booting .progress{opacity:0}
 .progress a i{display:block;width:calc(16px * var(--k));height:1px;background:currentColor;transition:width var(--duration-base) var(--ease)}
 .progress a.is-active{color:var(--text-body)}
 .progress a.is-active i{width:32px}
+/* 01 세부 인덱스: 01 에 들어오면 01 밑으로 한 줄씩 쪼로록 펼쳐지고, 다른 챕터로 가면 아래부터 접혀 들어간다 */
+.rail-sub{display:grid;grid-template-rows:0fr;margin-bottom:calc(var(--space-12) * -1);transition:grid-template-rows .45s var(--ease) .12s,margin-bottom .45s var(--ease) .12s}   /* 접혔을 땐 빈칸 하나 몫(gap)을 지운다 */
+.rail-sub>div{overflow:hidden;display:flex;flex-direction:column;align-items:flex-end;gap:var(--space-8);min-height:0}
+.rail-sub a{font-family:var(--font-core);letter-spacing:.04em;opacity:0;transform:translateY(-8px);transition:opacity .2s var(--ease) calc((3 - var(--j)) * 35ms),transform .2s var(--ease) calc((3 - var(--j)) * 35ms),color var(--duration-base) var(--ease)}
+.rail-sub a i{width:calc(8px * var(--k))}
+.rail-sub a.on{color:var(--text-body)}
+.rail-sub a.on i{width:16px}
+.progress.sub-open .rail-sub{grid-template-rows:1fr;margin-bottom:0;transition-delay:0s}
+.progress.sub-open .rail-sub a{opacity:1;transform:none;transition:opacity .4s var(--ease) calc(.12s + var(--j) * 70ms),transform .5s var(--ease) calc(.12s + var(--j) * 70ms),color var(--duration-base) var(--ease)}
 
 /* ── Scene: one fixed canvas behind every chapter ── */
 .scene{position:fixed;inset:0;z-index:0;pointer-events:none}

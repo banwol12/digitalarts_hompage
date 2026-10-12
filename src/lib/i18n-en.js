@@ -9,6 +9,9 @@ const text = {
   '로딩 중': 'Loading',
   '전공소개': 'About',
   '교육과정': 'Curriculum',
+  '미디어아트': 'Media Art',
+  '인터랙션': 'Interaction',
+  '스튜디오': 'Studio',
   '진로': 'Careers',
   '입학안내': 'Admissions',
   '입학처': 'Apply',                                                   /* 머리글 버튼 — 폰 폭에 맞게 짧게 */
