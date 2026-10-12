@@ -82,7 +82,7 @@
   N = boxes.length;
   /* 02 챕터 코드 조각: VS Code Dark+ 배색으로 토큰을 부분별 채색 */
   var VS = { ctrl:'#C586C0', type:'#569CD6', fn:'#DCDCAA', num:'#B5CEA8', str:'#CE9178', vari:'#9CDCFE', td:'#4EC9B0', punc:'#D4D4D4' };
-  var VS_PAPER = { '#C586C0':'#16171A', '#569CD6':'#3E4249', '#DCDCAA':'#585E66', '#B5CEA8':'#7C8C00', '#CE9178':'#8A9C06', '#9CDCFE':'#2B2E33', '#4EC9B0':'#6B7280', '#D4D4D4':'#A3A8B0' };   /* 흰 바탕(01 ③): 사이트 색(먹·회색)에 값만 라임 계열 (사용자 10-12: 흰 바탕에 어울리게) */
+  var VS_PAPER = { '#C586C0':'#A8288F', '#569CD6':'#1D63B8', '#DCDCAA':'#1E7F7A', '#B5CEA8':'#5A3FC0', '#CE9178':'#C0362C', '#9CDCFE':'#2B3440', '#4EC9B0':'#8B5A1E', '#D4D4D4':'#7A808A' };   /* 흰 바탕(01 ③): Xcode·VS Code Light+·GitHub Light 를 참고한 밝은 테마 — 키워드 자홍 · 타입 파랑 · 함수 청록 · 숫자 보라 · 문자열 빨강 · 네임스페이스 갈색 · 변수 먹 · 기호 회색 (사용자 10-12: 너무 한 색 같다) */
   var KW_CTRL = { 'for':1, 'if':1, 'else':1, 'return':1, 'while':1, 'import':1, 'yield':1, 'async':1, 'await':1, 'include':1, 'new':1, 'in':1 };
   var KW_TYPE = { 'float':1, 'int':1, 'void':1, 'const':1, 'auto':1, 'class':1, 'def':1, 'template':1, 'typename':1, 'nullptr':1, 'True':1, 'None':1, 'lambda':1, 'self':1, 'vector':1 };
   var KW_NS = { 'std':1, 'np':1, 'numpy':1, 'Particle':1, 'Pixel':1, 'T':1 };
@@ -134,7 +134,7 @@
     }
     if (!S3D && canvas3d) canvas3d.remove();
     var CFX = new Float32Array(N * 4), CM = new Float32Array(N * 2), lastFrameT = 0;
-    var BOOM_P = 5.8, boom = { t0: -1e9, amp: 0 }, BOOMB = new Float32Array(18).fill(1e9), BOOMS = { v: [0, 0, 3.0, 1.1], bl: BOOMB };   /* 01 ② 연쇄 폭발: 주기 · [경과, 세기, 되감기 시작 3초, 되감기 1.1초] · 폭발 6곳 */
+    var boom = { t0: -1e9, amp: 0, p: 7.5 }, BOOMB = new Float32Array(40).fill(1e9), BOOMS = { v: [0, 0, 4.6, 1.3], bl: BOOMB };   /* 01 ② 폭발: 주기 p · [경과, 세기, 되감기 시작, 되감기 길이] · 폭발 10곳 [x, y, 초, 반경] */
     var HS = 0.5;                                                      /* 큐브 반폭: 0.47 이면 이웃 사이에 틈이 생겨 흰 격자 줄로 보였다 (사용자 2026-09-28) → 딱 붙게 */
     /* 프레임마다 다시 만들지 않는 버퍼: 꼭짓점·면 조명·정렬 순서·상자 기록 */
     var PX = new Float32Array(8), PY = new Float32Array(8), RX = new Float32Array(8), RY = new Float32Array(8), RZ = new Float32Array(8);
@@ -622,19 +622,26 @@
       var fw = g.flow, fx3 = Math.sin(t * 0.2) * 0.08, fy3 = 0.71, fz3 = 0.71, hd = g.head;   /* 00 은 빛이 카메라 위치에서 (g.head) */
       LV[0] = L[0] + (fx3 - L[0]) * fw; LV[1] = -L[1] + (fy3 + L[1]) * fw; LV[2] = -L[2] + (fz3 + L[2]) * fw;
       LV[0] += (-0.27 - LV[0]) * hd; LV[1] += (0.38 - LV[1]) * hd; LV[2] += (0.88 - LV[2]) * hd;   /* 카메라에 달린 조명: 렌즈 약간 위·왼쪽 */
-      /* 01 ② 연쇄 폭발: 6번 터져 로고가 다 타면 3초에 한꺼번에 되감기(1.1초), 쉬었다가 5.8초마다 다시 (셰이더 BOOM).
-         단계를 떠나면 세기가 0.3초쯤에 걸쳐 0 으로 — 조각이 제자리로 */
+      /* 01 ② 폭발 시뮬레이션 (셰이더 BOOM): 로고 고르게 흩어진 열 곳이 0.16–0.5초 간격으로 무작위 차례로 터지고 (마지막이 가장 크다),
+         1.6초 뒤 한꺼번에 되감기(1.3초), 쉬었다가 다시. 단계를 떠나면 세기가 0 으로 — 조각이 제자리로 */
       var bOn = s1 === 2 && !reduce, bdt = lastFrameT ? Math.min(0.1, t - lastFrameT) : 0;
-      if (bOn && boom.amp < 0.01) boom.t0 = t - BOOM_P + 0.45;                         /* 들어오고 0.45초 뒤 첫 폭발 */
+      if (bOn && boom.amp < 0.01) boom.t0 = t - boom.p + 0.45;                          /* 들어오고 0.45초 뒤 첫 폭발 */
       boom.amp += ((bOn ? 1 : 0) - boom.amp) * Math.min(1, bdt * 5);
-      if (bOn && t - boom.t0 >= BOOM_P) {                                              /* 새 연쇄: 아무 칸 여섯 곳을 한 방향으로 줄 세워 차례로 */
-        var ang = Math.random() * 6.283, ca = Math.cos(ang), sa = Math.sin(ang), pts = [];
-        for (var q = 0; q < 6; q++) { var bb = boxes[Math.floor(Math.random() * N)]; pts.push([bb.cur.x, -bb.cur.y]); }
-        pts.sort(function(p, r){ return (p[0] * ca + p[1] * sa) - (r[0] * ca + r[1] * sa); });
-        pts.forEach(function(pt, q){ BOOMB[q * 3] = pt[0]; BOOMB[q * 3 + 1] = pt[1]; BOOMB[q * 3 + 2] = [0, 0.28, 0.52, 0.8, 1.05, 1.3][q] + Math.random() * 0.06; });
+      if (bOn && t - boom.t0 >= boom.p) {
+        var pts = [boxes[Math.floor(Math.random() * N)].cur];
+        while (pts.length < 10) {                                                         /* 고르게 흩어진 자리: 후보 24곳 중 이미 고른 곳에서 가장 먼 곳 */
+          var best = null, bd = -1;
+          for (var q = 0; q < 24; q++) { var cb = boxes[Math.floor(Math.random() * N)].cur, md = 1e9; pts.forEach(function(pp){ var dx = pp.x - cb.x, dy = pp.y - cb.y; md = Math.min(md, dx * dx + dy * dy); }); if (md > bd) { bd = md; best = cb; } }
+          pts.push(best);
+        }
+        pts.sort(function(){ return Math.random() - 0.5; });                             /* 차례는 무작위 — 여기저기서 */
+        var tb = 0;
+        pts.forEach(function(pp, q){ BOOMB[q * 4] = pp.x; BOOMB[q * 4 + 1] = -pp.y; BOOMB[q * 4 + 2] = tb; BOOMB[q * 4 + 3] = q === 9 ? 7.5 : 4.2 + Math.random() * 2.6; tb += 0.16 + Math.random() * 0.34; });
+        var tl = BOOMB[9 * 4 + 2];
+        BOOMS.v[2] = tl + 1.6; BOOMS.v[3] = 1.3; boom.p = tl + 1.6 + 1.3 + 1.4;
         boom.t0 = t;
       }
-      BOOMS.v[0] = t - boom.t0; BOOMS.v[1] = boom.amp > 0.002 ? boom.amp : 0;
+      BOOMS.v[0] = t - boom.t0; BOOMS.v[1] = boom.amp > 0.002 ? boom.amp : 0;            /* 화면 흔들림은 뺐다 (사용자 10-12: 너무 세다 — 충격은 큐브가 들썩이는 후폭풍으로) */
       S3D.render({ t: t, dt: lastFrameT ? t - lastFrameT : 1 / 60, cx: OX, cy: OY, s: S, yaw: yaw, pitch: pitch, mode: g.mode, flat: g.flat, wall: g.wall, F: F, D: D,
         cellFx: CFX, cellM: CM, light: LV, head: g.head, boom: BOOMS });
       lastFrameT = t;

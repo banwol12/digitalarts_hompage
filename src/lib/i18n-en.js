@@ -45,7 +45,7 @@ const text = {
   '3D 테크닉 I·II · 디지털 머티리얼': '3D Techniques I·II · Digital Materials',
   '움직임·합성': 'Motion',
   '캐릭터 애니메이션 · 비주얼 이펙트': 'Character Animation · Visual Effects',
-  '옆의 로고 — 연쇄 폭발로 다 타 버린 뒤, 되감기': 'The logo — a chain explosion burns it all away, then it rewinds',
+  '옆의 로고 — 여기저기서 터지는 폭발과 후폭풍, 불티와 연기. 다 무너지면 되감기': 'The logo — scattered blasts, shockwaves, sparks and smoke. Once it all falls, it rewinds',
   '인터랙션은 관객의 움직임과 소리에 작품이 반응하게 만드는 일입니다. 게임엔진은 화면을 실시간으로 그려 주는 도구로, 게임뿐 아니라 VR과 전시에도 씁니다. AI는 학습한 모델로 이미지와 소리를 만들거나 작품이 상황을 읽고 판단하게 합니다.': 'Interaction makes a work respond to the audience’s movement and sound. Game engines render images in real time — used not only for games but for VR and exhibitions. AI uses trained models to generate images and sound, or lets a work read a situation and decide.',
   '인터랙티브 게임 · VR·XR 콘텐츠 · 센서 작품 · AI 창작 도구': 'Interactive games · VR/XR content · Sensor-based works · AI creative tools',
   '코드': 'Code',
