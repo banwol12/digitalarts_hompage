@@ -16,7 +16,7 @@
 import {
   WebGLRenderer, Scene, PerspectiveCamera, OrthographicCamera, BoxGeometry, InstancedBufferGeometry,
   InstancedBufferAttribute, Mesh, PlaneGeometry, ShaderMaterial, WebGLRenderTarget, DepthTexture, UnsignedIntType,
-  DataTexture, FramebufferTexture, RGBAFormat, FloatType, HalfFloatType, NearestFilter, LinearMipmapLinearFilter, NoBlending, Vector2, Vector3, Matrix4, Euler
+  DataTexture, FramebufferTexture, RGBAFormat, FloatType, HalfFloatType, NearestFilter, LinearMipmapLinearFilter, NoBlending, Vector2, Vector3, Vector4, Matrix4, Euler
 } from 'three';
 import { GPUComputationRenderer } from 'three/addons/misc/GPUComputationRenderer.js';
 
@@ -159,6 +159,27 @@ vec3 pcPose(vec2 id, float front, vec3 gp, float T, float inside, inout vec3 siz
 float cellT(vec2 p){ vec2 c = floor(p) + 0.5; return L_START + L_SPREAD * clamp(0.7 * length(c) / 23.0 + 0.3 * vn2(c * 0.21 + 3.1), 0.0, 1.0); }`;
 
 /* 큐브 하나 = 픽셀 하나. 위치는 시뮬레이션, 칸 단위 움직임(숨쉬기·튀어나옴·물결·빛)은 칸 텍스처에서 */
+/* 01 ② (3D·애니메이션·VFX): 로고 픽셀 안에서 터지는 폭발 시뮬레이션 — 중심에 가까운 큐브일수록 세게 튕겨 나가고(공기 저항 + 중력), 38% 는 멀리 나는 불티.
+   다 터지면 잠깐 멈췄다가 되감기로 제자리 (시뮬레이션을 앞뒤로 돌려 보는 VFX 작업 느낌). uBoom: xy 중심(로고 좌표) · z 경과 초 · w 세기 0–1.
+   시뮬레이션 위치(tPos)는 건드리지 않는 화면용 변위라 세기가 0 이 되면 언제든 제자리 */
+const BOOM = /* glsl */`
+uniform vec4 uBoom;
+const float B_T1 = 1.1, B_HOLD = 0.35, B_BACK = 0.9;
+float boomTau(float a){ return a < 0.0 ? 0.0 : a < B_T1 ? a : a < B_T1 + B_HOLD ? B_T1 : B_T1 * (1.0 - smoothstep(0.0, 1.0, (a - B_T1 - B_HOLD) / B_BACK)); }
+vec3 boomOff(vec2 p, float s, float a, out float heat, out float spin, out float spark){
+  heat = 0.0; spin = 0.0; spark = 0.0;
+  if (uBoom.w <= 0.0) return vec3(0.0);
+  vec2 d = p - uBoom.xy; float r = length(d), tau = boomTau(a), k = exp(-r * r / 45.0);
+  spark = step(0.62, fract(s * 91.7));
+  vec2 dir = normalize((r > 1e-3 ? d / r : vec2(1.0, 0.0)) + (vec2(fract(s * 13.3), fract(s * 29.1)) - 0.5) * 0.9);
+  float v = (6.0 + 12.0 * fract(s * 57.3)) * k * (1.0 + 1.3 * spark), dr = (1.0 - exp(-2.2 * tau)) / 2.2;   /* 로고 둘레 안팎까지만 (처음엔 화면 끝까지 날아 글·번호 줄을 덮었다) */
+  float wave = exp(-(r - 20.0 * tau) * (r - 20.0 * tau) / 5.0) * exp(-tau * 2.0) * (1.0 - k);   /* 바깥 큐브는 충격파가 지나갈 때만 들썩 */
+  vec3 off = vec3(dir * v * dr, (3.0 + 9.0 * fract(s * 7.7)) * k * dr + 1.0 * wave) + vec3(0.0, -5.0 * k * tau * tau, 0.0);
+  heat = k * k * exp(-tau * 6.0) * smoothstep(0.0, 0.04, tau) * step(a, B_T1);       /* 터지는 순간 가운데만 잠깐 뜨겁게 (되감기 땐 안 빛남) */
+  spin = tau * (3.0 + 9.0 * fract(s * 3.1)) * k;
+  return off * uBoom.w;
+}`;
+
 const CUBE_VS = /* glsl */`
 uniform sampler2D tPos, tVel, tCell;
 uniform mat4 uModel;
@@ -169,6 +190,7 @@ attribute float aAppear;
 varying vec3 vN, vW, vBox, vAx, vAy, vAz;
 varying float vAo, vGlow, vSeed, vRise, vFlash, vBev, vTail, vStr;
 ${FIELD}
+${BOOM}
 mat3 rotAxis(vec3 a, float t){ float c = cos(t), s = sin(t), o = 1.0 - c;
   return mat3(c + a.x * a.x * o, a.y * a.x * o + a.z * s, a.z * a.x * o - a.y * s, a.x * a.y * o - a.z * s, c + a.y * a.y * o, a.z * a.y * o + a.x * s, a.x * a.z * o + a.y * s, a.y * a.z * o - a.x * s, c + a.z * a.z * o); }
 void main(){
@@ -206,6 +228,12 @@ void main(){
       if (a > 0.0) { zo += 0.22 * sin(min(a / 0.3, 1.0) * 3.14159) * exp(-a * 6.0); flash = exp(-a * 11.0); }
       base.z += zo; bev = mix(1.0, 0.3, smoothstep(0.0, 0.25, a)); bright *= smoothstep(0.0, 0.12, p);
     }
+  }
+  if (uBoom.w > 0.0 && uIT < 0.0) {                                                     /* 01 ② 폭발: 머리는 지금, 꼬리는 조금 전 자리 → 날아가는 길에 짧은 잔상 */
+    float bh, bs, bk, h2, s2, k2; vec3 bo = boomOff(P.xy, s, uBoom.z, bh, bs, bk);
+    base += bo; tailB += boomOff(P.xy, s, uBoom.z - (uBoom.z < B_T1 ? 0.016 : 0.006), h2, s2, k2);   /* 되감기 땐 잔상을 더 짧게 (어두운 꼬리가 무거웠다) */
+    R = rotAxis(ax.zxy, bs) * R; glowV = max(glowV, bh * 0.7);
+    size *= 1.0 - 0.45 * bk * smoothstep(0.0, B_T1, boomTau(uBoom.z)) * exp(-dot(P.xy - uBoom.xy, P.xy - uBoom.xy) / 45.0) * uBoom.w;   /* 불티는 날며 작아진다 */
   }
   vec3 lp = R * (position * size);
   float hd = step(0.0, position.z);                                                       /* 앞면 꼭짓점은 지금 자리, 뒷면은 꼬리 끝 → 지나온 길을 덮는 기둥. 회전 전 좌표로 나눠 굴러도 꼭짓점이 앞뒤를 오가지 않는다 (꼬리가 갑자기 뒤집히던 버그) */
@@ -269,12 +297,14 @@ uniform float uScale, uTime, uIT;
 attribute vec4 aRef;
 attribute vec4 aSize;
 attribute float aAppear;
+${BOOM}
 void main(){
   if (uIT >= 0.0 && uIT < ${INTRO_END.toFixed(2)}) { gl_Position = vec4(2.0, 2.0, 2.0, 1.0); return; }      /* 입장 중엔 그림자 없음 (끝나면 서서히 드러난다) */
   vec4 P = texture2D(tPos, aRef.xy), C0 = texture2D(tCell, vec2(aRef.z, 0.25)), C1 = texture2D(tCell, vec2(aRef.z, 0.75));
   float u = clamp((uTime - aAppear) / 0.6, 0.0, 1.0), e = 1.0 - (1.0 - u) * (1.0 - u) * (1.0 - u);
   vec3 grow = vec3(mix(0.8, 1.0, e), mix(0.8, 1.0, e), mix(0.04, 1.0, e)) * step(aAppear, uTime);
-  gl_Position = projectionMatrix * viewMatrix * uModel * vec4((vec3(P.xy, P.z * e) + C0.xyz + position * aSize.xyz * grow * (1.0 - C1.x)) * uScale, 1.0);
+  float bh, bs, bk; vec3 bo = boomOff(P.xy, aSize.w, uBoom.z, bh, bs, bk);                /* 폭발 큐브도 그림자를 따라 */
+  gl_Position = projectionMatrix * viewMatrix * uModel * vec4((vec3(P.xy, P.z * e) + C0.xyz + bo + position * aSize.xyz * grow * (1.0 - C1.x)) * uScale, 1.0);
 }`;
 
 /* 입장 화면 효과 (입장 동안만): 초점 + 빨려 들 때 소실점으로 모이는 방사 블러 + 잔상.
@@ -359,11 +389,12 @@ export function createHomeScene({ canvas, cells, small }){
   const appear = new InstancedBufferAttribute(new Float32Array(n).fill(-10), 1);
   geo.setAttribute('aRef', new InstancedBufferAttribute(aRef, 4)); geo.setAttribute('aSize', new InstancedBufferAttribute(aSize, 4)); geo.setAttribute('aAppear', appear);
   geo.instanceCount = n;
+  const uBoom = { value: new Vector4() };                                                  /* 01 ② 폭발 (BOOM) — 큐브·그림자가 같이 쓴다 */
   const cubeMat = new ShaderMaterial({
     vertexShader: CUBE_VS, fragmentShader: CUBE_FS, defines: { NB: 12, NP: 24 },
     uniforms: { ...common, tPos: posTex, tVel: velTex, tCell: { value: tCell }, uNOff: { value: 0.1 }, uBias: { value: 0.03 }, uHead: { value: 0 }, uCamD: { value: 72 }, uShK: { value: 1 }, uHeadOff: { value: new Vector3(-0.3, 0.42, 0) }, uIT: { value: -1 }, uPC: { value: /[?&]intro=pc\b/.test(location.search) ? 1 : 0 }, uCamZ: { value: 72 }, uTanH: { value: 0.35 }, uAsp: { value: 1.6 },
       uAlb: { value: new Vector3(0.3567, 0.3567, 0.3567) }, uRef: { value: 2 }, uAmb: { value: 0.35 },   /* uAlb = #A0A0A0 (선형) */
-      uKey: { value: new Vector3(0.905, 1.0, 0.087) } }
+      uKey: { value: new Vector3(0.905, 1.0, 0.087) }, uBoom }
   });
   const cubes = new Mesh(geo, cubeMat); cubes.frustumCulled = false;
   const wallMat = new ShaderMaterial({
@@ -386,7 +417,7 @@ export function createHomeScene({ canvas, cells, small }){
   function freePost(){ if (post) { [post.scene, ...post.acc].forEach(r => r.dispose()); post = null; } }
   const scene = new Scene(); scene.add(wall, cubes);
   const depthMat = new ShaderMaterial({ vertexShader: DEPTH_VS, fragmentShader: 'void main(){ gl_FragColor = vec4(1.0); }', colorWrite: false,
-    uniforms: { tPos: posTex, tVel: velTex, tCell: { value: tCell }, uModel: common.uModel, uScale: common.uScale, uTime: common.uTime, uIT: { value: -1 } } });
+    uniforms: { tPos: posTex, tVel: velTex, tCell: { value: tCell }, uModel: common.uModel, uScale: common.uScale, uTime: common.uTime, uIT: { value: -1 }, uBoom } });
   const shadowCubes = new Mesh(geo, depthMat); shadowCubes.frustumCulled = false;
   const shadowScene = new Scene(); shadowScene.add(shadowCubes);
 
@@ -429,7 +460,7 @@ export function createHomeScene({ canvas, cells, small }){
       freePost(); post = { scene: rt({ samples: 4, generateMipmaps: true, minFilter: LinearMipmapLinearFilter }), acc: [rt({ type: HalfFloatType }), rt({ type: HalfFloatType })], i: 0 };
       return { land: t + 2.65 / INTRO_RATE, end: t + INTRO_END / INTRO_RATE };
     },
-    /* 매 프레임: st = g (cx·cy·s·yaw·pitch·mode·flat·wall) + 빛 방향, cellFx = 칸마다 [dx,dy,dz,glow] (옛 좌표), cellM = [사라짐, 반짝임] */
+    /* 매 프레임: st = g (cx·cy·s·yaw·pitch·mode·flat·wall) + 빛 방향, cellFx = 칸마다 [dx,dy,dz,glow] (옛 좌표), cellM = [사라짐, 반짝임], boom = [x, y, 경과 초, 세기] (새 좌표, 01 ②) */
     render(st){
       const t = st.t, dt = Math.min(Math.max(st.dt, 0), 1 / 30);
       const F = st.F, D = st.D;
@@ -438,6 +469,7 @@ export function createHomeScene({ canvas, cells, small }){
       camera.position.set(0, 0, D); camera.lookAt(0, 0, 0); camera.updateProjectionMatrix(); camera.updateMatrixWorld();
       model.makeRotationFromEuler(euler.set(st.pitch, -st.yaw, 0, 'XYZ'));
       common.uScale.value = st.s; common.uMode.value = st.mode; common.uFlat.value = st.flat; common.uTime.value = t;
+      if (st.boom) uBoom.value.fromArray(st.boom); else uBoom.value.w = 0;
       wallMat.uniforms.uWallZ.value = st.wall;
       common.uPoolR.value = 45 * st.s + 2000 * (1 - st.mode) * (1 - st.mode);
       Lt.set(st.light[0], st.light[1], st.light[2]).normalize();

@@ -8,6 +8,7 @@ const text = {
   '서울예술대학교 영상학부 디지털아트전공': 'Digital Arts, Division of Film & Media, Seoul Institute of the Arts',
   '로딩 중': 'Loading',
   '전공소개': 'About',
+  '교육과정': 'Curriculum',
   '진로': 'Careers',
   '입학안내': 'Admissions',
   '입학처': 'Apply',                                                   /* 머리글 버튼 — 폰 폭에 맞게 짧게 */
@@ -44,7 +45,7 @@ const text = {
   '3D 테크닉 I·II · 디지털 머티리얼': '3D Techniques I·II · Digital Materials',
   '움직임·합성': 'Motion',
   '캐릭터 애니메이션 · 비주얼 이펙트': 'Character Animation · Visual Effects',
-  '옆의 로고 — 돌아가며 두께와 그림자가 보이는 3D 모델': 'The logo — a 3D model turning to reveal depth and shadow',
+  '옆의 로고 — 픽셀 안에서 터지는 폭발 시뮬레이션, 그리고 되감기': 'The logo — an explosion simulation bursting from the pixels, then rewound',
   '인터랙션은 관객의 움직임과 소리에 작품이 반응하게 만드는 일입니다. 게임엔진은 화면을 실시간으로 그려 주는 도구로, 게임뿐 아니라 VR과 전시에도 씁니다. AI는 학습한 모델로 이미지와 소리를 만들거나 작품이 상황을 읽고 판단하게 합니다.': 'Interaction makes a work respond to the audience’s movement and sound. Game engines render images in real time — used not only for games but for VR and exhibitions. AI uses trained models to generate images and sound, or lets a work read a situation and decide.',
   '인터랙티브 게임 · VR·XR 콘텐츠 · 센서 작품 · AI 창작 도구': 'Interactive games · VR/XR content · Sensor-based works · AI creative tools',
   '코드': 'Code',

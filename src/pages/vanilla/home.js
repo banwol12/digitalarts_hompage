@@ -82,7 +82,7 @@
   N = boxes.length;
   /* 02 챕터 코드 조각: VS Code Dark+ 배색으로 토큰을 부분별 채색 */
   var VS = { ctrl:'#C586C0', type:'#569CD6', fn:'#DCDCAA', num:'#B5CEA8', str:'#CE9178', vari:'#9CDCFE', td:'#4EC9B0', punc:'#D4D4D4' };
-  var VS_PAPER = { '#C586C0':'#AF00DB', '#569CD6':'#2349C4', '#DCDCAA':'#795E26', '#B5CEA8':'#098658', '#CE9178':'#A31515', '#9CDCFE':'#001080', '#4EC9B0':'#267F99', '#D4D4D4':'#3B3B3B' };   /* 흰 바탕(01 ③)에선 밝은 테마 색 */
+  var VS_PAPER = { '#C586C0':'#16171A', '#569CD6':'#3E4249', '#DCDCAA':'#585E66', '#B5CEA8':'#7C8C00', '#CE9178':'#8A9C06', '#9CDCFE':'#2B2E33', '#4EC9B0':'#6B7280', '#D4D4D4':'#A3A8B0' };   /* 흰 바탕(01 ③): 사이트 색(먹·회색)에 값만 라임 계열 (사용자 10-12: 흰 바탕에 어울리게) */
   var KW_CTRL = { 'for':1, 'if':1, 'else':1, 'return':1, 'while':1, 'import':1, 'yield':1, 'async':1, 'await':1, 'include':1, 'new':1, 'in':1 };
   var KW_TYPE = { 'float':1, 'int':1, 'void':1, 'const':1, 'auto':1, 'class':1, 'def':1, 'template':1, 'typename':1, 'nullptr':1, 'True':1, 'None':1, 'lambda':1, 'self':1, 'vector':1 };
   var KW_NS = { 'std':1, 'np':1, 'numpy':1, 'Particle':1, 'Pixel':1, 'T':1 };
@@ -134,6 +134,7 @@
     }
     if (!S3D && canvas3d) canvas3d.remove();
     var CFX = new Float32Array(N * 4), CM = new Float32Array(N * 2), lastFrameT = 0;
+    var BOOM_P = 3.4, boom = { t0: -1e9, x: 0, y: 0, amp: 0 }, BOOMV = [0, 0, 0, 0];   /* 01 ② 폭발 주기(초) · 상태 */
     var HS = 0.5;                                                      /* 큐브 반폭: 0.47 이면 이웃 사이에 틈이 생겨 흰 격자 줄로 보였다 (사용자 2026-09-28) → 딱 붙게 */
     /* 프레임마다 다시 만들지 않는 버퍼: 꼭짓점·면 조명·정렬 순서·상자 기록 */
     var PX = new Float32Array(8), PY = new Float32Array(8), RX = new Float32Array(8), RY = new Float32Array(8), RZ = new Float32Array(8);
@@ -621,8 +622,14 @@
       var fw = g.flow, fx3 = Math.sin(t * 0.2) * 0.08, fy3 = 0.71, fz3 = 0.71, hd = g.head;   /* 00 은 빛이 카메라 위치에서 (g.head) */
       LV[0] = L[0] + (fx3 - L[0]) * fw; LV[1] = -L[1] + (fy3 + L[1]) * fw; LV[2] = -L[2] + (fz3 + L[2]) * fw;
       LV[0] += (-0.27 - LV[0]) * hd; LV[1] += (0.38 - LV[1]) * hd; LV[2] += (0.88 - LV[2]) * hd;   /* 카메라에 달린 조명: 렌즈 약간 위·왼쪽 */
+      /* 01 ② 폭발: 3.4초마다 로고 안 아무 칸에서 터졌다가 되감긴다 (셰이더 BOOM). 단계를 떠나면 세기가 0.3초쯤에 걸쳐 0 으로 — 조각이 제자리로 */
+      var bOn = s1 === 2 && !reduce, bdt = lastFrameT ? Math.min(0.1, t - lastFrameT) : 0;
+      if (bOn && boom.amp < 0.01) boom.t0 = t - BOOM_P + 0.45;                         /* 들어오고 0.45초 뒤 첫 폭발 */
+      boom.amp += ((bOn ? 1 : 0) - boom.amp) * Math.min(1, bdt * 5);
+      if (bOn && t - boom.t0 >= BOOM_P) { var bb = boxes[Math.floor(Math.random() * N)]; boom.x = bb.cur.x; boom.y = -bb.cur.y; boom.t0 = t; }
+      BOOMV[0] = boom.x; BOOMV[1] = boom.y; BOOMV[2] = t - boom.t0; BOOMV[3] = boom.amp > 0.002 ? boom.amp : 0;
       S3D.render({ t: t, dt: lastFrameT ? t - lastFrameT : 1 / 60, cx: OX, cy: OY, s: S, yaw: yaw, pitch: pitch, mode: g.mode, flat: g.flat, wall: g.wall, F: F, D: D,
-        cellFx: CFX, cellM: CM, light: LV, head: g.head });
+        cellFx: CFX, cellM: CM, light: LV, head: g.head, boom: BOOMV });
       lastFrameT = t;
       /* 02 챕터 코드 조각만 2D 로 (예전 투영 그대로) */
       var cy = Math.cos(yaw), sy = Math.sin(yaw), cp = Math.cos(pitch), sp = Math.sin(pitch);
@@ -727,7 +734,7 @@
     var navInd = document.querySelector('.nav-ind');
     function moveInd(i, instant){
       if (!navInd || !navInd.parentNode.offsetParent) return;
-      var a = document.querySelector('.site-nav a[data-ch="' + i + '"]'), A = AM(), hidden = parseFloat(getComputedStyle(navInd).opacity) < 0.05;
+      var a = Array.prototype.filter.call(document.querySelectorAll('.site-nav a[data-ch]'), linkOn)[0], A = AM(), hidden = parseFloat(getComputedStyle(navInd).opacity) < 0.05;
       if (!A) { navInd.style.opacity = a ? 1 : 0; if (a) { navInd.style.transform = 'translateX(' + a.offsetLeft + 'px)'; navInd.style.width = a.offsetWidth + 'px'; } return; }
       A.utils.remove(navInd);
       if (a && (instant || reduce || hidden)) A.utils.set(navInd, { x: a.offsetLeft, width: a.offsetWidth });   /* 숨어 있다가 나타날 땐 제자리에서 */
@@ -737,13 +744,22 @@
 
     /* ── 챕터 활성화: 뷰포트 중심선이 들어 있는 챕터 ── */
     var body = document.body, links = document.querySelectorAll('[data-ch]');
+    /* 메뉴 강조: 01 은 '전공소개'(첫 화면)와 '교육과정'(① 단계부터)을 나눠 켠다 — 번호 줄(00–04)은 챕터만 본다 */
+    function linkOn(a){
+      var ch = parseInt(a.getAttribute('data-ch'), 10);
+      if (ch !== active) return false;
+      return ch !== 1 || !a.parentNode.querySelector('[data-sub]') || a.hasAttribute('data-sub') === (c1step >= 1);
+    }
+    function syncLinks(){
+      links.forEach(function(a){ var on = linkOn(a); a.classList.toggle('is-active', on); if (on) a.setAttribute('aria-current', 'true'); else a.removeAttribute('aria-current'); if (on && a.parentNode && a.parentNode.classList.contains('subnav')) { var pn = a.parentNode; pn.scrollTo({ left: a.offsetLeft - pn.clientWidth / 2 + a.offsetWidth / 2, behavior: 'smooth' }); } });
+    }
     function activate(i){
       if (i === active && chapters[i].classList.contains('is-active')) return;
       if (active === 1 && i !== 1) resetPlay();                                     /* 놀이터(01 의 코드 단계)를 떠나면 조각이 제자리로 */
       var prev = active;
       active = i;
       chapters.forEach(function(s, k){ s.classList.toggle('is-active', k === i); if (PAGED) s.inert = k !== i; });
-      links.forEach(function(a){ var on = parseInt(a.getAttribute('data-ch'), 10) === i; a.classList.toggle('is-active', on); if (on) a.setAttribute('aria-current', 'true'); else a.removeAttribute('aria-current'); if (on && a.parentNode && a.parentNode.classList.contains('subnav')) { var pn = a.parentNode; pn.scrollTo({ left: a.offsetLeft - pn.clientWidth / 2 + a.offsetWidth / 2, behavior: 'smooth' }); } });
+      syncLinks();
       body.classList.toggle('cs-inverse', chapters[i].getAttribute('data-mode') === 'ink');
       setFormation(i, false);
       if (prev !== i) motionExit(prev);
@@ -795,7 +811,7 @@
         if (PAGED) el.scrollTo({ top: k * el.clientHeight, behavior: how }); else window.scrollTo({ top: el.offsetTop + k * VH(), behavior: how });
       }); });
     }
-    stepper(1, C1_STEPS, function(k){ c1step = k; if (k !== 3) resetPlay(); });
+    stepper(1, C1_STEPS, function(k){ var was = c1step >= 1; c1step = k; if (k !== 3) resetPlay(); if (active === 1 && was !== (k >= 1)) { syncLinks(); moveInd(1); } });
     stepper(2);
     /* ── 터치 기기: 스와이프를 감지하는 순간 다음/이전 챕터로 부드럽게 이동 (한 번에 한 챕터) ── */
     var paging = false, mainEl = document.querySelector('main');
@@ -812,6 +828,21 @@
       }
       glide(chapters[i].offsetTop, Math.min(950, 520 + 90 * Math.abs(i - active)));
     }
+    /* 메뉴·번호 줄: 그 챕터의 처음으로 ('교육과정'[data-sub] 은 01 의 ① 단계로) — 이미 그 챕터 안이어도 처음(또는 그 단계)으로 */
+    function goStep(i, k){
+      if (!introDone) return;
+      var sec = chapters[i];
+      if (PAGED) {
+        var go = function(){ sec.scrollTo({ top: k * sec.clientHeight, behavior: reduce ? 'auto' : 'smooth' }); };
+        if (i !== active) { goTo(i); if (k) setTimeout(go, reduce ? 30 : 660); } else go();
+        return;
+      }
+      if (!paging) glide(sec.offsetTop + k * VH(), Math.min(950, 520 + 90 * Math.abs(i - active)));
+    }
+    document.querySelectorAll('a[href^="#c"]').forEach(function(a){ a.addEventListener('click', function(e){
+      var n = parseInt(a.getAttribute('href').slice(2), 10);
+      if (!isNaN(n) && chapters[n]) { e.preventDefault(); goStep(n, a.hasAttribute('data-sub') ? 1 : 0); }
+    }); });
     function glide(to, ms){                                                            /* 데스크톱: 창 스크롤을 부드럽게 to 까지 */
       var from = window.scrollY, t0 = performance.now(), dur = reduce ? 1 : 620, AN = AM();
       paging = true;
@@ -825,7 +856,6 @@
     if (PAGED) {
       document.documentElement.classList.add('touch-paging');
       window.scrollTo(0, 0);
-      document.querySelectorAll('a[href^="#c"]').forEach(function(a){ a.addEventListener('click', function(e){ var n = parseInt(a.getAttribute('href').slice(2), 10); if (!isNaN(n)) { e.preventDefault(); goTo(n); } }); });
       window.addEventListener('resize', function(){ mainEl.style.transform = 'translateY(' + (-active * 100) + '%)'; });
       var ty = null, tx = null, tSkip = false, tFired = false;
       document.addEventListener('touchstart', function(e){
