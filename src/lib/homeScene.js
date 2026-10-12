@@ -235,7 +235,7 @@ float boomSize(float s, float tau, float kind){
    모양은 처음에 한 번 만든 노이즈 연기 그림 넷(SMOKE 아틀라스)을 돌려 쓴다. 갓 피어난 연기는 아래 불빛을 받아 주황. 되감기 땐 거꾸로 빨려 든다 */
 const SMOKE_VS = /* glsl */`
 uniform mat4 uModel;
-uniform float uScale;
+uniform float uScale, uSA;
 attribute vec4 aP;   /* x 폭발 번호 · yzw 무작위 */
 varying vec2 vUv;
 varying float vA, vHot, vQ, vAge, vRot;
@@ -256,7 +256,7 @@ void main(){
   }
   c.xy *= B_SPREAD;
   float sz = b.w * (0.75 + 0.5 * fract(aP.y * 13.1)) * (0.6 + 1.7 * smoothstep(0.0, 3.5, age)) * B_SPREAD;   /* 크게 겹쳐 짙어진다 */
-  vA = smoothstep(0.0, 0.3, age) * (1.0 - smoothstep(life * 0.5, life, age)) * uBoom.y * (0.3 + 0.25 * fract(aP.w * 9.1));
+  vA = smoothstep(0.0, 0.3, age) * (1.0 - smoothstep(life * 0.5, life, age)) * uBoom.y * uSA * (0.3 + 0.25 * fract(aP.w * 9.1));   /* uSA: ③ 으로 넘어갈 때 걷힘 */
   vHot = exp(-age * 2.0) * (1.0 - step(uBoom.z, uBoom.x)); vAge = age;
   float rot = aP.y * 6.2832 + age * (fract(aP.z * 3.3) - 0.5) * 0.7; vRot = age * 0.35 + aP.z * 6.2832;
   vec2 q = vec2(position.x * cos(rot) - position.y * sin(rot), position.x * sin(rot) + position.y * cos(rot));
@@ -555,7 +555,7 @@ export function createHomeScene({ canvas, cells, small }){
   for (let i = 0; i < 10 * PUFF; i++) { aP[i * 4] = Math.floor(i / PUFF); aP[i * 4 + 1] = sr(); aP[i * 4 + 2] = sr(); aP[i * 4 + 3] = sr(); }
   sGeo.setAttribute('aP', new InstancedBufferAttribute(aP, 4)); sGeo.instanceCount = 10 * PUFF;
   const smokeMat = new ShaderMaterial({ vertexShader: SMOKE_VS, fragmentShader: SMOKE_FS, defines: BDEF, transparent: true, premultipliedAlpha: true, depthWrite: false,
-    uniforms: { uModel: common.uModel, uScale: common.uScale, uBoom, uBl, tSmoke: { value: smokeAtlas() } } });
+    uniforms: { uModel: common.uModel, uScale: common.uScale, uBoom, uBl, uSA: { value: 1 }, tSmoke: { value: smokeAtlas() } } });
   const smoke = new Mesh(sGeo, smokeMat); smoke.frustumCulled = false; smoke.renderOrder = 2; smoke.visible = false;   /* 01 ② 연기 */
   const scene = new Scene(); scene.add(wall, cubes, smoke);
   const depthMat = new ShaderMaterial({ vertexShader: DEPTH_VS, defines: BDEF, fragmentShader: 'void main(){ gl_FragColor = vec4(1.0); }', colorWrite: false,
@@ -611,7 +611,7 @@ export function createHomeScene({ canvas, cells, small }){
       camera.position.set(0, 0, D); camera.lookAt(0, 0, 0); camera.updateProjectionMatrix(); camera.updateMatrixWorld();
       model.makeRotationFromEuler(euler.set(st.pitch, -st.yaw, 0, 'XYZ'));
       common.uScale.value = st.s; common.uMode.value = st.mode; common.uFlat.value = st.flat; common.uTime.value = t;
-      smoke.visible = !!(st.boom && st.boom.v[1] > 0);
+      smoke.visible = !!(st.boom && st.boom.v[1] > 0); smokeMat.uniforms.uSA.value = st.boom && st.boom.sa !== undefined ? st.boom.sa : 1;
       if (st.boom) { uBoom.value.fromArray(st.boom.v); for (let i = 0; i < 10; i++) uBl.value[i].fromArray(st.boom.bl, i * 4); } else uBoom.value.y = 0;
       wallMat.uniforms.uWallZ.value = st.wall;
       common.uPoolR.value = 45 * st.s + 2000 * (1 - st.mode) * (1 - st.mode);

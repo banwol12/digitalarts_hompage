@@ -63,6 +63,7 @@
   /* 02 챕터에서 픽셀이 풀리며 변하는 코드 조각 — C++ 과 Python 의 변수·함수 (사용자 요청: 터치디자이너 위주에서 변경) */
   var TOKENS = ['float', 'int', 'auto', 'nullptr', 'std::vector', 'std::sin(t)', 'class Particle', 'update(dt)', 'const float dt', '#include <cmath>', 'pos += vel * dt', 'template<T>', 'new Pixel[n]', 'return pos;',
                 'def render():', 'import numpy', 'np.zeros(n)', 'self.vel += g', 'lambda x: x * x', 'async def loop', 'yield frame', 'range(len(px))', 'True', 'None', 'print(fps)', '__main__', 'for i in range', 'dt = 1 / 60'];
+  var GLYPH = '<>/\\|{}[]#$%&*+=01_', GL_DUR = 0.24;                       /* 01 ③ 글리치: 섞이는 글자 · 길이(초) */
   var KINDS = ['code','none','none','none','none','none','none'];      /* 코드 글자(약 14%, 75개쯤)만 남기고 나머지는 흩어지며 사라짐 — 더 많으면 겹쳐서 읽히지 않는다 */
   GRID.forEach(function(row, r){
     for (var c = 0; c < row.length; c++) {
@@ -134,7 +135,7 @@
     }
     if (!S3D && canvas3d) canvas3d.remove();
     var CFX = new Float32Array(N * 4), CM = new Float32Array(N * 2), lastFrameT = 0;
-    var boom = { t0: -1e9, amp: 0, p: 7.5 }, BOOMB = new Float32Array(40).fill(1e9), BOOMS = { v: [0, 0, 4.6, 1.3], bl: BOOMB };   /* 01 ② 폭발: 주기 p · [경과, 세기, 되감기 시작, 되감기 길이] · 폭발 10곳 [x, y, 초, 반경] */
+    var boom = { t0: -1e9, amp: 0, p: 7.5, code: 0, sa: 1 }, BOOMB = new Float32Array(40).fill(1e9), BOOMS = { v: [0, 0, 4.6, 1.3], bl: BOOMB };   /* 01 ② 폭발: 주기 p · [경과, 세기, 되감기 시작, 되감기 길이] · 폭발 10곳 [x, y, 초, 반경] */
     var HS = 0.5;                                                      /* 큐브 반폭: 0.47 이면 이웃 사이에 틈이 생겨 흰 격자 줄로 보였다 (사용자 2026-09-28) → 딱 붙게 */
     /* 프레임마다 다시 만들지 않는 버퍼: 꼭짓점·면 조명·정렬 순서·상자 기록 */
     var PX = new Float32Array(8), PY = new Float32Array(8), RX = new Float32Array(8), RY = new Float32Array(8), RZ = new Float32Array(8);
@@ -290,6 +291,7 @@
       }
       grid = G;
     }
+    var ashToCode = false;
     function setFormation(i, initial, instant){
       var c = CHAPTERS[i] || CHAPTERS[0], fr = frameFor(i), now = (performance.now() - start) / 1000, fn = FORM[c.form];
       /* 첫 진입: 화면 전체 격자에 숨어 있던 픽셀들 — 가운데부터 바깥으로 켜진 뒤 로고 칸만 로고 자리로 모인다 (나머지 칸은 제자리에서 꺼짐) */
@@ -316,11 +318,12 @@
         var side = (Math.random() < 0.5 ? -1 : 1) * (0.35 + Math.random() * 0.65), mvx = t.x - b.cur.x, mvy = t.y - b.cur.y, bend = initial ? 0.05 : 0.1;
         b.ax = -mvy * bend * side; b.ay = mvx * bend * side; b.az = initial ? 0 : -Math.min(4, fd * 0.08);   /* 인트로는 날아오며 앞으로 부풀지 않는다 */
         b.from = { x: b.cur.x, y: b.cur.y, z: b.cur.z }; b.to = t;
-        b.mFrom = b.m; b.mTo = c.morph;
+        b.mFrom = b.m; b.mTo = c.morph; b.mOut = ashToCode;                                /* 잿더미 → 코드는 코드가 바로 피어나게 */
         b.back = !!initial;
         if ((initial ? introReduce : reduce) || instant) { b.cur = { x: t.x, y: t.y, z: t.z }; b.m = c.morph; b.t0 = now - 10; b.tw = now - 10; b.tl = now - 10; b.sa = 0; b.ax = b.ay = b.az = 0; }
         if (b.tl + 0.5 * PACE > flightEnd) flightEnd = b.tl + 0.5 * PACE;
       }
+      ashToCode = false;
       gFrom = { cx: g.cx, cy: g.cy, s: g.s, yaw: g.yaw, pitch: g.pitch, sway: g.sway, spin: g.spin, mode: g.mode, flow: g.flow, live: g.live, alpha: g.alpha, flat: g.flat, wall: g.wall, head: g.head };
       gTo = { cx: fr.cx, cy: fr.cy, s: fr.s, yaw: c.yaw, pitch: c.pitch, sway: c.sway, spin: c.spin, mode: chapters[i].getAttribute('data-mode') === 'ink' ? 1 : 0, flow: c.flow, live: c.live || 0, alpha: (MOBILE() || c.alpha === undefined) ? 1 : c.alpha, flat: c.flat || 0, wall: c.wall, head: c.head || 0 };
       gFrom.yaw = g.yaw + spinAcc; spinAcc = 0;
@@ -419,7 +422,17 @@
         var parts = b.parts || [[b.token, VS.vari]], total = 0, widths = [];
         for (var pi = 0; pi < parts.length; pi++) { var wkey = parts[pi][0] + '|' + fpx, pw = textW.get(wkey); if (pw === undefined) { pw = ctx.measureText(parts[pi][0]).width; textW.set(wkey, pw); } widths.push(pw); total += pw; }
         b.sx = X; b.sy = Y; b.sw = total; b.sh = fpx * 1.15; b.pox = b.ox || 0; b.poy = b.oy || 0; if (alpha > 0.5) b.seenT = sceneT;
-        var cx2 = X - total / 2;
+        var cx2 = X - total / 2, gl = b.glT !== undefined ? sceneT - b.glT : -1;
+        if (gl >= 0 && gl < GL_DUR) {                                                  /* 지지직: 색이 갈라지고 흔들리며 글자가 뒤섞였다가 다른 함수·변수로 */
+          if (gl > GL_DUR * 0.55 && b.nextTok) { b.token = b.nextTok; b.parts = lexParts(b.token); b.nextTok = null; }
+          var gk = 1 - gl / GL_DUR, jx = (Math.random() - 0.5) * 12 * gk, sh = 2 + 3 * gk, txt = b.token, scr = '';
+          for (var ci = 0; ci < txt.length; ci++) scr += Math.random() < 0.45 * gk ? GLYPH.charAt(Math.floor(Math.random() * GLYPH.length)) : txt.charAt(ci);
+          var ga = ctx.globalAlpha; ctx.globalAlpha = ga * 0.6;
+          ctx.fillStyle = g.mode < 0.5 ? '#E0137F' : '#FF3DF2'; ctx.fillText(scr, cx2 + jx - sh, Y);
+          ctx.fillStyle = g.mode < 0.5 ? '#00A3E0' : '#3DFCFF'; ctx.fillText(scr, cx2 + jx + sh, Y + 1);
+          ctx.globalAlpha = ga * (0.55 + 0.45 * Math.random()); ctx.fillStyle = g.mode < 0.5 ? '#16171A' : '#F3F3F3'; ctx.fillText(scr, cx2 + jx, Y);
+          ctx.globalAlpha = ga;
+        } else
         for (var pj = 0; pj < parts.length; pj++) { ctx.fillStyle = g.mode < 0.5 ? (VS_PAPER[parts[pj][1]] || parts[pj][1]) : parts[pj][1]; ctx.fillText(parts[pj][0], cx2, Y); cx2 += widths[pj]; }
       } else if (b.kind === 'tri') {
         ctx.strokeStyle = rgb(pal.light); ctx.beginPath();
@@ -442,7 +455,7 @@
       }
     }
 
-    var PERF = /[?&]perf=1/.test(location.search), perfLog = [], lastDraw = 0;
+    var PERF = /[?&]perf=1/.test(location.search), perfLog = [], lastDraw = 0, glLast = 0;
     if (PERF) window.__perf = perfLog;
     function render(now){
       if (!canvas.isConnected) { if (S3D) { S3D.dispose(); S3D = null; } return; }   /* 다른 페이지로 가면 멈춘다 */
@@ -458,6 +471,10 @@
       if (now - lastDraw < (skipK - 0.5) * cad) { requestAnimationFrame(render); return; }
       lastDraw = now;
       if (play.on) updatePlay(t);
+      if (active === 1 && c1step === 3 && introDone && !reduce && t - glLast > 1.5) {   /* 01 ③: 1.5초마다 코드 조각 40% 가 글리치와 함께 다른 토큰으로 */
+        glLast = t;
+        for (var gi = 0; gi < N; gi++) { var gb = boxes[gi]; if (gb.kind === 'code' && !gb.held && Math.random() < 0.4) { gb.glT = t + Math.random() * 0.14; gb.nextTok = TOKENS[Math.floor(Math.random() * TOKENS.length)]; } }
+      }
       if (gFrom && gTo) { var gp = Math.max(0, Math.min(1, (t - gT0) / gDur)), ge = easeOut4(gp); for (var key in gTo) g[key] = gFrom[key] + (gTo[key] - gFrom[key]) * ge; if (gp >= 1) gFrom = gTo = null; }
       spinAcc += g.spin * (t - lastSpin); lastSpin = t;
       if (g.flow > 0.01 && !reduce) updateFlow(t); else lastT = t;
@@ -520,7 +537,7 @@
       for (var i = 0; i < N; i++) {
         var b = boxes[i];
         var p = Math.max(0, Math.min(1, (t - b.t0) / b.dur));
-        if (b.from && b.to) { var e = b.back ? easeInOut(p) : easeOut4(p), arc = Math.sin(Math.PI * e); b.cur.x = b.from.x + (b.to.x - b.from.x) * e + b.ax * arc; b.cur.y = b.from.y + (b.to.y - b.from.y) * e + b.ay * arc; b.cur.z = b.from.z + (b.to.z - b.from.z) * e + b.az * arc; b.m = b.mFrom + (b.mTo - b.mFrom) * easeInOut(p); }
+        if (b.from && b.to) { var e = b.back ? easeInOut(p) : easeOut4(p), arc = Math.sin(Math.PI * e); b.cur.x = b.from.x + (b.to.x - b.from.x) * e + b.ax * arc; b.cur.y = b.from.y + (b.to.y - b.from.y) * e + b.ay * arc; b.cur.z = b.from.z + (b.to.z - b.from.z) * e + b.az * arc; b.m = b.mFrom + (b.mTo - b.mFrom) * (b.mOut ? 1 - (1 - p) * (1 - p) : easeInOut(p)); }
         var alpha = 1, dep = 1, szf = 1, lx = 0, ly = 0, lz = 0;
         if (b.back && t < b.t0 + b.dur) {
           if (t < b.t0) continue;                                                              /* 맡은 칸이 닿기 전엔 비어 있다 */
@@ -608,7 +625,7 @@
       var s1 = active === 1 && introDone ? c1step : 0, bandP = (t * 0.3) % 1.5 - 0.25;   /* 01 단계별 로고 연출 */
       for (var i = 0; i < N; i++) {
         var b = boxes[i], p = Math.max(0, Math.min(1, (t - b.t0) / b.dur));
-        if (b.from && b.to) { var e = easeOut4(p), arc = Math.sin(Math.PI * e); b.cur.x = b.from.x + (b.to.x - b.from.x) * e + b.ax * arc; b.cur.y = b.from.y + (b.to.y - b.from.y) * e + b.ay * arc; b.cur.z = b.from.z + (b.to.z - b.from.z) * e + b.az * arc; b.m = b.mFrom + (b.mTo - b.mFrom) * easeInOut(p); }
+        if (b.from && b.to) { var e = easeOut4(p), arc = Math.sin(Math.PI * e); b.cur.x = b.from.x + (b.to.x - b.from.x) * e + b.ax * arc; b.cur.y = b.from.y + (b.to.y - b.from.y) * e + b.ay * arc; b.cur.z = b.from.z + (b.to.z - b.from.z) * e + b.az * arc; b.m = b.mFrom + (b.mTo - b.mFrom) * (b.mOut ? 1 - (1 - p) * (1 - p) : easeInOut(p)); }
         /* 살아 있는 로고: 칸마다 아주 느리게 오르내리는 부드러운 물결 — 짧은 파동 셋이 겹쳐 위로 흐르고 이웃 칸은 함께 움직인다 (툭 튀는 칸 없음) */
         var bob = hasFlow ? Math.sin(t * 0.7 + b.fc * 0.3 + b.fr * 0.5) * 0.18 * g.flow : 0, lvz = 0;
         if (lv > 0.001) lvz = lv * 0.06 * (Math.sin(b.gx * 0.4 + b.gy * 0.55 + t * 0.8) * 0.45 + Math.sin(-b.gx * 0.5 + b.gy * 0.35 + t * 0.6 + 1.7) * 0.35 + Math.sin(b.gx * 0.22 + b.gy * 0.75 + t * 1.0 + 4.2) * 0.2);
@@ -626,11 +643,18 @@
          3.4초 동안 떨어지고 연기가 피어오른 뒤 한꺼번에 되감기(2초), 쉬었다가 다시. 단계를 떠나면 그 자리에서 빠르게 되감는다 */
       var bOn = s1 === 2 && !reduce;
       if (bOn && !boom.amp) { boom.t0 = t - boom.p + 0.45; boom.amp = 1; }              /* 들어오고 0.45초 뒤 첫 폭발 (그 전엔 쉬는 구간이라 켜도 그대로) */
-      if (!bOn && boom.amp) {                                                           /* 떠날 땐 지금 자리에서 0.7초 만에 되감은 뒤 끈다 — 예전엔 크기만 줄며 돌아가 비틀린 채 있다가 마지막에 툭 반듯해졌다 */
-        var bl = t - boom.t0;
-        if (bl < BOOMS.v[2]) { BOOMS.v[2] = bl; BOOMS.v[3] = 0.7; boom.p = bl + 0.7 + 0.6; }
-        if (bl >= BOOMS.v[2] + BOOMS.v[3]) boom.amp = 0;
+      if (bOn && boom.code) { var bc = t - boom.t0; BOOMS.v[2] = bc; BOOMS.v[3] = 0.5; boom.p = bc + 1.1; boom.code = 0; boom.sa = 1; }   /* 코드로 가다 돌아오면 빠르게 되감고 다시 */
+      if (!bOn && boom.amp) {
+        if (boom.code) {                                                                 /* ③ 으로: 파편은 계속 날며 녹아 사라지고(코드로 바뀜) 연기는 0.5초에 걷힌다 */
+          boom.sa = Math.max(0, 1 - (t - boom.code) / 0.5);
+          if (t - boom.code > 1.4) { boom.amp = 0; boom.code = 0; boom.sa = 1; }
+        } else {                                                                         /* 그 밖: 지금 자리에서 0.7초 만에 되감은 뒤 끈다 — 예전엔 크기만 줄며 돌아가 비틀린 채 있다가 마지막에 툭 반듯해졌다 */
+          var bl = t - boom.t0;
+          if (bl < BOOMS.v[2]) { BOOMS.v[2] = bl; BOOMS.v[3] = 0.7; boom.p = bl + 0.7 + 0.6; }
+          if (bl >= BOOMS.v[2] + BOOMS.v[3]) boom.amp = 0;
+        }
       }
+      BOOMS.sa = boom.sa;
       if (bOn && t - boom.t0 >= boom.p) {
         var pts = [boxes[Math.floor(Math.random() * N)].cur];
         while (pts.length < 10) {                                                         /* 고르게 흩어진 자리: 후보 24곳 중 이미 고른 곳에서 가장 먼 곳 */
@@ -801,6 +825,33 @@
 
     /* ── 스크롤 단계: 01(소개 · 세 분야 · 창작 스튜디오) · 02(네 진로) — 한 화면 스크롤마다 글 패널 하나.
        01 은 로고 연출(CHAPTERS[1])도 그 단계 것으로 바꾼다. 새 패널의 글은 한 줄씩 짧게 들어온다 (anime.js) ── */
+    /* 01 ② → ③ 를 폭발 도중에 넘어가면: 코드 조각이 붙은 칸을 지금 파편 자리에 두고 거기서 코드 배치로 날아가게 한다 (잿더미가 코드로 사라락).
+       ponytail: 셰이더 BOOM 의 boomOff 를 칸 하나(대표 무작위값)로 옮긴 근사 — 셰이더 식을 바꾸면 여기도 같이 */
+    var BFLOOR = -Math.max.apply(null, boxes.map(function(b){ return b.gy; })) - 1.5, BSPREAD = (mqMob.matches || window.matchMedia('(pointer: coarse)').matches) ? 0.7 : 1;
+    function fr(x){ return x - Math.floor(x); }
+    function bdrJ(x, k){ return x > 0 ? (1 - Math.exp(-k * x)) / k : 0; }
+    function bClock(a){ var z = BOOMS.v[2], w = BOOMS.v[3]; if (a < z) return a; var u = Math.min(1, Math.max(0, (a - z) / w)); return z * (1 - u * u * (3 - 2 * u)); }
+    function boomCellOff(px, py, s, ae){
+      var B = BOOMB, tg = 1e9, R = 6, tmax = 0, dn = 1e9, cx = 0, cy = 0, nx = 0, ny = 0, i, d;
+      for (i = 0; i < 10; i++) { d = Math.hypot(px - B[i * 4], py - B[i * 4 + 1]); tmax = Math.max(tmax, B[i * 4 + 2]); if (d < B[i * 4 + 3]) { var ti = B[i * 4 + 2] + d / 24; if (ti < tg) { tg = ti; cx = B[i * 4]; cy = B[i * 4 + 1]; R = B[i * 4 + 3]; } } if (d - B[i * 4 + 3] < dn) { dn = d - B[i * 4 + 3]; nx = B[i * 4]; ny = B[i * 4 + 1]; } }
+      var rr = fr(s * 41.3), cr = tg > 1e8; if (cr) { tg = tmax + 0.3 + rr * 0.6; cx = nx; cy = ny; }
+      tg += rr * 0.12;
+      var tau = Math.max(ae - tg, 0), dx = px - cx, dy = py - cy, r = Math.hypot(dx, dy), k = cr ? 0.12 : Math.min(1, Math.max(0, 1 - r / R)), ox = 0, oy = 0, oz = 0;
+      for (i = 0; i < 10; i++) { var bz = B[i * 4 + 2], bw = B[i * 4 + 3]; if (bz > ae) continue; var vx = px - B[i * 4], vy = py - B[i * 4 + 1], dd = Math.hypot(vx, vy), x = ae - bz - dd / 38; if (x <= 0 || dd < bw * 0.5 || bz + dd / 38 < tg) continue; var f = Math.exp(-dd * dd / (2.4 * bw * bw)) * bw / 6 * bdrJ(x, 2.5); ox += vx / dd * 5 * f; oy += vy / dd * 5 * f; oz += 1.6 * f; }
+      if (tau > 0) {
+        var ux = (r > 1e-3 ? dx / r : 1) + (fr(s * 13.3) - 0.5), uy = (r > 1e-3 ? dy / r : 0) + (fr(s * 29.1) - 0.5), ul = Math.hypot(ux, uy) || 1, E = cr ? 0.5 : R / 6, rv = fr(s * 57.3), zf = 2 + 7 * fr(s * 7.7), dr = bdrJ(tau, 2), v = (1.5 + 10 * rv * rv) * (0.6 + 0.4 * k) * E;
+        ox += ux / ul * v * dr; oy += uy / ul * v * dr - 3.5 * tau * tau; oz += zf * (0.5 + 0.5 * k) * dr;
+      }
+      ox *= BSPREAD; oy *= BSPREAD; oz *= BSPREAD;
+      var pen = BFLOOR + fr(s * 61.7) * 0.6 - (py + oy); if (tau > 0 && pen > 0) oy += pen + pen * 0.35 * Math.exp(-pen * 0.6);
+      return [ox, oy, oz];
+    }
+    function boomToCode(){
+      var a = sceneT - boom.t0, ae = bClock(a);
+      if (!boom.amp || a >= BOOMS.v[2] + BOOMS.v[3] || ae <= 0) return;                 /* 로고가 멀쩡할 땐 보통 전환 */
+      for (var i = 0; i < N; i++) { var b = boxes[i]; if (b.kind !== 'code') continue; var o = boomCellOff(b.cur.x, -b.cur.y, fr(Math.sin(i * 12.9898) * 43758.5453), ae); b.cur = { x: b.cur.x + o[0], y: b.cur.y - o[1], z: b.cur.z - o[2] }; }
+      BOOMS.v[2] = 1e9; boom.code = sceneT || 1e-3; ashToCode = true;                 /* 되감지 않고 그대로 */
+    }
     var C1 = CHAPTERS[1], c1El = chapters[1], c1step = -1;
     var C1_STEPS = [C1,
       Object.assign({}, C1, { flat: 0, yaw: -0.1, pitch: -0.06, sway: 0.03 }),       /* ① 정면 가까이 — 빛 띠가 표면을 훑는다 */
@@ -830,7 +881,7 @@
         if (PAGED) el.scrollTo({ top: k * el.clientHeight, behavior: how }); else window.scrollTo({ top: el.offsetTop + k * VH(), behavior: how });
       }); });
     }
-    stepper(1, C1_STEPS, function(k){ var was = c1step >= 1; c1step = k; if (k !== 3) resetPlay(); if (active === 1 && was !== (k >= 1)) { syncLinks(); moveInd(1); } });
+    stepper(1, C1_STEPS, function(k){ var was = c1step >= 1; if (c1step === 2 && k === 3 && active === 1 && introDone) boomToCode(); c1step = k; if (k !== 3) resetPlay(); if (active === 1 && was !== (k >= 1)) { syncLinks(); moveInd(1); } });
     stepper(2);
     /* ── 터치 기기: 스와이프를 감지하는 순간 다음/이전 챕터로 부드럽게 이동 (한 번에 한 챕터) ── */
     var paging = false, mainEl = document.querySelector('main');
