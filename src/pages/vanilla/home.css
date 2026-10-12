@@ -241,7 +241,7 @@ html.touch-paging .cards{touch-action:pan-x}
 .cols3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--gutter)}
 
 /* 01: 스크롤하면 세 분야가 하나씩 — 무대는 화면에 붙고(sticky) 글과 로고만 바뀐다. 한 단계 = 화면 한 장 (스냅) */
-.chapter.steps{display:block;padding-top:0;min-height:0}
+.chapter.steps{display:block;padding-top:0;min-height:0;align-content:normal}   /* normal: 폰의 .chapter{align-content:end} 를 받으면 Safari 가 넘치는 트랙을 아래에 붙이고 스크롤 기준을 뒤집어 앞으로 스크롤이 막혔다 (사용자 10-12) */
 .steps .track{position:relative;height:calc(var(--n,4) * 100vh);height:calc(var(--n,4) * 100svh)}   /* --n: 단계 수 (01 은 5, 02 는 4) */
 .steps .stage{position:sticky;top:0;height:100vh;height:100svh;display:grid;align-content:center;padding-top:var(--hdr)}
 .steps .snap{position:absolute;left:0;width:1px;height:1px;scroll-snap-align:start;scroll-snap-stop:always;pointer-events:none}
