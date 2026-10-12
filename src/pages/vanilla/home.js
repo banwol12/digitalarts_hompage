@@ -5,7 +5,7 @@
   var reduce = STATIC || window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   var PACE = 0.95;                                                /* 모든 연출 시간 배율 (09-28 사용자: 너무 빠르다 → 1.15, 10-06: 전체를 조금 빠르게 → 0.95). 로고 숨쉬기 주기는 따로 */
   var IK = 1.7;                                                    /* 첫 입장 시간 배율 (사용자 2026-09-28: 인트로가 너무 빠르다 → 1 에서 1.5, 다시 '정말 조금만 더' 1.7). 챕터 전환은 PACE */
-  var introReduce = STATIC;                                       /* 첫 입장 애니메이션은 OS 의 '동작 줄이기' 와 무관하게 항상 재생 (사용자 요청) */
+  var introReduce = true;                                         /* 첫 입장 애니메이션 없음 (사용자 10-12): 로딩 로고가 커져 첫 화면 로고가 된다 (index.html) — STATIC 으로 되돌리면 예전 입장 */
   if ('scrollRestoration' in history) history.scrollRestoration = 'manual';   /* 새로고침해도 항상 맨 위(00 챕터)에서 시작 */
   var pendingHash = /^#c\d$/.test(location.hash) ? parseInt(location.hash.slice(2), 10) : null;
   if (location.hash && !STATIC) history.replaceState(null, '', location.pathname + location.search);
@@ -696,7 +696,9 @@
       start = performance.now();
       setFormation(0, true);
       if (S3D && scLand) INTRO_T = scLand;                                    /* 3D: 모래가 대부분 내려앉을 때 제목·헤더가 올라온다 */   /* 1.3초: 제목·헤더가 올라오기 시작 (바깥 로고 픽셀이 닿는 1.6초와 겹쳐 1.9초에 모두 끝난다) */
-      if (introReduce) introFinish(); else setTimeout(introFinish, 3000 * IK);   /* 탭이 가려져 프레임이 멈춰도 3초 뒤엔 풀린다 */
+      var B = window.__boot, fz = frameFor(0), u = fz.s * Math.min(W, H) * 1.45 / 72;
+      if (B) B.to = { x: fz.cx - u, y: fz.cy, w: 32 * u };                   /* 로딩 로고가 커져 닿을 자리 = 첫 화면 로고 (32×34 칸, 가운데가 칸 좌표 -1, 0) */
+      if (introReduce) { if (B && B.reveal) B.reveal(introFinish); else introFinish(); } else setTimeout(introFinish, 3000 * IK);   /* 탭이 가려져 프레임이 멈춰도 3초 뒤엔 풀린다 */
       requestAnimationFrame(render);
     }
     if (window.__boot) window.__boot.done(begin); else begin();
@@ -891,6 +893,7 @@
       paging = true;
       if (PAGED) {
         chapters[active].scrollTop = 0;
+        if (i < active && !seenEnd && chapters[i].classList.contains('steps')) chapters[i].scrollTop = chapters[i].scrollHeight;   /* 거꾸로 들어가면 본 마지막 단계부터 */
         mainEl.style.transform = 'translateY(' + (-i * 100) + '%)';
         activate(i);
         setTimeout(function(){ paging = false; }, reduce ? 20 : 640);
@@ -927,33 +930,38 @@
       document.documentElement.classList.add('touch-paging');
       window.scrollTo(0, 0);
       window.addEventListener('resize', function(){ mainEl.style.transform = 'translateY(' + (-active * 100) + '%)'; });
-      var ty = null, tx = null, tSkip = false, tFired = false;
+      var ty = null, tx = null, tSkip = false, tFired = false, tAxis = '';
       document.addEventListener('touchstart', function(e){
-        var t = e.touches[0]; ty = t.clientY; tx = t.clientX; tFired = false;
+        var t = e.touches[0]; ty = t.clientY; tx = t.clientX; tFired = false; tAxis = '';
         var el = e.target && e.target.nodeType === 1 ? e.target : (e.target ? e.target.parentElement : null);
-        tSkip = !!(el && el.closest && el.closest('.cards, input, textarea, select'));
+        tSkip = !!(el && el.closest && el.closest('input, textarea, select'));   /* 카드 줄(.cards)도 세로로 밀면 넘어간다 (사용자 10-12: 폰 03 에서 안 내려갔다 — 화면 대부분이 카드였다) */
       }, { passive: true });
       document.addEventListener('touchmove', function(e){
         if (ty === null || tSkip || play.drag) return;
         if (!introDone) { if (e.cancelable) e.preventDefault(); return; }
         var t = e.touches[0], dy = t.clientY - ty, dx = t.clientX - tx;
-        if (Math.abs(dx) > Math.abs(dy) * 1.2 && !tFired) return;                 /* 가로 제스처는 그대로 둔다 */
-        var sec = chapters[active];
+        if (!tAxis && Math.max(Math.abs(dx), Math.abs(dy)) > 8) tAxis = Math.abs(dx) > Math.abs(dy) * 1.2 ? 'x' : 'y';
+        if (tAxis === 'x') return;                                                 /* 가로 제스처(카드 넘기기)는 끝까지 그대로 둔다 */
+        var sec = chapters[active], steps = sec.classList.contains('steps');
+        if (steps && e.cancelable) e.preventDefault();                              /* 단계 챕터는 브라우저 스크롤 없이 (첫 움직임부터 막아야 스크롤이 시작되지 않는다) */
+        if (!tAxis) return;
+        if (dy < 0 && active !== chapters.length - 1) seenEnd = false;
+        if (steps) {                                                                /* 단계 챕터: 스와이프 한 번에 한 단계 (사용자 10-12: 폰에서 안 내려간다 — 브라우저 스크롤+스냅은 짧게 밀면 제자리로 튕겼다) */
+          if (tFired || Math.abs(dy) <= 24) return;
+          tFired = true;
+          var sh = sec.clientHeight, sk = Math.round(sec.scrollTop / sh), sn = sec.querySelectorAll('.panel').length;
+          var to = dy < 0 ? sk + 1 : seenEnd ? (sk > 0 ? 0 : -1) : sk - 1;          /* 끝(04)까지 본 뒤 거꾸로는 그 챕터 처음으로 */
+          if (to < 0 || to >= sn) goTo(active + (dy < 0 ? 1 : -1)); else sec.scrollTo({ top: to * sh, behavior: reduce ? 'auto' : 'smooth' });
+          return;
+        }
         if (!tFired && sec.scrollHeight > sec.clientHeight + 2) {                  /* 화면보다 긴 챕터: 안에서 먼저 스크롤, 끝에 닿으면 페이징 */
           var atTop = sec.scrollTop <= 0, atBottom = sec.scrollTop + sec.clientHeight >= sec.scrollHeight - 2;
-          if (dy < 0 && active !== chapters.length - 1) seenEnd = false;
-          if (dy < 0 && !atBottom) return;
-          if (dy > 0 && !atTop) {
-            if (!seenEnd || !sec.classList.contains('steps')) return;
-            if (e.cancelable) e.preventDefault();                                     /* 단계 챕터는 거꾸로 갈 때 한 번에 처음 단계로 (사용자 10-12) */
-            if (Math.abs(dy) > 24) { tFired = true; sec.scrollTo({ top: 0, behavior: reduce ? 'auto' : 'smooth' }); }
-            return;
-          }
+          if ((dy < 0 && !atBottom) || (dy > 0 && !atTop)) return;
         }
         if (e.cancelable) e.preventDefault();
         if (!tFired && Math.abs(dy) > 24) { tFired = true; goTo(active + (dy < 0 ? 1 : -1)); }
       }, { passive: false });
-      var tEnd = function(){ ty = null; tx = null; tFired = false; tSkip = false; };
+      var tEnd = function(){ ty = null; tx = null; tFired = false; tSkip = false; tAxis = ''; };
       document.addEventListener('touchend', tEnd, { passive: true });
       document.addEventListener('touchcancel', tEnd, { passive: true });
       if (STATIC) window.__paging = { goTo: goTo };
