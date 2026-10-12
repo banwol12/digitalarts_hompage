@@ -409,7 +409,7 @@
 
     /* 02 챕터: 픽셀 필드 위를 오가는 데이터 패킷 (행·열을 따라 빛이 옮겨 다닌다) */
     var packets = [], boost = new Float32Array(N);
-    for (var p = 0; p < 5; p++) packets.push({ col: false, line: Math.floor(Math.random() * FROWS), x: Math.random() * FCOLS, v: (2 + Math.random() * 2.5) * (Math.random() < 0.5 ? 1 : -1), len: 2 + Math.random() * 2 });   /* 03 필드는 잔잔하게 (사용자 10-11: 글보다 눈에 띈다) — 가로로만, 다섯 줄, 느리게 */
+    for (var p = 0; p < 9; p++) packets.push({ col: p >= 5, line: Math.floor(Math.random() * (p >= 5 ? FCOLS : FROWS)), x: Math.random() * (p >= 5 ? FROWS : FCOLS), v: (4 + Math.random() * 4) * (Math.random() < 0.5 ? 1 : -1), len: 2.5 + Math.random() * 2.5 });   /* 02 오디오비주얼 (사용자 10-12: 너무 정적) — 가로 다섯·세로 넷, 빠르게 */
     var lastT = 0;
     function updateFlow(t){
       var dt = Math.min(0.05, t - lastT); lastT = t;
@@ -499,6 +499,7 @@
       if (g.flow > 0.01 && !reduce) updateFlow(t); else lastT = t;
       var yaw = g.yaw + Math.sin(t * 0.22) * g.sway + spinAcc;
       yaw = Math.max(-0.35, Math.min(0.35, yaw));                     /* 정면 기준 ±20° 를 넘지 않는다 */
+      if (active === 2 && c2step === 3 && introDone && !reduce) { var ak = sstep(0, 1, (t - c2T0 - 0.25) / 0.7); yaw += Math.sin((t - c2T0) * 0.35) * 0.12 * ak; }   /* 02 오디오비주얼: 카메라가 천천히 돈다 */
       if (active === 2 && c2step === 1 && introDone && !reduce) yaw += Math.sin((t - c2T0) * 0.55) * 0.6 * sstep(0, 1, (t - c2T0 - 0.25) / 0.7);   /* 02 렌더: 턴테이블처럼 좌우로 돈다 */
       var pitch = g.pitch + Math.sin(t * 0.17) * g.sway * 0.35;
       var cy = Math.cos(yaw), sy = Math.sin(yaw), cp = Math.cos(pitch), sp = Math.sin(pitch);
@@ -641,7 +642,7 @@
       requestAnimationFrame(render);
     }
     /* 커서·누른 곳 (01 ① 관객이 비추는 빛 · 02 ③ 손) */
-    var ptr = { x: -1e4, y: -1e4, t: -1e9 }, taps = [], mfT0 = 0, c2T0 = 0, hand = { u: 0, v: 0 }, cue = {}, rnd = { p: 0, y: -18 }, trk = { sw: 0, hist: [] };
+    var ptr = { x: -1e4, y: -1e4, t: -1e9 }, taps = [], mfT0 = 0, c2T0 = 0, hand = { u: 0, v: 0 }, cue = {}, rnd = { p: 0, y: -18 }, trk = { sw: 0, hist: [] }, av = { bi: 0, ph: 0, pump: 0 };
     window.addEventListener('pointermove', function(e){ ptr.x = e.clientX; ptr.y = e.clientY; ptr.t = performance.now(); }, { passive: true });
     window.addEventListener('pointerdown', function(e){ ptr.x = e.clientX; ptr.y = e.clientY; ptr.t = performance.now(); taps.push({ x: e.clientX, y: e.clientY, t: sceneT }); if (taps.length > 4) taps.shift(); }, { passive: true });
     function hs(x){ x = Math.sin(x * 12.9898) * 43758.5453; return x - Math.floor(x); }
@@ -657,12 +658,13 @@
         mf = { si: msi, u: mu, w: sstep(0, 0.1, mu) * (1 - sstep(0.9, 1, mu)), ux: (ptr.x - OX) / U, uy: (ptr.y - OY) / U,
                bx: (hs(mn + 0.31) - 0.5) * 16, by: (hs(mn + 0.77) - 0.5) * 16, ca: -Math.PI * 0.75 + mu * Math.PI * 2.6 };
       }
-      var c2k = s2 >= 0 && s2 < 3 && !reduce ? sstep(0, 1, (t - c2T0 - 0.25) / 0.7) : 0, ct = t - c2T0;   /* 02 연출은 단계에 들어와 로고가 자리 잡은 뒤 서서히 */
+      var c2k = s2 >= 0 && !reduce ? sstep(0, 1, (t - c2T0 - 0.25) / 0.7) : 0, ct = t - c2T0;   /* 02 연출은 단계에 들어와 로고가 자리 잡은 뒤 서서히 */
       if (s2 === 0) {                                                                  /* 큐 넷 × 2.2초 */
         var cph = ct % 8.8; cue.i = Math.floor(cph / 2.2); cue.u = (cph - cue.i * 2.2) / 2.2; cue.w = sstep(0, 0.08, cue.u) * (1 - sstep(0.92, 1, cue.u));
         cue.sx = -12 + 24 * cue.u; cue.sy = -6 + 8 * Math.sin(cue.u * Math.PI); cue.lp = cue.u * 50 - 25;
         var bt = ct % 0.55; cue.R = bt * 40; cue.bw = 1 - bt / 0.55; cue.pump = Math.exp(-bt * 8); cue.fy = 18 - (cue.u - 0.35) / 0.6 * 40;
       }
+      if (s2 === 3) { var BT = 60 / 124; av.bi = Math.floor(ct / BT); av.ph = (ct - av.bi * BT) / BT; av.pump = Math.exp(-av.ph * 5) * (av.bi % 4 === 0 ? 1 : 0.35); }   /* 124 BPM: 박마다 충격파, 네 박마다 크게 */
       if (s2 === 1) { var rp2 = (ct % 4.2) / 3.2; rnd.p = Math.min(1, rp2); rnd.y = -18 + rnd.p * 37; }   /* 3.2초 동안 렌더, 1초 완성본 */
       if (s2 === 2) {                                                                  /* 손: 커서가 있으면 그 자리, 없으면 스스로 오간다 (부드럽게 따라감) */
         var hu = 9 * Math.sin(t * 0.6), hv = 7 * Math.sin(t * 0.83 + 1);
@@ -713,6 +715,12 @@
           var tdx = b.gx - hand.u, tdy = b.gy - hand.v, td2 = tdx * tdx + tdy * tdy, tdl = Math.sqrt(td2) || 1, push = 2.4 * Math.exp(-td2 / 16) * c2k;
           CFX[i * 4] = tdx / tdl * push; CFX[i * 4 + 1] = tdy / tdl * push; CFX[i * 4 + 2] = -push * 0.9;
           CM[i * 2 + 1] = (0.32 * Math.exp(-td2 / 12) + 0.28 * Math.exp(-(b.gy - trk.sw) * (b.gy - trk.sw) / 0.5)) * c2k;
+        } else if (s2 === 3 && c2k > 0) {                                               /* 오디오비주얼: 박마다 아무 데서나 충격파가 번지고(네 박마다 가운데서 크게), 빛 패킷이 지나간 칸은 튀어 올랐다 가라앉는다 */
+          var az = 0, at = 0, BT2 = 60 / 124;
+          for (var wj = 0; wj < 4; wj++) { var wb = av.bi - wj, wa = ct - wb * BT2, big = wb % 4 === 0, wx = big ? (FCOLS - 1) / 2 : hs(wb * 1.31) * FCOLS, wy2 = big ? (FROWS - 1) / 2 : hs(wb * 2.71) * FROWS;
+            if (wb < 0) continue; r = Math.sqrt((b.fc - wx) * (b.fc - wx) + (b.fr - wy2) * (b.fr - wy2)) - wa * (big ? 13 : 9); q = Math.exp(-r * r / (big ? 4 : 2.5)) * Math.max(0, 1 - wa / (big ? 1.9 : 1.4)) * (big ? 1.25 : 0.7); az += q; at += q; }
+          az += 1.4 * boost[i] + av.pump * (0.5 + 0.5 * Math.sin(b.fc * 0.45 + b.fr * 0.3 + t * 3));
+          CFX[i * 4 + 2] -= 1.7 * az * c2k; CM[i * 2 + 1] = Math.min(0.6, 0.32 * at + 0.25 * boost[i] + 0.12 * av.pump) * c2k;
         }
         if (b.m > 0.001) ORDER[nFr++] = i;
       }
@@ -761,14 +769,14 @@
         var cx0 = px * cy + pz * sy, cz0 = -px * sy + pz * cy, cy0 = py * cp - cz0 * sp, cz1 = py * sp + cz0 * cp, scC = F / (cz1 + D);
         bx.drawK = k; drawFragment(bx, OX + cx0 * scC + (bx.ox || 0), OY + cy0 * scC + (bx.oy || 0), HS * S * scC, null, bx.m, pal);
       }
-      if (active === 2 && introDone && c2step < 3 && !reduce) drawHud(t, OX, OY, S * F / D, sstep(0, 1, (t - c2T0 - 0.45) / 0.6));
+      if (active === 2 && introDone && !reduce) drawHud(t, OX, OY, S * F / D, sstep(0, 1, (t - c2T0 - 0.45) / 0.6), yaw, pitch);
     }
     /* 02 작업 화면 표시: 로고 둘레 모서리 괄호 + 네 모서리 글 (고정폭 작은 글씨, 먹 55%) — 직업마다 그 일의 화면 */
     function p2(n){ return (n < 10 ? '0' : '') + n; }
-    function drawHud(t, OX, OY, U, k){
+    function drawHud(t, OX, OY, U, k, yaw, pitch){
       if (k <= 0) return;
-      var mob = MOBILE(), mg = mob ? 20 : 34, ins = mob ? 14 : 24;                    /* 폰: 틀이 좁아 여백·글씨를 줄이고 항목도 줄인다 */
-      var X0 = OX - 17 * U - mg + 4, X1 = OX + 15 * U + mg - 4, Y0 = OY - 17 * U - mg, Y1 = OY + 17 * U + mg, ct = t - c2T0, ink = g.mode > 0.5 ? '243,243,243' : '17,17,17', B = mob ? 12 : 16, s2 = c2step;   /* 틀 = 로고 + 여백 띠 (글은 띠 안에 — 로고와 겹치지 않게) */
+      var mob = MOBILE(), mg = mob ? 20 : 34, ins = mob ? 14 : 24, fb = c2step === 3 ? projectBBox('field', g.s, yaw, pitch) : null;   /* 폰: 틀이 좁아 여백·글씨를 줄이고 항목도 줄인다 · 필드는 투영한 경계 상자로 */
+      var X0 = fb ? OX + fb.x0 - mg + 10 : OX - 17 * U - mg + 4, X1 = fb ? OX + fb.x1 + mg - 10 : OX + 15 * U + mg - 4, Y0 = fb ? OY + fb.y0 - mg - 16 : OY - 17 * U - mg, Y1 = fb ? OY + fb.y1 + mg : OY + 17 * U + mg, ct = t - c2T0, ink = g.mode > 0.5 ? '243,243,243' : '17,17,17', B = mob ? 12 : 16, s2 = c2step;   /* 틀 = 로고 + 여백 띠 (글은 띠 안에 — 로고와 겹치지 않게) */
       var tc = 'TC 00:' + p2(Math.floor(ct / 60) % 60) + ':' + p2(Math.floor(ct) % 60) + ':' + p2(Math.floor(ct * 24) % 24), acc = 'rgb(150,166,0)', TY = Y0 + (mob ? 7 : 10), BY = Y1 - (mob ? 7 : 10);
       ctx.save(); ctx.globalAlpha = k; ctx.lineWidth = 1; ctx.strokeStyle = 'rgba(' + ink + ',0.5)'; ctx.font = '500 ' + (mob ? 9 : 10.5) + 'px "Geist Mono", ui-monospace, Menlo, monospace'; lastFont = null; ctx.textBaseline = 'middle';
       var txt = function(s, x, y, al, a){ ctx.fillStyle = 'rgba(' + ink + ',' + (a === undefined ? 0.62 : a) + ')'; ctx.textAlign = al || 'left'; ctx.fillText(s, x, y); return ctx.measureText(s).width; };
@@ -785,6 +793,12 @@
         txt((mob ? '' : '1920\u00D71080 \u00B7 24 fps \u00B7 ') + 'BEAUTY ' + (rnd.p < 1 ? Math.round(rnd.p * 100) + '%' : 'DONE'), X0 + ins, BY, 'left', rnd.p < 1 ? 0.62 : 0.92);
         txt((mob ? 'F ' : 'FRAME ') + ('000' + Math.floor(ct * 24)).slice(-4), X1 - ins, BY, 'right');
         ctx.fillStyle = 'rgba(' + ink + ',0.12)'; ctx.fillRect(X0, Y1 + 8, X1 - X0, 1); ctx.fillStyle = 'rgba(' + ink + ',0.7)'; ctx.fillRect(X0, Y1 + 8, (X1 - X0) * rnd.p, 1);
+      } else if (s2 === 3) {                                                           /* 오디오비주얼: LIVE · BPM · 박에 맞춰 뛰는 스펙트럼 막대 */
+        var lw2 = txt('LIVE', X0 + ins, TY); if (av.ph < 0.5) { ctx.fillStyle = acc; ctx.fillRect(X0 + ins + 8 + lw2, TY - 3, 6, 6); }
+        txt('124 BPM \u00B7 ' + (av.bi % 4 + 1) + '/4', X1 - ins, TY, 'right');
+        var nb = mob ? 12 : 20; ctx.fillStyle = 'rgba(' + ink + ',0.7)';
+        for (var bj = 0; bj < nb; bj++) { var bh = 3 + 12 * Math.min(1, Math.exp(-bj / 4) * av.pump * 1.4 + 0.5 * Math.max(0, Math.sin(bj * 0.7 - t * 4)) * 0.6 + 0.25 * hs(bj + Math.floor(t * 12))); ctx.fillRect(X0 + ins + bj * 5, BY + 6 - bh, 3, bh); }
+        txt(mob ? 'AUDIO \u2192 LIGHT' : 'AUDIO \u2192 LIGHT \u00B7 9 CH', X1 - ins, BY, 'right');
       } else {
         var HX = OX + hand.u * U, HY = OY + hand.v * U, live = performance.now() - ptr.t < 2500, wt = txt('TRACKING', X0 + ins, TY);
         ctx.fillStyle = live ? acc : 'rgba(' + ink + ',' + (0.3 + 0.3 * Math.sin(t * 4)) + ')'; ctx.fillRect(X0 + 32 + wt, TY - 3, 6, 6);
