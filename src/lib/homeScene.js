@@ -18,6 +18,7 @@ import {
   InstancedBufferAttribute, Mesh, PlaneGeometry, ShaderMaterial, WebGLRenderTarget, DepthTexture, UnsignedIntType,
   DataTexture, FramebufferTexture, RGBAFormat, FloatType, HalfFloatType, NearestFilter, LinearMipmapLinearFilter, NoBlending, Vector2, Vector3, Vector4, Matrix4, Euler
 } from 'three';
+import { Color, gradient } from 'spectral.js';
 import { GPUComputationRenderer } from 'three/addons/misc/GPUComputationRenderer.js';
 
 const INTRO_END = 3.3, INTRO_RATE = 1.2;   /* 입장 시계 배율: 모든 입장 시각(초)을 이만큼 빨리 — 1.2 = 전체가 같은 비율로 약 0.5초 짧게 (사용자 2026-10-07) */
@@ -159,26 +160,29 @@ vec3 pcPose(vec2 id, float front, vec3 gp, float T, float inside, inout vec3 siz
 float cellT(vec2 p){ vec2 c = floor(p) + 0.5; return L_START + L_SPREAD * clamp(0.7 * length(c) / 23.0 + 0.3 * vn2(c * 0.21 + 3.1), 0.0, 1.0); }`;
 
 /* 큐브 하나 = 픽셀 하나. 위치는 시뮬레이션, 칸 단위 움직임(숨쉬기·튀어나옴·물결·빛)은 칸 텍스처에서 */
-/* 01 ② (3D·애니메이션·VFX): 로고 픽셀 안에서 터지는 폭발 시뮬레이션 — 중심에 가까운 큐브일수록 세게 튕겨 나가고(공기 저항 + 중력), 38% 는 멀리 나는 불티.
-   다 터지면 잠깐 멈췄다가 되감기로 제자리 (시뮬레이션을 앞뒤로 돌려 보는 VFX 작업 느낌). uBoom: xy 중심(로고 좌표) · z 경과 초 · w 세기 0–1.
-   시뮬레이션 위치(tPos)는 건드리지 않는 화면용 변위라 세기가 0 이 되면 언제든 제자리 */
+/* 01 ② (3D·애니메이션·VFX): 연쇄 폭발 — 로고 여기저기서 여섯 번 터지고, 폭발이 닿는 차례로 큐브가 튕겨 나가며(공기 저항 + 중력) 불에 탄다.
+   불꽃 색은 Spectral.js(물감처럼 섞는 Kubelka-Munk 혼합)로 만든 띠: 백열 → 노랑 → 주황 → 빨강 → 잿빛. 타면서 재처럼 작아져 로고가 남지 않으면,
+   시뮬레이션 시계를 거꾸로 돌려 한꺼번에 되감는다 (불 없이 그을린 색에서 원래 색으로). 시뮬레이션 위치(tPos)는 건드리지 않는 화면용 변위.
+   uBoom: x 경과 초 · y 세기 0–1 · z 되감기 시작 초 · w 되감기 길이 / uBl[i]: 폭발 지점 xy(로고 좌표) · z 터지는 초 */
 const BOOM = /* glsl */`
+#ifndef B_SPREAD
+#define B_SPREAD 1.0
+#endif
 uniform vec4 uBoom;
-const float B_T1 = 1.1, B_HOLD = 0.35, B_BACK = 0.9;
-float boomTau(float a){ return a < 0.0 ? 0.0 : a < B_T1 ? a : a < B_T1 + B_HOLD ? B_T1 : B_T1 * (1.0 - smoothstep(0.0, 1.0, (a - B_T1 - B_HOLD) / B_BACK)); }
-vec3 boomOff(vec2 p, float s, float a, out float heat, out float spin, out float spark){
-  heat = 0.0; spin = 0.0; spark = 0.0;
-  if (uBoom.w <= 0.0) return vec3(0.0);
-  vec2 d = p - uBoom.xy; float r = length(d), tau = boomTau(a), k = exp(-r * r / 45.0);
-  spark = step(0.62, fract(s * 91.7));
-  vec2 dir = normalize((r > 1e-3 ? d / r : vec2(1.0, 0.0)) + (vec2(fract(s * 13.3), fract(s * 29.1)) - 0.5) * 0.9);
-  float v = (6.0 + 12.0 * fract(s * 57.3)) * k * (1.0 + 1.3 * spark), dr = (1.0 - exp(-2.2 * tau)) / 2.2;   /* 로고 둘레 안팎까지만 (처음엔 화면 끝까지 날아 글·번호 줄을 덮었다) */
-  float wave = exp(-(r - 20.0 * tau) * (r - 20.0 * tau) / 5.0) * exp(-tau * 2.0) * (1.0 - k);   /* 바깥 큐브는 충격파가 지나갈 때만 들썩 */
-  vec3 off = vec3(dir * v * dr, (3.0 + 9.0 * fract(s * 7.7)) * k * dr + 1.0 * wave) + vec3(0.0, -5.0 * k * tau * tau, 0.0);
-  heat = k * k * exp(-tau * 6.0) * smoothstep(0.0, 0.04, tau) * step(a, B_T1);       /* 터지는 순간 가운데만 잠깐 뜨겁게 (되감기 땐 안 빛남) */
-  spin = tau * (3.0 + 9.0 * fract(s * 3.1)) * k;
-  return off * uBoom.w;
-}`;
+uniform vec3 uBl[6];
+const float B_VW = 20.0;
+float boomClock(float a){ return a < uBoom.z ? a : uBoom.z * (1.0 - smoothstep(0.0, 1.0, (a - uBoom.z) / uBoom.w)); }
+vec3 boomOff(vec2 p, float s, float ae, out float tau, out float k, out float spark){
+  float tg = 1e9; vec2 c = vec2(0.0);
+  for (int i = 0; i < 6; i++) { float ti = uBl[i].z + distance(p, uBl[i].xy) / B_VW; if (ti < tg) { tg = ti; c = uBl[i].xy; } }   /* 가장 먼저 닿는 폭발 */
+  tau = max(ae - tg - fract(s * 41.3) * 0.14, 0.0);                                     /* 같은 폭발 안에서도 조금씩 엇갈려 터진다 (고른 고리처럼 보이지 않게) */
+  vec2 d = p - c; float r = length(d); k = exp(-r * r / 45.0); spark = step(0.7, fract(s * 91.7));
+  if (tau <= 0.0) return vec3(0.0);
+  vec2 dir = normalize((r > 1e-3 ? d / r : vec2(1.0, 0.0)) + (vec2(fract(s * 13.3), fract(s * 29.1)) - 0.5) * 1.1);
+  float v = (4.0 + 9.0 * fract(s * 57.3)) * (0.55 + 0.45 * k) * (1.0 + 0.8 * spark), dr = (1.0 - exp(-2.0 * tau)) / 2.0;
+  return (vec3(dir * v * dr, (2.0 + 7.0 * fract(s * 7.7)) * (0.5 + 0.5 * k) * dr) - vec3(0.0, 2.0 * (tau - dr), 0.0)) * B_SPREAD;   /* 폰은 로고 자리가 작아 덜 퍼뜨린다 */
+}
+float boomSize(float s, float tau, float spark){ return mix(1.0, spark > 0.5 ? 0.18 : 0.3 + 0.35 * fract(s * 17.9), smoothstep(0.15, 1.5, tau) * uBoom.y); }   /* 타면서 재처럼 작아진다 */`;
 
 const CUBE_VS = /* glsl */`
 uniform sampler2D tPos, tVel, tCell;
@@ -188,7 +192,9 @@ attribute vec4 aRef;   /* xy 시뮬레이션 uv · z 칸 u · w 깊이 AO */
 attribute vec4 aSize;  /* xyz 큐브 크기 · w 무작위 */
 attribute float aAppear;
 varying vec3 vN, vW, vBox, vAx, vAy, vAz;
-varying float vAo, vGlow, vSeed, vRise, vFlash, vBev, vTail, vStr;
+varying float vAo, vGlow, vSeed, vRise, vFlash, vBev, vTail, vStr, vEmis, vBurn;
+varying vec3 vFire;
+uniform vec3 uFire[24];
 ${FIELD}
 ${BOOM}
 mat3 rotAxis(vec3 a, float t){ float c = cos(t), s = sin(t), o = 1.0 - c;
@@ -229,11 +235,19 @@ void main(){
       base.z += zo; bev = mix(1.0, 0.3, smoothstep(0.0, 0.25, a)); bright *= smoothstep(0.0, 0.12, p);
     }
   }
-  if (uBoom.w > 0.0 && uIT < 0.0) {                                                     /* 01 ② 폭발: 머리는 지금, 꼬리는 조금 전 자리 → 날아가는 길에 짧은 잔상 */
-    float bh, bs, bk, h2, s2, k2; vec3 bo = boomOff(P.xy, s, uBoom.z, bh, bs, bk);
-    base += bo; tailB += boomOff(P.xy, s, uBoom.z - (uBoom.z < B_T1 ? 0.016 : 0.006), h2, s2, k2);   /* 되감기 땐 잔상을 더 짧게 (어두운 꼬리가 무거웠다) */
-    R = rotAxis(ax.zxy, bs) * R; glowV = max(glowV, bh * 0.7);
-    size *= 1.0 - 0.45 * bk * smoothstep(0.0, B_T1, boomTau(uBoom.z)) * exp(-dot(P.xy - uBoom.xy, P.xy - uBoom.xy) / 45.0) * uBoom.w;   /* 불티는 날며 작아진다 */
+  vFire = vec3(0.0); vEmis = 0.0; vBurn = 0.0;
+  if (uBoom.y > 0.0 && uIT < 0.0) {                                                     /* 01 ② 연쇄 폭발: 머리는 지금, 꼬리는 0.016초 전 자리 → 날아가는 길에 짧은 잔상 */
+    float tau, bk, sp, t2, k2, s2, rw = step(uBoom.z, uBoom.x);
+    base += boomOff(P.xy, s, boomClock(uBoom.x), tau, bk, sp) * uBoom.y;
+    tailB += boomOff(P.xy, s, boomClock(uBoom.x - 0.016), t2, k2, s2) * uBoom.y;
+    R = rotAxis(ax.zxy, tau * (3.0 + 9.0 * fract(s * 3.1)) * (0.4 + 0.6 * bk)) * R;
+    size *= boomSize(s, tau, sp);
+    float u = pow(clamp(tau / (1.0 + 0.7 * fract(s * 23.1)), 0.0, 1.0), 0.75), h0 = (1.0 - bk) * 0.3 * (1.0 - sp);   /* 불의 나이: 0 백열 → 1 그을음 (가장자리 큐브는 주황부터) */
+    u = mix(h0 + (1.0 - h0) * u, 1.0, rw);                                               /* 되감기 땐 불 없이 그을린 색 */
+    float x = u * 23.0; int fi = int(min(floor(x), 22.0));
+    vFire = mix(uFire[fi], uFire[fi + 1], x - float(fi));
+    vEmis = pow(1.0 - u, 1.5) * (0.85 + 0.15 * sp) * (0.82 + 0.18 * sin(uTime * 37.0 + s * 113.0));   /* 불꽃이 일렁인다 */
+    vBurn = step(1e-4, tau) * uBoom.y * (1.0 - rw * smoothstep(0.0, 0.8, (uBoom.x - uBoom.z) / uBoom.w));   /* 되감으며 원래 색으로 */
   }
   vec3 lp = R * (position * size);
   float hd = step(0.0, position.z);                                                       /* 앞면 꼭짓점은 지금 자리, 뒷면은 꼬리 끝 → 지나온 길을 덮는 기둥. 회전 전 좌표로 나눠 굴러도 꼭짓점이 앞뒤를 오가지 않는다 (꼬리가 갑자기 뒤집히던 버그) */
@@ -250,7 +264,8 @@ uniform vec3 uAlb, uKey;
 uniform float uFlat, uNOff, uBias, uRef, uAmb, uHead, uCamD, uShK;
 uniform vec3 uHeadOff;
 varying vec3 vN, vW, vBox, vAx, vAy, vAz;
-varying float vAo, vGlow, vSeed, vRise, vFlash, vBev, vTail, vStr;
+varying float vAo, vGlow, vSeed, vRise, vFlash, vBev, vTail, vStr, vEmis, vBurn;
+varying vec3 vFire;
 ${LIGHT}
 void main(){
   vec3 q = vBox * 2.0, f = smoothstep(vec3(0.8), vec3(1.0), abs(q)) * sign(q);         /* 베벨: 모서리 쪽으로 법선을 기울여 모서리에 빛이 걸린다 */
@@ -264,6 +279,7 @@ void main(){
   vec3 H = normalize(Lw + V);
   float spec = pow(max(dot(n, H), 0.0), 60.0) * (0.08 + 0.25 * vBev) * ndl * sh;
   vec3 col = (uAlb * uLCol * shade * (0.98 + 0.04 * fract(vSeed * 13.71)) + spec * uLCol) * (1.0 + vFlash * 0.4) * mix(1.0, smoothstep(0.0, 1.0, vTail), vStr);
+  if (vBurn > 0.001) col = mix(col, mix(vFire * shade + spec * 0.2, vFire * (1.0 + 2.2 * vEmis), vEmis), vBurn);   /* 01 ② 불: 뜨거울수록 스스로 빛나고, 식으면 그을린 색에 빛을 받는다 */
   col = mix(col, uKey * (1.0 + 0.4 * ndl), clamp(vGlow, 0.0, 0.85));                    /* 03 챕터 데이터 패킷 */
   vec3 c = pow(clamp(col, 0.0, 1.0), vec3(1.0 / 2.2)) + (ign(gl_FragCoord.xy + 17.0) - 0.5) / 255.0;
   gl_FragColor = vec4(mix(c, vec3(0.627), uFlat), 1.0);                                  /* 01 챕터: 모든 면을 로고 색 하나로 */
@@ -303,8 +319,9 @@ void main(){
   vec4 P = texture2D(tPos, aRef.xy), C0 = texture2D(tCell, vec2(aRef.z, 0.25)), C1 = texture2D(tCell, vec2(aRef.z, 0.75));
   float u = clamp((uTime - aAppear) / 0.6, 0.0, 1.0), e = 1.0 - (1.0 - u) * (1.0 - u) * (1.0 - u);
   vec3 grow = vec3(mix(0.8, 1.0, e), mix(0.8, 1.0, e), mix(0.04, 1.0, e)) * step(aAppear, uTime);
-  float bh, bs, bk; vec3 bo = boomOff(P.xy, aSize.w, uBoom.z, bh, bs, bk);                /* 폭발 큐브도 그림자를 따라 */
-  gl_Position = projectionMatrix * viewMatrix * uModel * vec4((vec3(P.xy, P.z * e) + C0.xyz + bo + position * aSize.xyz * grow * (1.0 - C1.x)) * uScale, 1.0);
+  vec3 bo = vec3(0.0); float bt, bk, bs, bz = 1.0;
+  if (uBoom.y > 0.0) { bo = boomOff(P.xy, aSize.w, boomClock(uBoom.x), bt, bk, bs) * uBoom.y; bz = boomSize(aSize.w, bt, bs); }   /* 폭발 큐브도 그림자를 따라 */
+  gl_Position = projectionMatrix * viewMatrix * uModel * vec4((vec3(P.xy, P.z * e) + C0.xyz + bo + position * aSize.xyz * grow * bz * (1.0 - C1.x)) * uScale, 1.0);
 }`;
 
 /* 입장 화면 효과 (입장 동안만): 초점 + 빨려 들 때 소실점으로 모이는 방사 블러 + 잔상.
@@ -389,12 +406,14 @@ export function createHomeScene({ canvas, cells, small }){
   const appear = new InstancedBufferAttribute(new Float32Array(n).fill(-10), 1);
   geo.setAttribute('aRef', new InstancedBufferAttribute(aRef, 4)); geo.setAttribute('aSize', new InstancedBufferAttribute(aSize, 4)); geo.setAttribute('aAppear', appear);
   geo.instanceCount = n;
-  const uBoom = { value: new Vector4() };                                                  /* 01 ② 폭발 (BOOM) — 큐브·그림자가 같이 쓴다 */
+  const uBoom = { value: new Vector4() }, uBl = { value: Array.from({ length: 6 }, () => new Vector3(0, 0, 1e9)) };   /* 01 ② 연쇄 폭발 (BOOM) — 큐브·그림자가 같이 쓴다 */
+  const FIRE = [['#FFFBEA', 0], ['#FFE36B', 0.1], ['#FFA21F', 0.26], ['#F2541B', 0.44], ['#A3170E', 0.62], ['#4A2A20', 0.8], ['#6E6762', 1]].map(([h, p]) => [new Color(h), p]);
+  const uFire = { value: Array.from({ length: 24 }, (_, i) => new Vector3().fromArray(gradient(i / 23, ...FIRE).lRGB)) };   /* 불꽃 색 띠 (Spectral.js 물감 혼합, 선형 RGB) */
   const cubeMat = new ShaderMaterial({
-    vertexShader: CUBE_VS, fragmentShader: CUBE_FS, defines: { NB: 12, NP: 24 },
+    vertexShader: CUBE_VS, fragmentShader: CUBE_FS, defines: { NB: 12, NP: 24, B_SPREAD: small ? '0.7' : '1.0' },
     uniforms: { ...common, tPos: posTex, tVel: velTex, tCell: { value: tCell }, uNOff: { value: 0.1 }, uBias: { value: 0.03 }, uHead: { value: 0 }, uCamD: { value: 72 }, uShK: { value: 1 }, uHeadOff: { value: new Vector3(-0.3, 0.42, 0) }, uIT: { value: -1 }, uPC: { value: /[?&]intro=pc\b/.test(location.search) ? 1 : 0 }, uCamZ: { value: 72 }, uTanH: { value: 0.35 }, uAsp: { value: 1.6 },
       uAlb: { value: new Vector3(0.3567, 0.3567, 0.3567) }, uRef: { value: 2 }, uAmb: { value: 0.35 },   /* uAlb = #A0A0A0 (선형) */
-      uKey: { value: new Vector3(0.905, 1.0, 0.087) }, uBoom }
+      uKey: { value: new Vector3(0.905, 1.0, 0.087) }, uBoom, uBl, uFire }
   });
   const cubes = new Mesh(geo, cubeMat); cubes.frustumCulled = false;
   const wallMat = new ShaderMaterial({
@@ -416,8 +435,8 @@ export function createHomeScene({ canvas, cells, small }){
   const ghostMat = new ShaderMaterial({ ...quadMat, vertexShader: QUAD_VS, fragmentShader: 'uniform sampler2D tC; uniform float uDamp; varying vec2 vUv; void main(){ gl_FragColor = max(texture2D(tC, vUv) * uDamp - 1.0 / 255.0, 0.0); }', uniforms: { tC: { value: null }, uDamp: { value: 0 } } });
   function freePost(){ if (post) { [post.scene, ...post.acc].forEach(r => r.dispose()); post = null; } }
   const scene = new Scene(); scene.add(wall, cubes);
-  const depthMat = new ShaderMaterial({ vertexShader: DEPTH_VS, fragmentShader: 'void main(){ gl_FragColor = vec4(1.0); }', colorWrite: false,
-    uniforms: { tPos: posTex, tVel: velTex, tCell: { value: tCell }, uModel: common.uModel, uScale: common.uScale, uTime: common.uTime, uIT: { value: -1 }, uBoom } });
+  const depthMat = new ShaderMaterial({ vertexShader: DEPTH_VS, defines: { B_SPREAD: small ? '0.7' : '1.0' }, fragmentShader: 'void main(){ gl_FragColor = vec4(1.0); }', colorWrite: false,
+    uniforms: { tPos: posTex, tVel: velTex, tCell: { value: tCell }, uModel: common.uModel, uScale: common.uScale, uTime: common.uTime, uIT: { value: -1 }, uBoom, uBl } });
   const shadowCubes = new Mesh(geo, depthMat); shadowCubes.frustumCulled = false;
   const shadowScene = new Scene(); shadowScene.add(shadowCubes);
 
@@ -460,7 +479,7 @@ export function createHomeScene({ canvas, cells, small }){
       freePost(); post = { scene: rt({ samples: 4, generateMipmaps: true, minFilter: LinearMipmapLinearFilter }), acc: [rt({ type: HalfFloatType }), rt({ type: HalfFloatType })], i: 0 };
       return { land: t + 2.65 / INTRO_RATE, end: t + INTRO_END / INTRO_RATE };
     },
-    /* 매 프레임: st = g (cx·cy·s·yaw·pitch·mode·flat·wall) + 빛 방향, cellFx = 칸마다 [dx,dy,dz,glow] (옛 좌표), cellM = [사라짐, 반짝임], boom = [x, y, 경과 초, 세기] (새 좌표, 01 ②) */
+    /* 매 프레임: st = g (cx·cy·s·yaw·pitch·mode·flat·wall) + 빛 방향, cellFx = 칸마다 [dx,dy,dz,glow] (옛 좌표), cellM = [사라짐, 반짝임], boom = { v: [경과 초, 세기, 되감기 시작, 되감기 길이], bl: 폭발 6개 [x, y, 터지는 초] (새 좌표) } (01 ②) */
     render(st){
       const t = st.t, dt = Math.min(Math.max(st.dt, 0), 1 / 30);
       const F = st.F, D = st.D;
@@ -469,7 +488,7 @@ export function createHomeScene({ canvas, cells, small }){
       camera.position.set(0, 0, D); camera.lookAt(0, 0, 0); camera.updateProjectionMatrix(); camera.updateMatrixWorld();
       model.makeRotationFromEuler(euler.set(st.pitch, -st.yaw, 0, 'XYZ'));
       common.uScale.value = st.s; common.uMode.value = st.mode; common.uFlat.value = st.flat; common.uTime.value = t;
-      if (st.boom) uBoom.value.fromArray(st.boom); else uBoom.value.w = 0;
+      if (st.boom) { uBoom.value.fromArray(st.boom.v); for (let i = 0; i < 6; i++) uBl.value[i].fromArray(st.boom.bl, i * 3); } else uBoom.value.y = 0;
       wallMat.uniforms.uWallZ.value = st.wall;
       common.uPoolR.value = 45 * st.s + 2000 * (1 - st.mode) * (1 - st.mode);
       Lt.set(st.light[0], st.light[1], st.light[2]).normalize();

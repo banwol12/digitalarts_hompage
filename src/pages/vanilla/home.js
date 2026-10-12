@@ -134,7 +134,7 @@
     }
     if (!S3D && canvas3d) canvas3d.remove();
     var CFX = new Float32Array(N * 4), CM = new Float32Array(N * 2), lastFrameT = 0;
-    var BOOM_P = 3.4, boom = { t0: -1e9, x: 0, y: 0, amp: 0 }, BOOMV = [0, 0, 0, 0];   /* 01 ② 폭발 주기(초) · 상태 */
+    var BOOM_P = 5.8, boom = { t0: -1e9, amp: 0 }, BOOMB = new Float32Array(18).fill(1e9), BOOMS = { v: [0, 0, 3.0, 1.1], bl: BOOMB };   /* 01 ② 연쇄 폭발: 주기 · [경과, 세기, 되감기 시작 3초, 되감기 1.1초] · 폭발 6곳 */
     var HS = 0.5;                                                      /* 큐브 반폭: 0.47 이면 이웃 사이에 틈이 생겨 흰 격자 줄로 보였다 (사용자 2026-09-28) → 딱 붙게 */
     /* 프레임마다 다시 만들지 않는 버퍼: 꼭짓점·면 조명·정렬 순서·상자 기록 */
     var PX = new Float32Array(8), PY = new Float32Array(8), RX = new Float32Array(8), RY = new Float32Array(8), RZ = new Float32Array(8);
@@ -622,14 +622,21 @@
       var fw = g.flow, fx3 = Math.sin(t * 0.2) * 0.08, fy3 = 0.71, fz3 = 0.71, hd = g.head;   /* 00 은 빛이 카메라 위치에서 (g.head) */
       LV[0] = L[0] + (fx3 - L[0]) * fw; LV[1] = -L[1] + (fy3 + L[1]) * fw; LV[2] = -L[2] + (fz3 + L[2]) * fw;
       LV[0] += (-0.27 - LV[0]) * hd; LV[1] += (0.38 - LV[1]) * hd; LV[2] += (0.88 - LV[2]) * hd;   /* 카메라에 달린 조명: 렌즈 약간 위·왼쪽 */
-      /* 01 ② 폭발: 3.4초마다 로고 안 아무 칸에서 터졌다가 되감긴다 (셰이더 BOOM). 단계를 떠나면 세기가 0.3초쯤에 걸쳐 0 으로 — 조각이 제자리로 */
+      /* 01 ② 연쇄 폭발: 6번 터져 로고가 다 타면 3초에 한꺼번에 되감기(1.1초), 쉬었다가 5.8초마다 다시 (셰이더 BOOM).
+         단계를 떠나면 세기가 0.3초쯤에 걸쳐 0 으로 — 조각이 제자리로 */
       var bOn = s1 === 2 && !reduce, bdt = lastFrameT ? Math.min(0.1, t - lastFrameT) : 0;
       if (bOn && boom.amp < 0.01) boom.t0 = t - BOOM_P + 0.45;                         /* 들어오고 0.45초 뒤 첫 폭발 */
       boom.amp += ((bOn ? 1 : 0) - boom.amp) * Math.min(1, bdt * 5);
-      if (bOn && t - boom.t0 >= BOOM_P) { var bb = boxes[Math.floor(Math.random() * N)]; boom.x = bb.cur.x; boom.y = -bb.cur.y; boom.t0 = t; }
-      BOOMV[0] = boom.x; BOOMV[1] = boom.y; BOOMV[2] = t - boom.t0; BOOMV[3] = boom.amp > 0.002 ? boom.amp : 0;
+      if (bOn && t - boom.t0 >= BOOM_P) {                                              /* 새 연쇄: 아무 칸 여섯 곳을 한 방향으로 줄 세워 차례로 */
+        var ang = Math.random() * 6.283, ca = Math.cos(ang), sa = Math.sin(ang), pts = [];
+        for (var q = 0; q < 6; q++) { var bb = boxes[Math.floor(Math.random() * N)]; pts.push([bb.cur.x, -bb.cur.y]); }
+        pts.sort(function(p, r){ return (p[0] * ca + p[1] * sa) - (r[0] * ca + r[1] * sa); });
+        pts.forEach(function(pt, q){ BOOMB[q * 3] = pt[0]; BOOMB[q * 3 + 1] = pt[1]; BOOMB[q * 3 + 2] = [0, 0.28, 0.52, 0.8, 1.05, 1.3][q] + Math.random() * 0.06; });
+        boom.t0 = t;
+      }
+      BOOMS.v[0] = t - boom.t0; BOOMS.v[1] = boom.amp > 0.002 ? boom.amp : 0;
       S3D.render({ t: t, dt: lastFrameT ? t - lastFrameT : 1 / 60, cx: OX, cy: OY, s: S, yaw: yaw, pitch: pitch, mode: g.mode, flat: g.flat, wall: g.wall, F: F, D: D,
-        cellFx: CFX, cellM: CM, light: LV, head: g.head, boom: BOOMV });
+        cellFx: CFX, cellM: CM, light: LV, head: g.head, boom: BOOMS });
       lastFrameT = t;
       /* 02 챕터 코드 조각만 2D 로 (예전 투영 그대로) */
       var cy = Math.cos(yaw), sy = Math.sin(yaw), cp = Math.cos(pitch), sp = Math.sin(pitch);
