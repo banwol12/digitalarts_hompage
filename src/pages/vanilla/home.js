@@ -82,6 +82,7 @@
   N = boxes.length;
   /* 02 챕터 코드 조각: VS Code Dark+ 배색으로 토큰을 부분별 채색 */
   var VS = { ctrl:'#C586C0', type:'#569CD6', fn:'#DCDCAA', num:'#B5CEA8', str:'#CE9178', vari:'#9CDCFE', td:'#4EC9B0', punc:'#D4D4D4' };
+  var VS_PAPER = { '#C586C0':'#AF00DB', '#569CD6':'#2349C4', '#DCDCAA':'#795E26', '#B5CEA8':'#098658', '#CE9178':'#A31515', '#9CDCFE':'#001080', '#4EC9B0':'#267F99', '#D4D4D4':'#3B3B3B' };   /* 흰 바탕(01 ③)에선 밝은 테마 색 */
   var KW_CTRL = { 'for':1, 'if':1, 'else':1, 'return':1, 'while':1, 'import':1, 'yield':1, 'async':1, 'await':1, 'include':1, 'new':1, 'in':1 };
   var KW_TYPE = { 'float':1, 'int':1, 'void':1, 'const':1, 'auto':1, 'class':1, 'def':1, 'template':1, 'typename':1, 'nullptr':1, 'True':1, 'None':1, 'lambda':1, 'self':1, 'vector':1 };
   var KW_NS = { 'std':1, 'np':1, 'numpy':1, 'Particle':1, 'Pixel':1, 'T':1 };
@@ -111,7 +112,6 @@
   var CHAPTERS = [
     { form: 'logo',  yaw: 0,    pitch: -0.08, sway: 0,    spin: 0,    morph: 0, flow: 0, live: 1,   sMax: 1.0,  sMin: 0.2,  fit: 0.9, wall: -5.5, head: 1 },   /* sway 0: 첫 챕터는 카메라가 전혀 돌지 않는다 (인트로 끝에 흔들림이 시작되는 게 회전처럼 보였다) */
     { form: 'logo',  yaw: -0.25, pitch: -0.06, sway: 0.10, spin: 0,   morph: 0, flow: 0, live: 0,   sMax: 0.85, sMin: 0.2,  fit: 0.9, flat: 1, wall: -5.5 },   /* live 0: 01 챕터는 픽셀이 숨쉬거나 튀어나오지 않는다 (사용자 2026-09-28) */
-    { form: 'burst', yaw: 0.15, pitch: -0.1,  sway: 0.20, spin: 0,    morph: 1, flow: 0, live: 0,   sMax: 0.85, sMin: 0.2,  fit: 0.86, wall: -16 },
     { form: 'field', yaw: 0,    pitch: -1.1,  sway: 0.02, spin: 0,    morph: 0, flow: 1, live: 0,   sMax: 1.0,  sMin: 0.3,  fit: 0.9, wall: -2.6 },   /* 3D: 벽이 필드 바로 아래 바닥이 된다 */
     { form: 'logo',  yaw: 0.1,  pitch: -0.1,  sway: 0.15, spin: 0,    morph: 0, flow: 0, live: 0.4, sMax: 1.0,  sMin: 0.18, fit: 0.92, alpha: 0.14, wall: -5.5 },
     { form: 'logo',  yaw: 0,    pitch: -0.05, sway: 0.18, spin: 0,    morph: 0, flow: 0, live: 0.6, sMax: 0.6,  sMin: 0.18, fit: 0.9, wall: -5.5 }
@@ -218,7 +218,7 @@
       if (MOBILE()) {
         if (i === 0) box = { x0: shellL, x1: shellR, y0: hd + 16, y1: H - 0.12 * H - hOf('.wordmark') - 20 };
         else {
-          var stSel = i === 5 ? '.main .stack' : '.stack', padB = i === 5 ? hOf('.foot') + 12 : 24;
+          var stSel = i === 4 ? '.main .stack' : '.stack', padB = i === 4 ? hOf('.foot') + 12 : 24;
           var topM = H - padB - hOf(stSel);
           box = { x0: shellL, x1: shellR, y0: hd + 10, y1: Math.max(hd + 10 + 56, topM - 10) };
         }
@@ -227,11 +227,8 @@
       } else if (i === 1) {
         box = { x0: W / 2 + 28, x1: shellR - 56, y0: hd + M, y1: H - M };
       } else if (i === 2) {
-        var st2 = sec.querySelector('.stack'), sl2 = st2 ? st2.getBoundingClientRect().left : W / 2;
-        box = { x0: shellL, x1: Math.max(shellL + 160, sl2 - 40), y0: hd + M, y1: H - M };   /* 글 칸(넓어진 커리큘럼) 바로 왼쪽까지 */
-      } else if (i === 3) {
         box = { x0: shellL, x1: shellR - 56, y0: hd + 0.07 * H + hOf('.stack') + 36, y1: H - 12 };
-      } else if (i === 4) {
+      } else if (i === 3) {
         box = { x0: shellL, x1: shellR, y0: hd + M, y1: H - M };                 /* 카드 뒤 워터마크 */
       } else {
         var top5 = H - hOf('.foot') - 0.04 * H - hOf('.main .stack');
@@ -341,9 +338,10 @@
       }
     }
     var introDone = false, INTRO_T = 1.55 * IK, sceneT = 0, introAt = 0;
-    /* ── 이스터에그: 02 챕터의 코드 조각을 마우스·손가락으로 잡아 던지면 얼마쯤 날아갔다가 스프링처럼 제자리로 돌아온다.
+    /* ── 놀이: 01 ③ 단계(로고가 코드로 풀린 때)의 코드 조각을 마우스·손가락으로 잡아 던지면 얼마쯤 날아갔다가 스프링처럼 제자리로 돌아온다.
        점수나 안내 없이 숨어 있다 (조각 위에서 커서가 손 모양으로 바뀌는 것만 힌트) ── */
     var play = { on: false, drag: null, last: 0, trail: [], gx: 0, gy: 0 };
+    function codeOn(){ return active === 1 && c1step === 3; }                    /* 코드 조각 놀이는 01 의 ③ 단계에서만 */
     function codeAt(x, y){
       var hit = null;
       for (var i = 0; i < N; i++) { var b = boxes[i]; if (b.kind !== 'code' || !b.sw || b.seenT === undefined || sceneT - b.seenT > 0.2) continue;
@@ -351,7 +349,7 @@
       return hit;
     }
     function dragStart(x, y){
-      if (active !== 2 || !introDone) return false; var b = codeAt(x, y); if (!b) return false;
+      if (!codeOn() || !introDone) return false; var b = codeAt(x, y); if (!b) return false;
       play.on = true; play.drag = b; play.last = sceneT; b.vx = 0; b.vy = 0; b.held = true; b.thrown = false;
       play.gx = x - b.ox; play.gy = y - b.oy; play.trail = [{ x: x, y: y, t: performance.now() }]; return true;
     }
@@ -386,7 +384,7 @@
       play.on = false; play.drag = null; document.body.style.cursor = '';
     }
 
-    /* 03 챕터: 픽셀 필드 위를 오가는 데이터 패킷 (행·열을 따라 빛이 옮겨 다닌다) */
+    /* 02 챕터: 픽셀 필드 위를 오가는 데이터 패킷 (행·열을 따라 빛이 옮겨 다닌다) */
     var packets = [], boost = new Float32Array(N);
     for (var p = 0; p < 5; p++) packets.push({ col: false, line: Math.floor(Math.random() * FROWS), x: Math.random() * FCOLS, v: (2 + Math.random() * 2.5) * (Math.random() < 0.5 ? 1 : -1), len: 2 + Math.random() * 2 });   /* 03 필드는 잔잔하게 (사용자 10-11: 글보다 눈에 띈다) — 가로로만, 다섯 줄, 느리게 */
     var lastT = 0;
@@ -421,7 +419,7 @@
         for (var pi = 0; pi < parts.length; pi++) { var wkey = parts[pi][0] + '|' + fpx, pw = textW.get(wkey); if (pw === undefined) { pw = ctx.measureText(parts[pi][0]).width; textW.set(wkey, pw); } widths.push(pw); total += pw; }
         b.sx = X; b.sy = Y; b.sw = total; b.sh = fpx * 1.15; b.pox = b.ox || 0; b.poy = b.oy || 0; if (alpha > 0.5) b.seenT = sceneT;
         var cx2 = X - total / 2;
-        for (var pj = 0; pj < parts.length; pj++) { ctx.fillStyle = parts[pj][1]; ctx.fillText(parts[pj][0], cx2, Y); cx2 += widths[pj]; }
+        for (var pj = 0; pj < parts.length; pj++) { ctx.fillStyle = g.mode < 0.5 ? (VS_PAPER[parts[pj][1]] || parts[pj][1]) : parts[pj][1]; ctx.fillText(parts[pj][0], cx2, Y); cx2 += widths[pj]; }
       } else if (b.kind === 'tri') {
         ctx.strokeStyle = rgb(pal.light); ctx.beginPath();
         for (var q = 0; q < 3; q++) { var an = b.rot + q * 2.094, rr = sz * (1.1 + (q === 1 ? 0.5 : 0)); var px = X + Math.cos(an) * rr, py = Y + Math.sin(an) * rr; if (q) ctx.lineTo(px, py); else ctx.moveTo(px, py); }
@@ -606,8 +604,7 @@
     }
     function renderSC(t, yaw, pitch, F, D, S, OX, OY, pal){
       var hasFlow = g.flow > 0.01, nFr = 0, lv = g.live * (introDone ? Math.min(1, (t - introAt) / 1.5) : 0);
-      var s1 = active === 1 && introDone ? c1step : 0, bandP = (t * 0.3) % 1.5 - 0.25, pt = null, pcy, psy, pcp, psp;   /* 01 단계별 로고 연출 */
-      if (s1 === 3) { pcy = Math.cos(yaw); psy = Math.sin(yaw); pcp = Math.cos(pitch); psp = Math.sin(pitch); pt = pointerAt(t, OX, OY); }
+      var s1 = active === 1 && introDone ? c1step : 0, bandP = (t * 0.3) % 1.5 - 0.25;   /* 01 단계별 로고 연출 */
       for (var i = 0; i < N; i++) {
         var b = boxes[i], p = Math.max(0, Math.min(1, (t - b.t0) / b.dur));
         if (b.from && b.to) { var e = easeOut4(p), arc = Math.sin(Math.PI * e); b.cur.x = b.from.x + (b.to.x - b.from.x) * e + b.ax * arc; b.cur.y = b.from.y + (b.to.y - b.from.y) * e + b.ay * arc; b.cur.z = b.from.z + (b.to.z - b.from.z) * e + b.az * arc; b.m = b.mFrom + (b.mTo - b.mFrom) * e; }
@@ -617,11 +614,6 @@
         b.pulse = 0;
         CFX[i * 4] = 0; CFX[i * 4 + 1] = 0; CFX[i * 4 + 2] = bob + lvz; CFX[i * 4 + 3] = boost[i] * g.flow;
         if (s1 === 1) { var dd = (b.gx * 0.55 - b.gy * 0.85) / 40 + 0.5 - bandP; CFX[i * 4 + 3] = 0.85 * Math.exp(-dd * dd / 0.004); }   /* ①: 빛 띠가 로고 표면을 훑는다 (프로젝션 매핑) */
-        else if (pt) {                                                                 /* ③: 포인터 가까운 칸이 솟고 빛난다 (인터랙션) */
-          var qx = b.cur.x * S, qy = b.cur.y * S, qz = b.cur.z * S, ax = qx * pcy + qz * psy, az = -qx * psy + qz * pcy, ay = qy * pcp - az * psp, sk = F / (qy * psp + az * pcp + D);
-          var ex = OX + ax * sk - pt.x, ey = OY + ay * sk - pt.y, kk = Math.exp(-(ex * ex + ey * ey) / pt.r2);
-          CFX[i * 4 + 2] -= 2.6 * kk; CFX[i * 4 + 3] = 0.8 * kk;
-        }
         CM[i * 2] = b.m; CM[i * 2 + 1] = 0;
         if (b.m > 0.001) ORDER[nFr++] = i;
       }
@@ -662,7 +654,7 @@
 
     function evOK(e){ var el = e.target && e.target.nodeType === 1 ? e.target : null; return !(el && el.closest && el.closest('a, button, input, textarea, select, .cards')); }
     document.addEventListener('mousedown', function(e){ if (e.button !== 0 || !evOK(e)) return; if (dragStart(e.clientX, e.clientY)) { e.preventDefault(); document.body.style.cursor = 'grabbing'; } });
-    document.addEventListener('mousemove', function(e){ if (play.drag) { dragMove(e.clientX, e.clientY); return; } if (active === 2 && introDone && !TOUCH) document.body.style.cursor = codeAt(e.clientX, e.clientY) ? 'grab' : ''; });
+    document.addEventListener('mousemove', function(e){ if (play.drag) { dragMove(e.clientX, e.clientY); return; } if (codeOn() && introDone && !TOUCH) document.body.style.cursor = codeAt(e.clientX, e.clientY) ? 'grab' : ''; });
     document.addEventListener('mouseup', function(){ if (play.drag) { dragEnd(); document.body.style.cursor = 'grab'; } });
     var playTouchMove = function(e){ if (!play.drag) return; var tt = e.touches[0]; dragMove(tt.clientX, tt.clientY); if (e.cancelable) e.preventDefault(); };
     var playTouchEnd = function(){ if (play.drag) dragEnd(); document.removeEventListener('touchmove', playTouchMove); document.removeEventListener('touchend', playTouchEnd); document.removeEventListener('touchcancel', playTouchEnd); };
@@ -747,7 +739,7 @@
     var body = document.body, links = document.querySelectorAll('[data-ch]');
     function activate(i){
       if (i === active && chapters[i].classList.contains('is-active')) return;
-      if (active === 2 && i !== 2) resetPlay();                                     /* 놀이터를 떠나면 조각이 제자리로 */
+      if (active === 1 && i !== 1) resetPlay();                                     /* 놀이터(01 의 코드 단계)를 떠나면 조각이 제자리로 */
       var prev = active;
       active = i;
       chapters.forEach(function(s, k){ s.classList.toggle('is-active', k === i); if (PAGED) s.inert = k !== i; });
@@ -772,13 +764,14 @@
     }
     window.addEventListener('scroll', function(){ if (!ticking) { ticking = true; requestAnimationFrame(pick); } }, { passive: true });
 
-    /* ── 스크롤 단계: 01(소개·세 분야) · 02(세 갈래·스튜디오) · 03(네 진로) — 한 화면 스크롤마다 글 패널 하나.
+    /* ── 스크롤 단계: 01(소개 · 세 분야 · 창작 스튜디오) · 02(네 진로) — 한 화면 스크롤마다 글 패널 하나.
        01 은 로고 연출(CHAPTERS[1])도 그 단계 것으로 바꾼다. 새 패널의 글은 한 줄씩 짧게 들어온다 (anime.js) ── */
     var C1 = CHAPTERS[1], c1El = chapters[1], c1step = -1;
     var C1_STEPS = [C1,
       Object.assign({}, C1, { flat: 0, yaw: -0.1, pitch: -0.06, sway: 0.03 }),       /* ① 정면 가까이 — 빛 띠가 표면을 훑는다 */
       Object.assign({}, C1, { flat: 0, yaw: -0.12, pitch: -0.26, sway: 0.3 }),       /* ② 위에서 비스듬히 + 턴테이블처럼 좌우로 — 두께와 그림자 */
-      Object.assign({}, C1, { flat: 0, yaw: 0, pitch: -0.04, sway: 0 })];           /* ③ 정면 — 포인터 쪽 칸이 솟는다 */
+      Object.assign({}, C1, { form: 'burst', morph: 1, flat: 0, yaw: 0.15, pitch: -0.1, sway: 0.2, fit: 0.86, wall: -16 }),   /* ③ 픽셀이 코드 조각으로 풀린다 (예전 02 챕터) — 끌어서 던질 수 있다 */
+      Object.assign({}, C1, { flat: 0, yaw: 0.1, pitch: -0.1, sway: 0.15 })];       /* ④ 창작 스튜디오 — 다시 하나의 로고로 */
     function stepper(i, looks, onStep){
       var el = chapters[i], ps = el.querySelectorAll('.panel'), ds = el.querySelectorAll('.dots li'), n = ps.length, cur = -1;
       function set(k){
@@ -802,21 +795,8 @@
         if (PAGED) el.scrollTo({ top: k * el.clientHeight, behavior: how }); else window.scrollTo({ top: el.offsetTop + k * VH(), behavior: how });
       }); });
     }
-    stepper(1, C1_STEPS, function(k){ c1step = k; });
-    stepper(2); stepper(3);
-    /* ③ 인터랙션 시연용 포인터: 마우스·손가락을 따라가고, 한동안 없으면 로고 위를 스스로 돈다 */
-    var ptr = { x: 0, y: 0, t: -1e9, sx: null, sy: null };
-    var ptrSet = function(e){ ptr.x = e.clientX; ptr.y = e.clientY; ptr.t = sceneT; };
-    window.addEventListener('pointermove', ptrSet, { passive: true });
-    window.addEventListener('pointerdown', ptrSet, { passive: true });
-    function pointerAt(t, OX, OY){
-      var R = Math.min(W, H) * 0.16, live = t - ptr.t < 2.5;
-      var tx = live ? ptr.x : OX + Math.sin(t * 1.1) * R * 1.2, ty = live ? ptr.y : OY + Math.sin(t * 1.7 + 1) * R * 0.8;
-      if (ptr.sx === null) { ptr.sx = tx; ptr.sy = ty; }
-      ptr.sx += (tx - ptr.sx) * 0.18; ptr.sy += (ty - ptr.sy) * 0.18;
-      return { x: ptr.sx, y: ptr.sy, r2: R * R * 0.45 };
-    }
-
+    stepper(1, C1_STEPS, function(k){ c1step = k; if (k !== 3) resetPlay(); });
+    stepper(2);
     /* ── 터치 기기: 스와이프를 감지하는 순간 다음/이전 챕터로 부드럽게 이동 (한 번에 한 챕터) ── */
     var paging = false, mainEl = document.querySelector('main');
     function goTo(i){
@@ -971,8 +951,8 @@
       cardsContainer.innerHTML = html;
       cardsContainer.querySelectorAll('canvas.thumb').forEach(drawThumb);
 
-      if (active === 4) {
-        motionEnter(4, 1);
+      if (active === 3) {
+        motionEnter(3, 1);
       }
     }
 

@@ -233,7 +233,7 @@ html.touch-paging .cards{touch-action:pan-x}
 
 /* 01: 스크롤하면 세 분야가 하나씩 — 무대는 화면에 붙고(sticky) 글과 로고만 바뀐다. 한 단계 = 화면 한 장 (스냅) */
 .chapter.steps{display:block;padding-top:0;min-height:0}
-.steps .track{position:relative;height:400vh;height:400svh}
+.steps .track{position:relative;height:calc(var(--n,4) * 100vh);height:calc(var(--n,4) * 100svh)}   /* --n: 단계 수 (01 은 5, 02 는 4) */
 .steps .stage{position:sticky;top:0;height:100vh;height:100svh;display:grid;align-content:center;padding-top:var(--hdr)}
 .steps .snap{position:absolute;left:0;width:1px;height:1px;scroll-snap-align:start;scroll-snap-stop:always;pointer-events:none}
 html.touch-paging .chapter.steps{scroll-snap-type:y mandatory}
@@ -261,17 +261,18 @@ html.touch-paging .chapter.steps{scroll-snap-type:y mandatory}
 @media (hover:none){.d-only{display:none}}
 @media (hover:hover){.m-only{display:none}}
 
-/* 02·03 단계: 수업명은 한 줄씩, 진로는 가운데 정렬 + 일하는 곳 */
+/* 01 수업은 묶음별 한 줄씩 · 02 진로는 가운데 정렬 + 일하는 곳 */
 .cl{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px}
 .cl li{line-height:1.55}
+.cl .grp{display:inline-block;min-width:calc(64px * var(--k));margin-right:var(--space-8);color:var(--text-muted);font-family:var(--font-core);letter-spacing:.02em}   /* 01 수업: 묶음 이름 + 수업들 */
 .panel .where{margin:0;color:var(--text-muted)}
-#c3 .panel .num,.panel .where,.facts dt,.panel .demo,.hintline{letter-spacing:.02em;text-transform:none;font-family:var(--font-core)}   /* 한글 작은 글씨: 영문용 넓은 자간이면 '미 디 어'처럼 벌어진다 */
+#c2 .panel .num,.panel .where,.facts dt,.panel .demo,.hintline{letter-spacing:.02em;text-transform:none;font-family:var(--font-core)}   /* 한글 작은 글씨: 영문용 넓은 자간이면 '미 디 어'처럼 벌어진다 */
 .center .panel{align-items:center;text-align:center}
 .center .panel .body{margin-inline:auto}
 .center .dots{justify-content:center}
-#c3 .h2{font-size:clamp(14px,1.2vw,calc(20px * var(--k)));color:var(--text-secondary)}   /* 03: 챕터 제목은 작게 · 흐리게, 진로(직업명)가 눈에 먼저 (사용자 10-12: 둘이 비슷해 어디를 볼지 모르겠다) */
-#c3 .h3.big{font-size:clamp(26px,2.8vw,calc(46px * var(--k)));line-height:1.2;letter-spacing:-.01em}
-#c3 .panels{margin-top:var(--space-12)}
+#c2 .h2{font-size:clamp(14px,1.2vw,calc(20px * var(--k)));color:var(--text-secondary)}   /* 03: 챕터 제목은 작게 · 흐리게, 진로(직업명)가 눈에 먼저 (사용자 10-12: 둘이 비슷해 어디를 볼지 모르겠다) */
+#c2 .h3.big{font-size:clamp(26px,2.8vw,calc(46px * var(--k)));line-height:1.2;letter-spacing:-.01em}
+#c2 .panels{margin-top:var(--space-12)}
 @media (min-width:800px){.top.steps .stage{align-content:start;padding-top:calc(var(--hdr) + 7vh)}}
 .cols3 .col{border-top:1px solid var(--border-strong);padding-top:var(--space-16);display:flex;flex-direction:column;gap:var(--space-8)}
 .rowhead{display:flex;justify-content:space-between;align-items:flex-end;gap:var(--space-24);flex-wrap:wrap;width:100%}
@@ -340,14 +341,13 @@ html.touch-paging .chapter.steps{scroll-snap-type:y mandatory}
   .steps .stage{align-content:end;padding-bottom:var(--space-24);padding-top:calc(var(--hdr) + 12vh)}
   .panel{gap:var(--space-12);text-align:left}
   .panel .body{font-size:12.5px;line-height:1.65;max-width:none}
-  #c3 .h2{font-size:14px}
-  #c3 .h3.big{font-size:23px}
+  #c2 .h2{font-size:14px}
+  #c2 .h3.big{font-size:23px}
   .facts>div{grid-template-columns:60px minmax(0,1fr);gap:var(--space-12);padding:var(--space-8) 0}
   .facts dd{font-size:12px}
   .set.idx button{grid-template-columns:44px minmax(0,1fr) auto;padding:var(--space-12) 0}
   .dots{justify-content:center}
-  .cl{flex-direction:row;flex-wrap:wrap;gap:0}
-  .cl li:not(:last-child)::after{content:"·";margin:0 6px;color:var(--text-muted)}
+
   .set li .h3{font-size:14px}
   .works{align-content:end;padding-bottom:var(--space-32)}
   .cards{display:flex;gap:var(--space-16);overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;margin:0 calc(-1 * var(--space-20));padding:0 var(--space-20) var(--space-8);scrollbar-width:none}
