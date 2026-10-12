@@ -623,7 +623,7 @@
       LV[0] = L[0] + (fx3 - L[0]) * fw; LV[1] = -L[1] + (fy3 + L[1]) * fw; LV[2] = -L[2] + (fz3 + L[2]) * fw;
       LV[0] += (-0.27 - LV[0]) * hd; LV[1] += (0.38 - LV[1]) * hd; LV[2] += (0.88 - LV[2]) * hd;   /* 카메라에 달린 조명: 렌즈 약간 위·왼쪽 */
       /* 01 ② 폭발 시뮬레이션 (셰이더 BOOM): 로고 고르게 흩어진 열 곳이 0.16–0.5초 간격으로 무작위 차례로 터지고 (마지막이 가장 크다),
-         1.6초 뒤 한꺼번에 되감기(1.3초), 쉬었다가 다시. 단계를 떠나면 세기가 0 으로 — 조각이 제자리로 */
+         3.4초 동안 떨어지고 연기가 피어오른 뒤 한꺼번에 되감기(2초), 쉬었다가 다시. 단계를 떠나면 세기가 0 으로 — 조각이 제자리로 */
       var bOn = s1 === 2 && !reduce, bdt = lastFrameT ? Math.min(0.1, t - lastFrameT) : 0;
       if (bOn && boom.amp < 0.01) boom.t0 = t - boom.p + 0.45;                          /* 들어오고 0.45초 뒤 첫 폭발 */
       boom.amp += ((bOn ? 1 : 0) - boom.amp) * Math.min(1, bdt * 5);
@@ -638,7 +638,7 @@
         var tb = 0;
         pts.forEach(function(pp, q){ BOOMB[q * 4] = pp.x; BOOMB[q * 4 + 1] = -pp.y; BOOMB[q * 4 + 2] = tb; BOOMB[q * 4 + 3] = q === 9 ? 7.5 : 4.2 + Math.random() * 2.6; tb += 0.16 + Math.random() * 0.34; });
         var tl = BOOMB[9 * 4 + 2];
-        BOOMS.v[2] = tl + 1.6; BOOMS.v[3] = 1.3; boom.p = tl + 1.6 + 1.3 + 1.4;
+        BOOMS.v[2] = tl + 3.4; BOOMS.v[3] = 2.0; boom.p = tl + 3.4 + 2.0 + 1.4;           /* 다 터진 뒤 3.4초(파편이 땅에 떨어지고 연기가 피어오름) → 2초 동안 스르륵 되감기 */
         boom.t0 = t;
       }
       BOOMS.v[0] = t - boom.t0; BOOMS.v[1] = boom.amp > 0.002 ? boom.amp : 0;            /* 화면 흔들림은 뺐다 (사용자 10-12: 너무 세다 — 충격은 큐브가 들썩이는 후폭풍으로) */
@@ -757,7 +757,7 @@
     }
 
     /* ── 챕터 활성화: 뷰포트 중심선이 들어 있는 챕터 ── */
-    var body = document.body, links = document.querySelectorAll('[data-ch]');
+    var body = document.body, links = document.querySelectorAll('[data-ch]'), seenEnd = false;
     /* 메뉴 강조: 01 은 '전공소개'(첫 화면)와 '교육과정'(① 단계부터)을 나눠 켠다 — 번호 줄(00–04)은 챕터만 본다 */
     function linkOn(a){
       var ch = parseInt(a.getAttribute('data-ch'), 10);
@@ -772,6 +772,7 @@
       if (active === 1 && i !== 1) resetPlay();                                     /* 놀이터(01 의 코드 단계)를 떠나면 조각이 제자리로 */
       var prev = active;
       active = i;
+      if (i === chapters.length - 1) seenEnd = true; else if (i > prev || i === 0) seenEnd = false;   /* 끝까지 봤는지 */
       chapters.forEach(function(s, k){ s.classList.toggle('is-active', k === i); if (PAGED) s.inert = k !== i; });
       syncLinks();
       body.classList.toggle('cs-inverse', chapters[i].getAttribute('data-mode') === 'ink');
@@ -885,9 +886,10 @@
         var sec = chapters[active];
         if (!tFired && sec.scrollHeight > sec.clientHeight + 2) {                  /* 화면보다 긴 챕터: 안에서 먼저 스크롤, 끝에 닿으면 페이징 */
           var atTop = sec.scrollTop <= 0, atBottom = sec.scrollTop + sec.clientHeight >= sec.scrollHeight - 2;
+          if (dy < 0 && active !== chapters.length - 1) seenEnd = false;
           if (dy < 0 && !atBottom) return;
           if (dy > 0 && !atTop) {
-            if (!sec.classList.contains('steps')) return;
+            if (!seenEnd || !sec.classList.contains('steps')) return;
             if (e.cancelable) e.preventDefault();                                     /* 단계 챕터는 거꾸로 갈 때 한 번에 처음 단계로 (사용자 10-12) */
             if (Math.abs(dy) > 24) { tFired = true; sec.scrollTo({ top: 0, behavior: reduce ? 'auto' : 'smooth' }); }
             return;
@@ -901,12 +903,14 @@
       document.addEventListener('touchcancel', tEnd, { passive: true });
       if (STATIC) window.__paging = { goTo: goTo };
     }
-    /* ── 거꾸로 올라갈 땐 단계를 하나하나 되짚지 않고 챕터 단위로 (사용자 10-12): 챕터 중간이면 그 챕터 처음, 처음이면 앞 챕터 처음으로.
+    /* ── 끝(04)까지 본 뒤 거꾸로 올라갈 땐 단계를 하나하나 되짚지 않고 챕터 단위로 (사용자 10-12): 챕터 중간이면 그 챕터 처음, 처음이면 앞 챕터 처음으로.
+       04 에 닿기 전엔 거꾸로 굴려도 본 단계 그대로 하나씩 돌아간다 (seenEnd).
        한 번 굴림(트랙패드 관성 포함)에 한 번만 — 0.22초 쉬었거나, 0.9초 넘게 세게 계속 굴릴 때 다음 것 ── */
     if (!PAGED && !ONLY) {
       var wUp = { last: 0, fired: 0 };
       window.addEventListener('wheel', function(e){
-        if (!introDone || e.ctrlKey || e.deltaY >= 0 || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
+        if (e.deltaY > 0 && active !== chapters.length - 1) seenEnd = false;            /* 다시 내려가면 보통 스크롤로 (04 에서 더 굴리는 건 빼고) */
+        if (!seenEnd || !introDone || e.ctrlKey || e.deltaY >= 0 || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
         e.preventDefault();
         var now = performance.now(), d = -e.deltaY * (e.deltaMode === 1 ? 33 : 1), fresh = now - wUp.last > 220 || (now - wUp.fired > 900 && d >= 40);
         wUp.last = now;

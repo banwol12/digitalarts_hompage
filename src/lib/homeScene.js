@@ -16,7 +16,7 @@
 import {
   WebGLRenderer, Scene, PerspectiveCamera, OrthographicCamera, BoxGeometry, InstancedBufferGeometry,
   InstancedBufferAttribute, Mesh, PlaneGeometry, ShaderMaterial, WebGLRenderTarget, DepthTexture, UnsignedIntType,
-  DataTexture, FramebufferTexture, RGBAFormat, FloatType, HalfFloatType, NearestFilter, LinearMipmapLinearFilter, NoBlending, Vector2, Vector3, Vector4, Matrix4, Euler
+  DataTexture, FramebufferTexture, RGBAFormat, FloatType, HalfFloatType, NearestFilter, LinearFilter, LinearMipmapLinearFilter, NoBlending, Vector2, Vector3, Vector4, Matrix4, Euler
 } from 'three';
 import { Color, gradient } from 'spectral.js';
 import { GPUComputationRenderer } from 'three/addons/misc/GPUComputationRenderer.js';
@@ -162,7 +162,7 @@ float cellT(vec2 p){ vec2 c = floor(p) + 0.5; return L_START + L_SPREAD * clamp(
 /* 큐브 하나 = 픽셀 하나. 위치는 시뮬레이션, 칸 단위 움직임(숨쉬기·튀어나옴·물결·빛)은 칸 텍스처에서 */
 /* 01 ② (3D·애니메이션·VFX) 폭발 시뮬레이션 — 로고 여기저기서 시차를 두고 열 번 터진다. 폭발마다 반경 안의 큐브만 부서지고(가운데일수록 세게),
    반경 밖은 충격파(후폭풍)에 들썩였다 제자리, 이미 날던 파편은 다음 폭발에 한 번 더 밀린다. 파편은 세 종류:
-   덩어리(무겁게 날아 떨어짐) · 불티(빠른 포물선, 오래 빛남, 긴 잔상) · 연기(밀려났다 부력으로 피어오르며 일렁이다 흩어짐).
+   덩어리(무겁게 날아 땅에 떨어져 살짝 튀고 쌓임) · 불티(빠른 포물선, 오래 빛남, 긴 잔상). 연기는 큐브가 아니라 부드러운 연기 덩어리(SMOKE_*).
    터지는 순간의 빛이 주변 큐브를 비춘다. 불꽃 색은 Spectral.js(물감처럼 섞는 Kubelka-Munk 혼합) 띠: 백열 → 노랑 → 주황 → 빨강 → 잿빛.
    어느 폭발에도 안 닿은 큐브는 마지막에 무너진다 → 로고가 남지 않으면 시뮬레이션 시계를 거꾸로 돌려 한꺼번에 되감는다.
    시뮬레이션 위치(tPos)는 건드리지 않는 화면용 변위라 세기(uBoom.y)가 0 이 되면 언제든 제자리.
@@ -172,12 +172,15 @@ const BOOM = /* glsl */`
 #define B_SPREAD 1.0
 #endif
 #define B_N 10
+#ifndef B_FLOOR
+#define B_FLOOR -18.0
+#endif
 uniform vec4 uBoom;
 uniform vec4 uBl[B_N];
 const float B_VW = 24.0, B_VS = 38.0;
 float boomClock(float a){ return a < uBoom.z ? a : uBoom.z * (1.0 - smoothstep(0.0, 1.0, (a - uBoom.z) / uBoom.w)); }
 float bdr(float x, float k){ return x > 0.0 ? (1.0 - exp(-k * x)) / k : 0.0; }   /* 공기 저항을 받는 이동 거리 (속도 1 기준) */
-/* tau: 이 큐브가 터진 뒤 지난 초 · k: 폭발 가운데에 가까운 정도 · kind: 0 덩어리 · 1 불티 · 2 연기 · lit: 폭발 빛 */
+/* tau: 이 큐브가 터진 뒤 지난 초 · k: 폭발 가운데에 가까운 정도 · kind: 0 덩어리 · 1 불티 · lit: 폭발 빛 */
 vec3 boomOff(vec2 p, float s, float ae, out float tau, out float k, out float kind, out float lit){
   float tg = 1e9, R = 6.0, tmax = 0.0, dn = 1e9; vec2 c = vec2(0.0), cn = vec2(0.0);
   for (int i = 0; i < B_N; i++) {
@@ -192,7 +195,7 @@ vec3 boomOff(vec2 p, float s, float ae, out float tau, out float k, out float ki
   tau = max(ae - tg, 0.0);
   vec2 d = p - c; float r = length(d), q = fract(s * 91.7);
   k = crumble > 0.5 ? 0.12 : clamp(1.0 - r / R, 0.0, 1.0);
-  kind = q < 0.12 ? 1.0 : q < 0.4 ? 2.0 : 0.0;
+  kind = q < 0.12 ? 1.0 : 0.0;
   vec3 off = vec3(0.0); lit = 0.0;
   for (int i = 0; i < B_N; i++) {                                                          /* 후폭풍: 지나간 폭발마다 */
     vec4 b = uBl[i]; if (b.z > ae) continue;
@@ -207,26 +210,92 @@ vec3 boomOff(vec2 p, float s, float ae, out float tau, out float k, out float ki
   if (tau > 0.0) {
     vec2 dir = normalize((r > 1e-3 ? d / r : vec2(1.0, 0.0)) + (vec2(fract(s * 13.3), fract(s * 29.1)) - 0.5) * 1.0);
     float E = crumble > 0.5 ? 0.5 : R / 6.0, rv = fract(s * 57.3), zf = 2.0 + 7.0 * fract(s * 7.7);
-    if (kind > 1.5) {                                                                      /* 연기 */
-      float dr = bdr(tau, 3.0), rise = 2.2 * max(tau - 0.25, 0.0) * (0.7 + 0.6 * rv);
-      float sway = (sin(tau * 1.7 + s * 31.0) + 0.5 * sin(tau * 3.3 + s * 57.0)) * smoothstep(0.2, 1.6, tau) * 1.6;
-      off += vec3(dir * (1.0 + 5.0 * rv * rv) * (0.5 + 0.5 * k) * E * dr + vec2(sway, rise), zf * 0.5 * dr);
-    } else if (kind > 0.5) {                                                               /* 불티 */
+    if (kind > 0.5) {                                                                      /* 불티: 가볍고 빠른 포물선 */
       float dr = bdr(tau, 0.9);
-      off += vec3(dir * (9.0 + 11.0 * rv) * (0.5 + 0.5 * k) * E * dr, zf * 1.3 * dr) - vec3(0.0, 9.0 / 0.9 * (tau - dr), 0.0);
-    } else {                                                                               /* 덩어리 */
+      off += vec3(dir * (9.0 + 11.0 * rv) * (0.5 + 0.5 * k) * E * dr + vec2(0.6 * tau, 0.0), zf * 1.3 * dr) - vec3(0.0, 9.0 / 0.9 * (tau - dr), 0.0);   /* 바람에 조금 밀린다 */
+    } else {                                                                               /* 덩어리: 옆으로는 공기 저항, 아래로는 중력 그대로 (땅까지 떨어진다) */
       float dr = bdr(tau, 2.0);
-      off += vec3(dir * (1.5 + 10.0 * rv * rv) * (0.6 + 0.4 * k) * E * dr, zf * (0.5 + 0.5 * k) * dr) - vec3(0.0, 3.6 / 2.0 * (tau - dr), 0.0);   /* 느린 조각이 많고 빠른 조각은 드물게 → 가운데가 빈 고리가 아니라 꽉 찬 불덩이 */
+      off += vec3(dir * (1.5 + 10.0 * rv * rv) * (0.6 + 0.4 * k) * E * dr, zf * (0.5 + 0.5 * k) * dr) - vec3(0.0, 3.5 * tau * tau, 0.0);   /* 느린 조각이 많고 빠른 조각은 드물게 → 꽉 찬 불덩이 */
     }
   }
-  return off * B_SPREAD;
+  vec3 o = off * B_SPREAD;
+  float pen = B_FLOOR + fract(s * 61.7) * 0.6 - (p.y + o.y);                               /* 땅: 닿으면 멈추고 한 번 살짝 튄다 (쌓인 높이는 조금씩 다르게). 폰 배율을 곱한 뒤에 재야 평평하다 */
+  if (tau > 0.0 && pen > 0.0) o.y += pen + pen * 0.35 * exp(-pen * 0.6);
+  return o;
 }
 float boomSize(float s, float tau, float kind){
-  float f = kind > 1.5 ? (1.0 + 0.5 * smoothstep(0.3, 1.2, tau)) * (1.0 - smoothstep(1.8, 3.0 + fract(s * 17.9), tau))   /* 연기: 부풀었다 흩어진다 */
-          : kind > 0.5 ? mix(1.0, 0.22, smoothstep(0.0, 0.15, tau)) * (1.0 - smoothstep(1.3, 2.2, tau))              /* 불티: 작고 곧 꺼진다 */
+  float f = kind > 0.5 ? mix(1.0, 0.22, smoothstep(0.0, 0.15, tau)) * (1.0 - smoothstep(1.3, 2.2, tau))              /* 불티: 작고 곧 꺼진다 */
           : mix(1.0, 0.45 + 0.3 * fract(s * 17.9), smoothstep(0.2, 1.6, tau));                                      /* 덩어리: 타면서 작아진다 */
   return mix(1.0, f, uBoom.y);
 }`;
+
+/* 01 ② 연기: 폭발마다 부드러운 연기 덩어리(빌보드) 여러 장 — 밀려 퍼졌다가 부력으로 가속하며 피어오르고, 부풀고, 천천히 돌며 흩어진다.
+   흐름: 약한 바람(위로 갈수록 세다 — 땅 마찰) + 돌풍 + 컬 노이즈 난류 + 부력을 6 단계로 적분 → 연기 기둥이 바람 쪽으로 휘며 소용돌이친다.
+   바람은 오른쪽으로 (왼쪽 글 칸을 피해서).
+   모양은 처음에 한 번 만든 노이즈 연기 그림 넷(SMOKE 아틀라스)을 돌려 쓴다. 갓 피어난 연기는 아래 불빛을 받아 주황. 되감기 땐 거꾸로 빨려 든다 */
+const SMOKE_VS = /* glsl */`
+uniform mat4 uModel;
+uniform float uScale;
+attribute vec4 aP;   /* x 폭발 번호 · yzw 무작위 */
+varying vec2 vUv;
+varying float vA, vHot, vQ, vAge, vRot;
+${NOISE}
+${BOOM}
+void main(){
+  vec4 b = uBl[int(aP.x)];
+  float age = boomClock(uBoom.x) - b.z - aP.y * 0.4;                                        /* 덩어리마다 조금씩 늦게 피어난다 */
+  if (uBoom.y <= 0.0 || age <= 0.0) { gl_Position = vec4(2.0, 2.0, 2.0, 1.0); return; }
+  float ang = aP.z * 6.2832, life = 4.2 + 2.0 * fract(aP.z * 5.7);
+  vec2 dir = vec2(cos(ang), sin(ang));
+  vec3 c = vec3(b.xy + dir * (sqrt(aP.w) * b.w * 0.55 + b.w * 0.55 * bdr(age, 1.6)), (aP.w - 0.5) * 7.0 + 2.5);   /* 터진 자리에서 밀려 퍼진다 (폭압 + 공기 저항) */
+  float buoy = 0.6 + 0.8 * fract(aP.y * 7.3), h = max(age - 0.15, 0.0) / 6.0;
+  for (int i = 0; i < 6; i++) {                                                             /* 바람 · 부력 · 난류를 따라 흘러간다 */
+    float ai = 0.15 + h * (float(i) + 0.5), ti = b.z + ai;
+    float wind = (0.85 + 0.45 * sin(ti * 0.37) + 0.25 * sin(ti * 1.13 + 1.7)) * smoothstep(B_FLOOR - 2.0, B_FLOOR + 28.0, c.y);
+    c += (vec3(wind, (1.1 + 0.24 * ai) * buoy, 0.0) + curl(c * 0.07 + vec3(0.0, 0.0, ti * 0.15)) * (0.5 + 0.7 * smoothstep(0.0, 2.0, ai))) * h;
+  }
+  c.xy *= B_SPREAD;
+  float sz = b.w * (0.75 + 0.5 * fract(aP.y * 13.1)) * (0.6 + 1.7 * smoothstep(0.0, 3.5, age)) * B_SPREAD;   /* 크게 겹쳐 짙어진다 */
+  vA = smoothstep(0.0, 0.3, age) * (1.0 - smoothstep(life * 0.5, life, age)) * uBoom.y * (0.3 + 0.25 * fract(aP.w * 9.1));
+  vHot = exp(-age * 2.0) * (1.0 - step(uBoom.z, uBoom.x)); vAge = age;
+  float rot = aP.y * 6.2832 + age * (fract(aP.z * 3.3) - 0.5) * 0.7; vRot = age * 0.35 + aP.z * 6.2832;
+  vec2 q = vec2(position.x * cos(rot) - position.y * sin(rot), position.x * sin(rot) + position.y * cos(rot));
+  vUv = position.xy + 0.5; vQ = floor(fract(aP.w * 3.7) * 4.0);
+  vec4 mv = viewMatrix * uModel * vec4(c * uScale, 1.0);
+  mv.xy += q * sz * uScale * vec2(1.12, 0.94);                                              /* 바람 방향으로 살짝 늘어진다 */
+  gl_Position = projectionMatrix * mv;
+}`;
+const SMOKE_FS = /* glsl */`
+uniform sampler2D tSmoke;
+varying vec2 vUv;
+varying float vA, vHot, vQ, vAge, vRot;
+void main(){
+  vec4 t = texture2D(tSmoke, (vUv + vec2(mod(vQ, 2.0), floor(vQ * 0.5))) * 0.5);
+  vec2 r = vUv - 0.5; r = vec2(r.x * cos(vRot) - r.y * sin(vRot), r.x * sin(vRot) + r.y * cos(vRot)) * 0.8 + 0.5;   /* 다른 그림을 반대로 돌려 겹친다 → 안쪽 결이 계속 바뀐다 */
+  float q2 = mod(vQ + 1.0, 4.0), t2 = texture2D(tSmoke, (clamp(r, 0.0, 1.0) + vec2(mod(q2, 2.0), floor(q2 * 0.5))) * 0.5).a;
+  float a = t.a * (0.55 + 0.6 * t2) * vA;
+  if (a < 0.004) discard;
+  vec3 col = mix(vec3(0.24, 0.23, 0.22), vec3(0.64, 0.62, 0.6), t.r) * mix(0.75, 1.0, smoothstep(0.0, 2.5, vAge));   /* 아래는 그늘, 위는 빛 · 갓 나온 연기는 더 짙다 */
+  col = mix(col, vec3(1.0, 0.5, 0.16), vHot * 0.65 * (1.0 - 0.5 * t.r));                    /* 불빛 */
+  gl_FragColor = vec4(col * a, a);                                                          /* 미리 곱한 알파 */
+}`;
+/* 연기 그림 넷 (2×2, 128px): 여러 겹 노이즈로 뭉게뭉게한 덩어리 — R 위쪽 빛, A 짙기 */
+function smokeAtlas(){
+  const S = 128, A = 256, d = new Uint8Array(A * A * 4), r = rng(7), L = new Float32Array(64 * 64).map(() => r());
+  const vn = (x, y) => { const i = Math.floor(x), j = Math.floor(y), u = x - i, v = y - j, su = u * u * (3 - 2 * u), sv = v * v * (3 - 2 * v), g = (a, b) => L[(b & 63) * 64 + (a & 63)];
+    return (g(i, j) * (1 - su) + g(i + 1, j) * su) * (1 - sv) + (g(i, j + 1) * (1 - su) + g(i + 1, j + 1) * su) * sv; };
+  for (let q = 0; q < 4; q++) for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
+    const u = x / S * 2 - 1, v = y / S * 2 - 1, e = Math.max(0, 1 - Math.sqrt(u * u + v * v));
+    let f = 0, a = 0.5, fr = 2.5;
+    for (let o = 0; o < 5; o++) { f += a * vn(u * fr + q * 17.3, v * fr + q * 29.1); a *= 0.5; fr *= 2; }
+    const k = ((q >> 1) * S + y) * A + (q & 1) * S + x;
+    d[k * 4] = Math.round(255 * Math.min(1, Math.max(0, 0.55 + (f - 0.5) * 1.4 - v * 0.35)));   /* 위가 밝다 (텍스처 v 는 아래로 갈수록 +) */
+    const m = Math.pow(e, 0.9) * (0.1 + 1.8 * f), sm = Math.min(1, Math.max(0, (m - 0.18) / 0.6));   /* 노이즈로 가장자리를 갉아 낸 뭉게뭉게한 모양 (동그란 점처럼 보이지 않게) */
+    d[k * 4 + 3] = Math.round(255 * sm * sm * (3 - 2 * sm));
+  }
+  const t = new DataTexture(d, A, A, RGBAFormat); t.magFilter = LinearFilter; t.minFilter = LinearMipmapLinearFilter; t.generateMipmaps = true; t.needsUpdate = true;
+  return t;
+}
 
 const CUBE_VS = /* glsl */`
 uniform sampler2D tPos, tVel, tCell;
@@ -283,16 +352,15 @@ void main(){
   if (uBoom.y > 0.0 && uIT < 0.0) {                                                     /* 01 ② 폭발: 머리는 지금, 꼬리는 조금 전 자리 → 날아가는 길에 잔상 */
     float tau, bk, kd, lit, t2, k2, d2, l2, rw = step(uBoom.z, uBoom.x), rp = smoothstep(0.0, 0.8, (uBoom.x - uBoom.z) / uBoom.w) * rw;
     base += boomOff(P.xy, s, boomClock(uBoom.x), tau, bk, kd, lit) * uBoom.y;
-    tailB += boomOff(P.xy, s, boomClock(uBoom.x - (kd > 0.5 && kd < 1.5 ? 0.04 : 0.016) * (1.0 - 0.75 * rw)), t2, k2, d2, l2) * uBoom.y;   /* 불티는 잔상이 길다 · 되감기는 빨라서 잔상을 줄인다 (빗줄기처럼 보였다) */
+    tailB += boomOff(P.xy, s, boomClock(uBoom.x - (kd > 0.5 ? 0.04 : 0.016) * (1.0 - 0.75 * rw)), t2, k2, d2, l2) * uBoom.y;   /* 불티는 잔상이 길다 · 되감기는 빨라서 잔상을 줄인다 (빗줄기처럼 보였다) */
     R = rotAxis(ax.zxy, tau * (3.0 + 9.0 * fract(s * 3.1)) * (0.4 + 0.6 * bk)) * R;
     size *= boomSize(s, tau, kd);
-    float rv = fract(s * 23.1), life = kd > 1.5 ? 0.6 : kd > 0.5 ? 1.8 : 1.0 + 0.7 * rv;   /* 불이 식는 시간: 연기는 금방, 불티는 오래 */
-    float h0 = kd > 0.5 && kd < 1.5 ? 0.04 : (1.0 - bk) * (kd > 1.5 ? 0.45 : 0.3);           /* 가운데는 백열, 가장자리는 주황부터 */
+    float rv = fract(s * 23.1), life = kd > 0.5 ? 1.8 : 1.0 + 0.7 * rv;                  /* 불이 식는 시간: 불티는 오래 */
+    float h0 = kd > 0.5 ? 0.04 : (1.0 - bk) * 0.3;                                         /* 가운데는 백열, 가장자리는 주황부터 */
     float u = mix(h0 + (1.0 - h0) * pow(clamp(tau / life, 0.0, 1.0), 0.75), 1.0, rw);       /* 되감기 땐 불 없이 */
     float x = u * 23.0; int fi = int(min(floor(x), 22.0));
     vFire = mix(uFire[fi], uFire[fi + 1], x - float(fi));
-    if (kd > 1.5) vFire = mix(vFire, vec3(0.6, 0.57, 0.53), smoothstep(0.5, 2.4, tau));     /* 연기는 짙은 회색에서 옅은 회색으로 */
-    vEmis = pow(1.0 - u, 1.4) * (0.8 + 0.2 * sin(uTime * 37.0 + s * 113.0)) * (kd > 0.5 && kd < 1.5 ? 1.25 : 1.0);   /* 불꽃이 일렁인다 */
+    vEmis = pow(1.0 - u, 1.4) * (0.8 + 0.2 * sin(uTime * 37.0 + s * 113.0)) * (kd > 0.5 ? 1.25 : 1.0);   /* 불꽃이 일렁인다 */
     vBurn = step(1e-4, tau) * uBoom.y * (1.0 - rp);
     vLit = min(lit, 1.5) * uBoom.y * (1.0 - rw);
   }
@@ -454,11 +522,12 @@ export function createHomeScene({ canvas, cells, small }){
   const appear = new InstancedBufferAttribute(new Float32Array(n).fill(-10), 1);
   geo.setAttribute('aRef', new InstancedBufferAttribute(aRef, 4)); geo.setAttribute('aSize', new InstancedBufferAttribute(aSize, 4)); geo.setAttribute('aAppear', appear);
   geo.instanceCount = n;
+  const BDEF = { B_SPREAD: small ? '0.7' : '1.0', B_FLOOR: (-Math.max(...cells.map((c) => c.gy)) - 1.5).toFixed(2) };   /* 폭발 정의: 폰은 덜 퍼지게 · 땅 = 로고 맨 아래보다 1.5칸 아래 */
   const uBoom = { value: new Vector4() }, uBl = { value: Array.from({ length: 10 }, () => new Vector4(0, 0, 1e9, 0)) };   /* 01 ② 연쇄 폭발 (BOOM) — 큐브·그림자가 같이 쓴다 */
   const FIRE = [['#FFFBEA', 0], ['#FFE36B', 0.1], ['#FFA21F', 0.26], ['#F2541B', 0.44], ['#A3170E', 0.62], ['#4A2A20', 0.8], ['#6E6762', 1]].map(([h, p]) => [new Color(h), p]);
   const uFire = { value: Array.from({ length: 24 }, (_, i) => new Vector3().fromArray(gradient(i / 23, ...FIRE).lRGB)) };   /* 불꽃 색 띠 (Spectral.js 물감 혼합, 선형 RGB) */
   const cubeMat = new ShaderMaterial({
-    vertexShader: CUBE_VS, fragmentShader: CUBE_FS, defines: { NB: 12, NP: 24, B_SPREAD: small ? '0.7' : '1.0' },
+    vertexShader: CUBE_VS, fragmentShader: CUBE_FS, defines: { NB: 12, NP: 24, ...BDEF },
     uniforms: { ...common, tPos: posTex, tVel: velTex, tCell: { value: tCell }, uNOff: { value: 0.1 }, uBias: { value: 0.03 }, uHead: { value: 0 }, uCamD: { value: 72 }, uShK: { value: 1 }, uHeadOff: { value: new Vector3(-0.3, 0.42, 0) }, uIT: { value: -1 }, uPC: { value: /[?&]intro=pc\b/.test(location.search) ? 1 : 0 }, uCamZ: { value: 72 }, uTanH: { value: 0.35 }, uAsp: { value: 1.6 },
       uAlb: { value: new Vector3(0.3567, 0.3567, 0.3567) }, uRef: { value: 2 }, uAmb: { value: 0.35 },   /* uAlb = #A0A0A0 (선형) */
       uKey: { value: new Vector3(0.905, 1.0, 0.087) }, uBoom, uBl, uFire }
@@ -482,15 +551,21 @@ export function createHomeScene({ canvas, cells, small }){
   let ghost = null;
   const ghostMat = new ShaderMaterial({ ...quadMat, vertexShader: QUAD_VS, fragmentShader: 'uniform sampler2D tC; uniform float uDamp; varying vec2 vUv; void main(){ gl_FragColor = max(texture2D(tC, vUv) * uDamp - 1.0 / 255.0, 0.0); }', uniforms: { tC: { value: null }, uDamp: { value: 0 } } });
   function freePost(){ if (post) { [post.scene, ...post.acc].forEach(r => r.dispose()); post = null; } }
-  const scene = new Scene(); scene.add(wall, cubes);
-  const depthMat = new ShaderMaterial({ vertexShader: DEPTH_VS, defines: { B_SPREAD: small ? '0.7' : '1.0' }, fragmentShader: 'void main(){ gl_FragColor = vec4(1.0); }', colorWrite: false,
+  const PUFF = small ? 14 : 26, sGeo = new InstancedBufferGeometry().copy(new PlaneGeometry(1, 1)), aP = new Float32Array(10 * PUFF * 4), sr = rng(5);
+  for (let i = 0; i < 10 * PUFF; i++) { aP[i * 4] = Math.floor(i / PUFF); aP[i * 4 + 1] = sr(); aP[i * 4 + 2] = sr(); aP[i * 4 + 3] = sr(); }
+  sGeo.setAttribute('aP', new InstancedBufferAttribute(aP, 4)); sGeo.instanceCount = 10 * PUFF;
+  const smokeMat = new ShaderMaterial({ vertexShader: SMOKE_VS, fragmentShader: SMOKE_FS, defines: BDEF, transparent: true, premultipliedAlpha: true, depthWrite: false,
+    uniforms: { uModel: common.uModel, uScale: common.uScale, uBoom, uBl, tSmoke: { value: smokeAtlas() } } });
+  const smoke = new Mesh(sGeo, smokeMat); smoke.frustumCulled = false; smoke.renderOrder = 2; smoke.visible = false;   /* 01 ② 연기 */
+  const scene = new Scene(); scene.add(wall, cubes, smoke);
+  const depthMat = new ShaderMaterial({ vertexShader: DEPTH_VS, defines: BDEF, fragmentShader: 'void main(){ gl_FragColor = vec4(1.0); }', colorWrite: false,
     uniforms: { tPos: posTex, tVel: velTex, tCell: { value: tCell }, uModel: common.uModel, uScale: common.uScale, uTime: common.uTime, uIT: { value: -1 }, uBoom, uBl } });
   const shadowCubes = new Mesh(geo, depthMat); shadowCubes.frustumCulled = false;
   const shadowScene = new Scene(); shadowScene.add(shadowCubes);
 
   const camera = new PerspectiveCamera(30, 1, 1, 600);
   /* 셰이더를 미리 준비 (첫 장면 다음 프레임이 0.2초 멈춰 입장이 튀었다) */
-  renderer.compile(scene, camera); renderer.compile(shadowScene, lightCam);
+  smoke.visible = true; renderer.compile(scene, camera); smoke.visible = false; renderer.compile(shadowScene, lightCam);   /* 연기 셰이더도 미리 (처음 터질 때 멈칫하지 않게) */
   for (const m of [copyMat, ghostMat, postMat]) { quad.material = m; renderer.compile(quadScene, camera); }
   let W = 1, H = 1, radius = 24, simUntil = 0, snapNext = true;
 
@@ -536,6 +611,7 @@ export function createHomeScene({ canvas, cells, small }){
       camera.position.set(0, 0, D); camera.lookAt(0, 0, 0); camera.updateProjectionMatrix(); camera.updateMatrixWorld();
       model.makeRotationFromEuler(euler.set(st.pitch, -st.yaw, 0, 'XYZ'));
       common.uScale.value = st.s; common.uMode.value = st.mode; common.uFlat.value = st.flat; common.uTime.value = t;
+      smoke.visible = !!(st.boom && st.boom.v[1] > 0);
       if (st.boom) { uBoom.value.fromArray(st.boom.v); for (let i = 0; i < 10; i++) uBl.value[i].fromArray(st.boom.bl, i * 4); } else uBoom.value.y = 0;
       wallMat.uniforms.uWallZ.value = st.wall;
       common.uPoolR.value = 45 * st.s + 2000 * (1 - st.mode) * (1 - st.mode);
