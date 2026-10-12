@@ -360,6 +360,7 @@ html.touch-paging .chapter.steps{scroll-snap-type:y mandatory}
   #c1:not([data-step="0"]) .kicker,#c1:not([data-step="0"]) .h2{display:none}   /* 01 ① 단계부터는 헤더 메뉴의 '교육과정'이 제목 몫 */
   .panel .body{font-size:12.5px;line-height:1.65;max-width:none}
   #c2 .h2{font-size:14px}
+  #c2 .stack{align-items:center}#c2 .kicker{justify-content:center}#c2 .panel{align-items:center;text-align:center}#c2 .panel .body{margin-inline:auto}#c2 .dots{justify-content:center}   /* 폰: 02 는 가운데 정렬 그대로 (데스크톱은 01 처럼 왼쪽 글 · 오른쪽 그래픽) */
   #c1:not([data-step="0"]) .h2{font-size:14px}
   #c1 .h2,#c1 .kicker{text-align:left;justify-content:flex-start;align-self:flex-start}   /* 폰: 01 은 글이 왼쪽 정렬이라 제목도 왼쪽으로 */
   #c1 .h3.big{font-size:24px}

@@ -300,7 +300,7 @@ function smokeAtlas(){
 const CUBE_VS = /* glsl */`
 uniform sampler2D tPos, tVel, tCell;
 uniform mat4 uModel;
-uniform float uScale, uTime, uIT, uCamZ, uTanH, uAsp, uPC, uFlat, uDep;
+uniform float uScale, uTime, uIT, uCamZ, uTanH, uAsp, uPC, uFlat;
 uniform vec2 uExt;     /* 납작한 로고 → 입체: [시작 초, 칸마다 걸리는 초] (로딩 로고가 걷힌 뒤 가운데부터 솟는다) */
 attribute vec4 aRef;   /* xy 시뮬레이션 uv · z 칸 u · w 깊이 AO */
 attribute vec4 aSize;  /* xyz 큐브 크기 · w 무작위 */
@@ -367,7 +367,7 @@ void main(){
   }
   float xe = clamp((uTime - uExt.x - length(P.xy) * 0.028) / uExt.y, 0.0, 1.0);
   vFl = max(uFlat, 1.0 - xe * xe * (3.0 - 2.0 * xe)); vTone = C1.y;                     /* 납작함: 2D(01) 이거나 아직 솟지 않은 입장 로고 — 깊이를 거의 없애고 로고 색 하나로 */
-  size.z *= mix(uDep, 0.05, vFl);                                                        /* uDep: 02 의 방·화면·핀 바닥은 얇고 고르게 */
+  size.z *= mix(1.0, 0.05, vFl);
   vec3 lp = R * (position * size);
   float hd = step(0.0, position.z);                                                       /* 앞면 꼭짓점은 지금 자리, 뒷면은 꼬리 끝 → 지나온 길을 덮는 기둥. 회전 전 좌표로 나눠 굴러도 꼭짓점이 앞뒤를 오가지 않는다 (꼬리가 갑자기 뒤집히던 버그) */
   vTail = hd; vStr = clamp(distance(base, tailB) / (3.0 * max(size.x, 1e-3)), 0.0, 0.95);   /* 꼬리 끝일수록 어둡게 = 잔상 */
@@ -430,7 +430,7 @@ void main(){
 const DEPTH_VS = /* glsl */`
 uniform sampler2D tPos, tVel, tCell;
 uniform mat4 uModel;
-uniform float uScale, uTime, uIT, uDep;
+uniform float uScale, uTime, uIT;
 attribute vec4 aRef;
 attribute vec4 aSize;
 attribute float aAppear;
@@ -439,7 +439,7 @@ void main(){
   if (uIT >= 0.0 && uIT < ${INTRO_END.toFixed(2)}) { gl_Position = vec4(2.0, 2.0, 2.0, 1.0); return; }      /* 입장 중엔 그림자 없음 (끝나면 서서히 드러난다) */
   vec4 P = texture2D(tPos, aRef.xy), C0 = texture2D(tCell, vec2(aRef.z, 0.25)), C1 = texture2D(tCell, vec2(aRef.z, 0.75));
   float u = clamp((uTime - aAppear) / 0.6, 0.0, 1.0), e = 1.0 - (1.0 - u) * (1.0 - u) * (1.0 - u);
-  vec3 grow = vec3(mix(0.8, 1.0, e), mix(0.8, 1.0, e), mix(0.04, 1.0, e) * uDep) * step(aAppear, uTime);
+  vec3 grow = vec3(mix(0.8, 1.0, e), mix(0.8, 1.0, e), mix(0.04, 1.0, e)) * step(aAppear, uTime);
   vec3 bo = vec3(0.0); float bt, bk, bs, bl, bz = 1.0;
   if (uBoom.y > 0.0) { bo = boomOff(P.xy, aSize.w, boomClock(uBoom.x), bt, bk, bs, bl) * uBoom.y; bz = boomSize(aSize.w, bt, bs); }   /* 폭발 큐브도 그림자를 따라 */
   gl_Position = projectionMatrix * viewMatrix * uModel * vec4((vec3(P.xy, P.z * e) + C0.xyz + bo + position * aSize.xyz * grow * bz * (1.0 - C1.x)) * uScale, 1.0);
@@ -519,7 +519,7 @@ export function createHomeScene({ canvas, cells, small }){
   const common = {
     tShadow: { value: shadowRT.depthTexture }, uLVP: { value: new Matrix4() }, uLRange: { value: 160 }, uSoft: { value: 0.09 }, uShadowW: { value: 80 },
     uTexel: { value: 1 / SM }, uLI: { value: 2.6 }, uPoolR: { value: 30 }, uMode: { value: 1 }, uL: { value: L }, uLCol: { value: new Vector3(1.0, 0.96, 0.9) },
-    uModel: { value: model }, uScale: { value: 1 }, uTime: { value: 0 }, uFlat: { value: 0 }, uDep: { value: 1 }
+    uModel: { value: model }, uScale: { value: 1 }, uTime: { value: 0 }, uFlat: { value: 0 }
   };
 
   const box = new BoxGeometry(1, 1, 1), geo = new InstancedBufferGeometry();
@@ -576,11 +576,10 @@ export function createHomeScene({ canvas, cells, small }){
 
   /* 칸 목표 → 큐브 목표 (옛 좌표 → three 좌표) */
   const cellPos = new Float32Array(N * 3), cellDelay = new Float32Array(N);
-  let depK = 1;
   function writeTargets(dst, wOf){
     let r = 0;
     for (let i = 0; i < n; i++) {
-      const k = cellOf[i], x = cellPos[k * 3] + local[i * 3], y = -cellPos[k * 3 + 1] + local[i * 3 + 1], z = -cellPos[k * 3 + 2] + local[i * 3 + 2] * depK;   /* depK: 칸 두께(로고의 볼록함)를 줄인다 — 02 화면·핀 바닥이 고르게 */
+      const k = cellOf[i], x = cellPos[k * 3] + local[i * 3], y = -cellPos[k * 3 + 1] + local[i * 3 + 1], z = -cellPos[k * 3 + 2] + local[i * 3 + 2];
       dst[i * 4] = x; dst[i * 4 + 1] = y; dst[i * 4 + 2] = z; dst[i * 4 + 3] = wOf(i, k);
       const d = x * x + y * y; if (d > r) r = d;
     }
@@ -592,8 +591,7 @@ export function createHomeScene({ canvas, cells, small }){
     grains: n,
     resize(w, h, dpr){ W = w; H = h; renderer.setPixelRatio(dpr); renderer.setSize(w, h, false); },
     /* 챕터 전환: pos = 칸 목표(옛 좌표, N×3), delay = 칸마다 출발 지연(초). snap = 날지 않고 바로 */
-    setTargets(pos, delay, t, snap, dep){
-      depK = dep || 1;
+    setTargets(pos, delay, t, snap){
       for (let i = 0; i < n; i++) { aData[i * 4] = bData[i * 4]; aData[i * 4 + 1] = bData[i * 4 + 1]; aData[i * 4 + 2] = bData[i * 4 + 2]; }   /* A.w(첫 입장에 붙잡힌 시각)는 그대로 */
       cellPos.set(pos); cellDelay.set(delay);
       writeTargets(bData, (i, k) => t + cellDelay[k] + (snap ? -1 : aSize[i * 4 + 3] * 0.06));
@@ -617,7 +615,7 @@ export function createHomeScene({ canvas, cells, small }){
       camera.setViewOffset(W, H, -(st.cx - W / 2), -(st.cy - H / 2), W, H);
       camera.position.set(0, 0, D); camera.lookAt(0, 0, 0); camera.updateProjectionMatrix(); camera.updateMatrixWorld();
       model.makeRotationFromEuler(euler.set(st.pitch, -st.yaw, 0, 'XYZ'));
-      common.uScale.value = st.s; common.uMode.value = st.mode; common.uFlat.value = st.flat; common.uDep.value = st.dep !== undefined ? st.dep : 1; common.uTime.value = t;
+      common.uScale.value = st.s; common.uMode.value = st.mode; common.uFlat.value = st.flat; common.uTime.value = t;
       smoke.visible = !!(st.boom && st.boom.v[1] > 0); smokeMat.uniforms.uSA.value = st.boom && st.boom.sa !== undefined ? st.boom.sa : 1;
       if (st.boom) { uBoom.value.fromArray(st.boom.v); for (let i = 0; i < 10; i++) uBl.value[i].fromArray(st.boom.bl, i * 4); } else uBoom.value.y = 0;
       wallMat.uniforms.uWallZ.value = st.wall;
