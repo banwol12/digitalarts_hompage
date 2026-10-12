@@ -308,7 +308,7 @@
           /* 챕터 전환 (사용자 2026-09-28: 스크롤보다 반 박자 늦게 딸려온다 → 물결 간격 0.32→0.12초, 비행 0.8–1.25→0.55–0.85초, 느린 출발 없이 바로 움직이는 곡선) */
           fd = Math.sqrt((b.cur.x - t.x) * (b.cur.x - t.x) + (b.cur.y - t.y) * (b.cur.y - t.y));
           b.t0 = now + ((kMax > kMin ? (keys[k] - kMin) / (kMax - kMin) : 0) * 0.12 + Math.random() * 0.04) * PACE;
-          b.dur = (0.55 + Math.min(0.3, fd * 0.02)) * PACE;
+          b.dur = (0.55 + Math.min(0.3, fd * 0.02) + (Math.abs(b.m - c.morph) > 0.01 ? 0.25 : 0)) * PACE;   /* 코드 ↔ 픽셀 블록 바뀔 땐 0.25초 더 (사용자 10-12: 바뀌는 게 안 느껴진다) */
           b.tl = b.t0 + b.dur;
           b.sa = fd > 1.5 ? 0.3 : 0;                                      /* 멀리서 온 픽셀만 착지 반동 */
         }
@@ -520,7 +520,7 @@
       for (var i = 0; i < N; i++) {
         var b = boxes[i];
         var p = Math.max(0, Math.min(1, (t - b.t0) / b.dur));
-        if (b.from && b.to) { var e = b.back ? easeInOut(p) : easeOut4(p), arc = Math.sin(Math.PI * e); b.cur.x = b.from.x + (b.to.x - b.from.x) * e + b.ax * arc; b.cur.y = b.from.y + (b.to.y - b.from.y) * e + b.ay * arc; b.cur.z = b.from.z + (b.to.z - b.from.z) * e + b.az * arc; b.m = b.mFrom + (b.mTo - b.mFrom) * e; }
+        if (b.from && b.to) { var e = b.back ? easeInOut(p) : easeOut4(p), arc = Math.sin(Math.PI * e); b.cur.x = b.from.x + (b.to.x - b.from.x) * e + b.ax * arc; b.cur.y = b.from.y + (b.to.y - b.from.y) * e + b.ay * arc; b.cur.z = b.from.z + (b.to.z - b.from.z) * e + b.az * arc; b.m = b.mFrom + (b.mTo - b.mFrom) * easeInOut(p); }
         var alpha = 1, dep = 1, szf = 1, lx = 0, ly = 0, lz = 0;
         if (b.back && t < b.t0 + b.dur) {
           if (t < b.t0) continue;                                                              /* 맡은 칸이 닿기 전엔 비어 있다 */
@@ -608,7 +608,7 @@
       var s1 = active === 1 && introDone ? c1step : 0, bandP = (t * 0.3) % 1.5 - 0.25;   /* 01 단계별 로고 연출 */
       for (var i = 0; i < N; i++) {
         var b = boxes[i], p = Math.max(0, Math.min(1, (t - b.t0) / b.dur));
-        if (b.from && b.to) { var e = easeOut4(p), arc = Math.sin(Math.PI * e); b.cur.x = b.from.x + (b.to.x - b.from.x) * e + b.ax * arc; b.cur.y = b.from.y + (b.to.y - b.from.y) * e + b.ay * arc; b.cur.z = b.from.z + (b.to.z - b.from.z) * e + b.az * arc; b.m = b.mFrom + (b.mTo - b.mFrom) * e; }
+        if (b.from && b.to) { var e = easeOut4(p), arc = Math.sin(Math.PI * e); b.cur.x = b.from.x + (b.to.x - b.from.x) * e + b.ax * arc; b.cur.y = b.from.y + (b.to.y - b.from.y) * e + b.ay * arc; b.cur.z = b.from.z + (b.to.z - b.from.z) * e + b.az * arc; b.m = b.mFrom + (b.mTo - b.mFrom) * easeInOut(p); }
         /* 살아 있는 로고: 칸마다 아주 느리게 오르내리는 부드러운 물결 — 짧은 파동 셋이 겹쳐 위로 흐르고 이웃 칸은 함께 움직인다 (툭 튀는 칸 없음) */
         var bob = hasFlow ? Math.sin(t * 0.7 + b.fc * 0.3 + b.fr * 0.5) * 0.18 * g.flow : 0, lvz = 0;
         if (lv > 0.001) lvz = lv * 0.06 * (Math.sin(b.gx * 0.4 + b.gy * 0.55 + t * 0.8) * 0.45 + Math.sin(-b.gx * 0.5 + b.gy * 0.35 + t * 0.6 + 1.7) * 0.35 + Math.sin(b.gx * 0.22 + b.gy * 0.75 + t * 1.0 + 4.2) * 0.2);
@@ -623,10 +623,14 @@
       LV[0] = L[0] + (fx3 - L[0]) * fw; LV[1] = -L[1] + (fy3 + L[1]) * fw; LV[2] = -L[2] + (fz3 + L[2]) * fw;
       LV[0] += (-0.27 - LV[0]) * hd; LV[1] += (0.38 - LV[1]) * hd; LV[2] += (0.88 - LV[2]) * hd;   /* 카메라에 달린 조명: 렌즈 약간 위·왼쪽 */
       /* 01 ② 폭발 시뮬레이션 (셰이더 BOOM): 로고 고르게 흩어진 열 곳이 0.16–0.5초 간격으로 무작위 차례로 터지고 (마지막이 가장 크다),
-         3.4초 동안 떨어지고 연기가 피어오른 뒤 한꺼번에 되감기(2초), 쉬었다가 다시. 단계를 떠나면 세기가 0 으로 — 조각이 제자리로 */
-      var bOn = s1 === 2 && !reduce, bdt = lastFrameT ? Math.min(0.1, t - lastFrameT) : 0;
-      if (bOn && boom.amp < 0.01) boom.t0 = t - boom.p + 0.45;                          /* 들어오고 0.45초 뒤 첫 폭발 */
-      boom.amp += ((bOn ? 1 : 0) - boom.amp) * Math.min(1, bdt * 5);
+         3.4초 동안 떨어지고 연기가 피어오른 뒤 한꺼번에 되감기(2초), 쉬었다가 다시. 단계를 떠나면 그 자리에서 빠르게 되감는다 */
+      var bOn = s1 === 2 && !reduce;
+      if (bOn && !boom.amp) { boom.t0 = t - boom.p + 0.45; boom.amp = 1; }              /* 들어오고 0.45초 뒤 첫 폭발 (그 전엔 쉬는 구간이라 켜도 그대로) */
+      if (!bOn && boom.amp) {                                                           /* 떠날 땐 지금 자리에서 0.7초 만에 되감은 뒤 끈다 — 예전엔 크기만 줄며 돌아가 비틀린 채 있다가 마지막에 툭 반듯해졌다 */
+        var bl = t - boom.t0;
+        if (bl < BOOMS.v[2]) { BOOMS.v[2] = bl; BOOMS.v[3] = 0.7; boom.p = bl + 0.7 + 0.6; }
+        if (bl >= BOOMS.v[2] + BOOMS.v[3]) boom.amp = 0;
+      }
       if (bOn && t - boom.t0 >= boom.p) {
         var pts = [boxes[Math.floor(Math.random() * N)].cur];
         while (pts.length < 10) {                                                         /* 고르게 흩어진 자리: 후보 24곳 중 이미 고른 곳에서 가장 먼 곳 */
@@ -641,7 +645,7 @@
         BOOMS.v[2] = tl + 3.4; BOOMS.v[3] = 2.0; boom.p = tl + 3.4 + 2.0 + 1.4;           /* 다 터진 뒤 3.4초(파편이 땅에 떨어지고 연기가 피어오름) → 2초 동안 스르륵 되감기 */
         boom.t0 = t;
       }
-      BOOMS.v[0] = t - boom.t0; BOOMS.v[1] = boom.amp > 0.002 ? boom.amp : 0;            /* 화면 흔들림은 뺐다 (사용자 10-12: 너무 세다 — 충격은 큐브가 들썩이는 후폭풍으로) */
+      BOOMS.v[0] = t - boom.t0; BOOMS.v[1] = boom.amp;            /* 화면 흔들림은 뺐다 (사용자 10-12: 너무 세다 — 충격은 큐브가 들썩이는 후폭풍으로) */
       S3D.render({ t: t, dt: lastFrameT ? t - lastFrameT : 1 / 60, cx: OX, cy: OY, s: S, yaw: yaw, pitch: pitch, mode: g.mode, flat: g.flat, wall: g.wall, F: F, D: D,
         cellFx: CFX, cellM: CM, light: LV, head: g.head, boom: BOOMS });
       lastFrameT = t;

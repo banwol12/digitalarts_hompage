@@ -353,7 +353,7 @@ void main(){
     float tau, bk, kd, lit, t2, k2, d2, l2, rw = step(uBoom.z, uBoom.x), rp = smoothstep(0.0, 0.8, (uBoom.x - uBoom.z) / uBoom.w) * rw;
     base += boomOff(P.xy, s, boomClock(uBoom.x), tau, bk, kd, lit) * uBoom.y;
     tailB += boomOff(P.xy, s, boomClock(uBoom.x - (kd > 0.5 ? 0.04 : 0.016) * (1.0 - 0.75 * rw)), t2, k2, d2, l2) * uBoom.y;   /* 불티는 잔상이 길다 · 되감기는 빨라서 잔상을 줄인다 (빗줄기처럼 보였다) */
-    R = rotAxis(ax.zxy, tau * (3.0 + 9.0 * fract(s * 3.1)) * (0.4 + 0.6 * bk)) * R;
+    R = rotAxis(ax.zxy, tau * (3.0 + 9.0 * fract(s * 3.1)) * (0.4 + 0.6 * bk) * uBoom.y) * R;
     size *= boomSize(s, tau, kd);
     float rv = fract(s * 23.1), life = kd > 0.5 ? 1.8 : 1.0 + 0.7 * rv;                  /* 불이 식는 시간: 불티는 오래 */
     float h0 = kd > 0.5 ? 0.04 : (1.0 - bk) * 0.3;                                         /* 가운데는 백열, 가장자리는 주황부터 */

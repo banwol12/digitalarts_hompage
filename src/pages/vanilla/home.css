@@ -273,6 +273,11 @@ html.touch-paging .chapter.steps{scroll-snap-type:y mandatory}
 #c2 .h2{font-size:clamp(14px,1.2vw,calc(20px * var(--k)));color:var(--text-secondary)}   /* 03: 챕터 제목은 작게 · 흐리게, 진로(직업명)가 눈에 먼저 (사용자 10-12: 둘이 비슷해 어디를 볼지 모르겠다) */
 #c2 .h3.big{font-size:clamp(26px,2.8vw,calc(46px * var(--k)));line-height:1.2;letter-spacing:-.01em}
 #c2 .panels{margin-top:var(--space-12)}
+/* 01: 첫 화면에선 챕터 제목이 주인공, ① 단계부터는 제목이 작고 흐린 머리말로 줄고 분야 이름이 크게 (사용자 10-12: 둘이 비슷해 어디를 볼지 모르겠다) */
+#c1 .h2{transition:font-size .55s var(--ease),color .55s var(--ease)}
+#c1:not([data-step="0"]) .h2{font-size:clamp(14px,1.15vw,calc(19px * var(--k)));color:var(--text-secondary)}
+#c1 .h3.big{font-size:clamp(26px,2.6vw,calc(44px * var(--k)));line-height:1.18;letter-spacing:-.015em}
+#c1 .panel .num{margin-top:var(--space-8)}
 @media (min-width:800px){.top.steps .stage{align-content:start;padding-top:calc(var(--hdr) + 7vh)}}
 .cols3 .col{border-top:1px solid var(--border-strong);padding-top:var(--space-16);display:flex;flex-direction:column;gap:var(--space-8)}
 .rowhead{display:flex;justify-content:space-between;align-items:flex-end;gap:var(--space-24);flex-wrap:wrap;width:100%}
@@ -342,6 +347,9 @@ html.touch-paging .chapter.steps{scroll-snap-type:y mandatory}
   .panel{gap:var(--space-12);text-align:left}
   .panel .body{font-size:12.5px;line-height:1.65;max-width:none}
   #c2 .h2{font-size:14px}
+  #c1:not([data-step="0"]) .h2{font-size:14px}
+  #c1 .h2,#c1 .kicker{text-align:left;justify-content:flex-start;align-self:flex-start}   /* 폰: 01 은 글이 왼쪽 정렬이라 제목도 왼쪽으로 */
+  #c1 .h3.big{font-size:24px}
   #c2 .h3.big{font-size:23px}
   .facts>div{grid-template-columns:60px minmax(0,1fr);gap:var(--space-12);padding:var(--space-8) 0}
   .facts dd{font-size:12px}
