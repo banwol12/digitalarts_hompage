@@ -112,6 +112,13 @@
     screen: function(b){ return b.sc; },     /* 02 ② 그래픽·영상: 16:9 화면 + 아래 타임라인 */
     pins:  function(b){ return b.pn; }       /* 02 ③ 인터랙션·테크: 손이 지나가면 솟는 핀 바닥 */
   };
+  /* 01 ① 윤곽 추적용: 칸마다 가장자리 여부 · 가장자리에서 안쪽으로 몇 칸인지 (빈칸에서 출발하는 BFS) */
+  (function(){
+    var LH = GRID.length, LW = 32, dist = new Int16Array(LW * LH).fill(-1), q = [], i, r, c, k;
+    for (r = 0; r < LH; r++) for (c = 0; c < LW; c++) if (GRID[r][c] !== '#') { dist[r * LW + c] = 0; q.push(r * LW + c); }
+    for (i = 0; i < q.length; i++) { r = Math.floor(q[i] / LW); c = q[i] % LW; [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(function(d){ var rr = r + d[0], cc = c + d[1]; if (rr < 0 || cc < 0 || rr >= LH || cc >= LW || dist[rr * LW + cc] >= 0) return; dist[rr * LW + cc] = dist[q[i]] + 1; q.push(rr * LW + cc); }); }
+    for (k = 0; k < N; k++) { var bb = boxes[k], dd = dist[bb.r * LW + bb.c]; bb.dep = dd < 0 ? 1 + Math.min(bb.r, bb.c, LH - 1 - bb.r, LW - 1 - bb.c) : dd; bb.edge = bb.dep <= 1; bb.ang = Math.atan2(bb.gy, bb.gx); }
+  })();
   /* 02 직업별 배치 (사용자 10-12: 글마다 그래픽이 바뀌게 — 지금의 필드는 오디오비주얼에만). 칸 차례대로 채운다 (옛 좌표: y 아래 +, z 멀리 +) */
   (function(){
     var k = 0, b, i, r, c, G = Math.ceil(Math.sqrt(N));
@@ -121,7 +128,9 @@
     for (i = 0; k < N; i++, k++) { b = boxes[k]; b.rk = 3; b.ru = i % 6; b.rv = Math.floor(i / 6); b.rm = { x: 1.5 + (b.ru - 2.5) * 0.8, y: 4.3 - b.rv * 0.8, z: 1.5 }; }
     for (k = 0; k < N; k++) {
       b = boxes[k];
-      if (k < 28 * 17) { b.su = k % 28; b.sv = Math.floor(k / 28); b.tr = -1; b.sc = { x: b.su - 13.5, y: b.sv - 9.5, z: 0 }; }
+      if (k < 28 * 17) { b.su = k % 28; b.sv = Math.floor(k / 28); b.tr = -1; b.sc = { x: b.su - 13.5, y: b.sv - 9.5, z: 0 };
+        for (var md = 9, th = 0; th < 6.2832; th += 0.03) { var ex = b.su - (13.5 + 10 * Math.sin(th)), ey = b.sv - (8 + 5 * Math.sin(2 * th + 0.6)); md = Math.min(md, ex * ex + ey * ey); }
+        b.path = md < 0.36; }                                                                /* 공이 도는 길 (모션 패스) — 화면에 옅게 그려 둔다 */
       else { i = k - 28 * 17; b.su = i % 27; b.sv = -1; b.tr = Math.floor(i / 27); b.sc = { x: b.su - 13, y: 9 + b.tr, z: 0 }; }
       b.pu = k % G; b.pv = Math.floor(k / G); b.pn = { x: (b.pu - (G - 1) / 2) * 1.25, y: (b.pv - (G - 1) / 2) * 1.25, z: 0 };
     }
@@ -659,12 +668,12 @@
       var hasFlow = g.flow > 0.01, nFr = 0, lv = g.live * (introDone ? Math.min(1, (t - introAt) / 1.5) : 0);
       var s1 = active === 1 && introDone ? c1step : 0, s2 = active === 2 && introDone ? c2step : -1;   /* 01·02 단계별 연출 */
       var U = S * F / D, pOn = performance.now() - ptr.t < 2500, mf = null, tau = (t % 3.2) / 3.2;
-      /* 01 ① 미디어아트·실감미디어 (사용자 10-12: 빛 띠 하나는 단조롭다): 2D 로고가 LED 미디어 파사드가 되어 짧은 영상 세 편을 돌려 튼다 —
-         물결(번지는 빛 고리 둘) · 차오름(아래부터 차오르는 빛의 물, 물마루는 흰 거품) · 스캔(지나간 자리에 픽셀 영상). 커서는 관객이 비추는 빛, 누르면 그 자리에서 물결 */
+      /* 01 ① 미디어아트·실감미디어: 2D 로고 위의 프로젝션 매핑 — 빛과 그림자(흑백)만으로 짧은 장면 셋을 돌려 튼다 (사용자 10-12: 노랗게 차는 로고는 다른 전공 색이라 안 됨).
+         출렁임(평면이 물결치는 착시) · 플립닷(칸이 뒤집히며 무늬) · 윤곽 추적(가장자리를 달리는 빛 → 안쪽으로 차는 빛). 커서는 관객이 비추는 빛, 누르면 그 자리에서 빛 물결 */
       if (s1 === 1 && !reduce) {
         var mph = (t - mfT0) % 8.4, msi = Math.floor(mph / 2.8), mu = (mph - msi * 2.8) / 2.8, mn = Math.floor((t - mfT0) / 8.4);
         mf = { si: msi, u: mu, w: sstep(0, 0.1, mu) * (1 - sstep(0.9, 1, mu)), ux: (ptr.x - OX) / U, uy: (ptr.y - OY) / U,
-               x1: (hs(mn + 0.31) - 0.5) * 22, y1: (hs(mn + 0.77) - 0.5) * 22, x2: (hs(mn + 0.53) - 0.5) * 22, y2: (hs(mn + 0.99) - 0.5) * 22, L: 19 - mu * 42, X: -21 + mu * 46, f: Math.floor(t * 10) };
+               bx: (hs(mn + 0.31) - 0.5) * 16, by: (hs(mn + 0.77) - 0.5) * 16, ca: -Math.PI * 0.75 + mu * Math.PI * 2.6 };
       }
       if (s2 === 2) {                                                                  /* 02 ③ 손: 커서가 있으면 그쪽(눕힌 바닥이라 세로는 늘려 어림), 없으면 스스로 오간다 */
         var hu = (PG - 1) / 2 + 7 * Math.sin(t * 0.7), hv = (PG - 1) / 2 + 7 * Math.sin(t * 0.53 + 1);
@@ -681,41 +690,56 @@
         CFX[i * 4] = 0; CFX[i * 4 + 1] = 0; CFX[i * 4 + 2] = bob + lvz; CFX[i * 4 + 3] = boost[i] * g.flow;
         CM[i * 2] = b.m; CM[i * 2 + 1] = 0;
         var gl = 0, tn = 0, d, r, q;
-        if (mf) {
+        if (mf) {                                                                        /* 01 ①: 노란빛 없이 빛과 그림자만 — 평평한 로고가 출렁이고(착시), 칸이 뒤집히고, 윤곽을 빛이 달린다 */
           var gx = b.gx, gy = b.gy;
-          if (mf.si === 0) {
-            for (var rs = 0; rs < 2; rs++) { var age = mf.u * 2.8 - rs * 0.9; if (age <= 0) continue; d = Math.sqrt((gx - (rs ? mf.x2 : mf.x1)) * (gx - (rs ? mf.x2 : mf.x1)) + (gy - (rs ? mf.y2 : mf.y1)) * (gy - (rs ? mf.y2 : mf.y1))); r = d - age * 13; q = Math.max(0, 1 - age / 2.2);
-              gl = Math.max(gl, 0.8 * Math.exp(-r * r / 2.5) * q); tn -= 0.2 * Math.exp(-(r + 2.4) * (r + 2.4) / 2) * q; }
-          } else if (mf.si === 1) {
-            var sf = mf.L + Math.sin(gx * 0.45 + t * 3.2) * 1.3 + Math.sin(gx * 0.95 - t * 2.1) * 0.6;
-            if (gy > sf) gl = 0.5 + 0.1 * Math.sin(gx * 0.3 + gy * 0.4 + t * 4);
-            tn = 0.55 * Math.exp(-(gy - sf) * (gy - sf) / 0.8);
-          } else {
-            if (gx < mf.X - 1) { var v = hs(i * 1.71 + mf.f * 0.37); tn = (v - 0.5) * 0.7; gl = v > 0.9 ? 0.7 : 0; }
-            gl = Math.max(gl, 0.85 * Math.exp(-(gx - mf.X) * (gx - mf.X) / 0.6));
+          if (mf.si === 0) {                                                             /* 출렁임: 물결 높이의 기울기로 빛·그림자만 칠해 평면이 울렁이는 것처럼 */
+            var p1 = gx * 0.55 + gy * 0.34 - t * 3.4, p2 = -gx * 0.4 + gy * 0.65 - t * 2.5, rr2 = Math.sqrt((gx - mf.bx) * (gx - mf.bx) + (gy - mf.by) * (gy - mf.by)) || 1, p3 = rr2 * 0.9 - t * 5;
+            var dhx = 0.55 * Math.cos(p1) - 0.28 * Math.cos(p2) + 0.7 * Math.cos(p3) * (gx - mf.bx) / rr2 * Math.exp(-rr2 / 9), dhy = 0.34 * Math.cos(p1) + 0.46 * Math.cos(p2) + 0.7 * Math.cos(p3) * (gy - mf.by) / rr2 * Math.exp(-rr2 / 9);
+            var nl = 1 / Math.sqrt(dhx * dhx + dhy * dhy + 1); tn = 1.25 * ((-dhx * -0.55 - dhy * -0.65 + 0.5) * nl - 0.5);
+          } else if (mf.si === 1) {                                                      /* 플립닷: 칸이 물결처럼 뒤집히며(옆으로 설 때 어둡게) 3칸 바둑판이 나타났다 반대쪽부터 되돌아간다 */
+            var ft = (gx * 0.8 + gy * 0.6 + 24) / 48, fa = sstep(0, 1, (mf.u - ft * 0.38) / 0.1), fb = sstep(0, 1, (mf.u - 0.5 - (1 - ft) * 0.38) / 0.1), on = (Math.floor((gx + 18) / 3) + Math.floor((gy + 18) / 3)) % 2 === 0;
+            tn = (fa - fb) * (on ? 0.6 : -0.32) - 0.55 * (Math.sin(Math.PI * fa) + Math.sin(Math.PI * fb));
+          } else {                                                                       /* 윤곽 추적: 로고가 어두워지고(꺼진 전시장) 흰 빛 둘이 가장자리를 반대로 돈 뒤, 가장자리부터 안쪽으로 빛이 찬다 */
+            tn = -0.3;
+            if (b.edge) for (var cs = 0; cs < 2; cs++) { var da = b.ang - (cs ? -mf.ca : mf.ca); da = Math.atan2(Math.sin(da), Math.cos(da)); var bk = cs ? -da : da; tn = Math.max(tn, 0.9 * Math.exp(-da * da / 0.03) + (bk < 0 && bk > -1.4 ? 0.4 * Math.exp(bk * 2.2) - 0.3 : -0.3)); }
+            tn = Math.max(tn, -0.3 + 0.7 * sstep(0, 1, (mf.u - 0.55 - b.dep * 0.035) / 0.12));
           }
-          gl *= mf.w; tn *= mf.w;
-          if (pOn) { d = (gx - mf.ux) * (gx - mf.ux) + (gy - mf.uy) * (gy - mf.uy); tn += 0.6 * Math.exp(-d / 9); }
-          for (var ti = 0; ti < taps.length; ti++) { var ta = t - taps[ti].t; if (ta < 0 || ta > 1.6) continue; var tx2 = gx - (taps[ti].x - OX) / U, ty2 = gy - (taps[ti].y - OY) / U; r = Math.sqrt(tx2 * tx2 + ty2 * ty2) - ta * 16; gl = Math.max(gl, 0.85 * Math.exp(-r * r / 2) * (1 - ta / 1.6)); }
+          tn *= mf.w;
+          if (pOn) { d = (gx - mf.ux) * (gx - mf.ux) + (gy - mf.uy) * (gy - mf.uy); tn += 0.6 * Math.exp(-d / 9) - 0.18 * Math.exp(-(Math.sqrt(d) - 4.2) * (Math.sqrt(d) - 4.2) / 1.5); }   /* 관객이 비추는 빛 (가장자리는 살짝 그늘) */
+          for (var ti = 0; ti < taps.length; ti++) { var ta = t - taps[ti].t; if (ta < 0 || ta > 1.6) continue; var tx2 = gx - (taps[ti].x - OX) / U, ty2 = gy - (taps[ti].y - OY) / U; r = Math.sqrt(tx2 * tx2 + ty2 * ty2) - ta * 16; tn += 0.6 * Math.exp(-r * r / 2) * (1 - ta / 1.6) - 0.25 * Math.exp(-(r + 1.8) * (r + 1.8) / 1.5) * (1 - ta / 1.6); }
+          CFX[i * 4 + 3] = 0; CM[i * 2 + 1] = Math.max(-0.55, Math.min(0.75, tn));
+        } else if (s2 === 0) {                                                           /* 전시 공간: 프로젝션 빛 띠가 지나가면 뒷벽·왼벽 칸이 앞으로 밀려 나오는 키네틱 월, 관객이 벽에 다가가면 벽이 그 자리에서 반응, 관객 발밑은 살짝 솟는다 */
+          if (b.rk === 1 || b.rk === 2) {
+            var sp = b.rk === 2 ? b.ru : 12 + b.ru, bp = (t * 5) % 36 - 4, band = Math.exp(-(sp - bp) * (sp - bp) / 3), push = 0.9 * Math.exp(-(sp - bp) * (sp - bp) / 6) + 0.25 * Math.sin(sp * 0.5 - b.rv * 0.6 + t * 2) * Math.sin(t * 0.7);
+            gl = 0.6 * band; tn = 0.16 * Math.sin(sp * 0.6 + b.rv * 0.5 - t * 1.5);
+            if (b.rk === 1) for (var vw = 0; vw < 3; vw++) { var wu = 7.5 + 6 * Math.sin(t * 0.31 + vw * 2.1), wv = 5.5 + 4.5 * Math.sin(t * 0.23 + vw * 1.7), pr = Math.exp(-(11 - wv) * (11 - wv) / 5); tn += 0.5 * pr * Math.exp(-((b.ru - wu) * (b.ru - wu) + b.rv * b.rv) / 4); }
+            if (b.rk === 1) CFX[i * 4 + 2] = -push; else CFX[i * 4] = push;
+          } else if (b.rk === 0) {
+            for (var vj = 0; vj < 3; vj++) { var vu = 7.5 + 6 * Math.sin(t * 0.31 + vj * 2.1), vv = 5.5 + 4.5 * Math.sin(t * 0.23 + vj * 1.7); d = (b.ru - vu) * (b.ru - vu) + (b.rv - vv) * (b.rv - vv); q = Math.exp(-d / 1.2); gl = Math.max(gl, 0.5 * q); CFX[i * 4 + 1] -= 0.5 * q; }
+            tn = 0.12 * Math.exp(-Math.pow(b.rv - 11 + 0.5 * Math.sin(t), 2) / 3);                /* 프로젝션 빛이 바닥에 번진다 */
+          } else { tn = 0.35 * Math.sin(t * 3 + b.ru * 0.8 + b.rv * 0.6); gl = tn > 0.25 ? 0.3 : 0; CFX[i * 4 + 2] = -0.25 * Math.max(0, tn); }
           CFX[i * 4 + 3] = gl; CM[i * 2 + 1] = tn;
-        } else if (s2 === 0) {                                                           /* 전시 공간: 왼벽→뒷벽을 잇는 띠 위로 프로젝션 빛이 지나가고, 바닥엔 관객 셋이 거닌다 */
-          if (b.rk === 1 || b.rk === 2) { var sp = b.rk === 2 ? b.ru : 12 + b.ru, bp = (t * 5) % 36 - 4; gl = 0.75 * Math.exp(-(sp - bp) * (sp - bp) / 3); tn = 0.14 * Math.sin(sp * 0.6 + b.rv * 0.5 - t * 1.5); }
-          else if (b.rk === 0) { for (var vj = 0; vj < 3; vj++) { var vu = 7.5 + 6 * Math.sin(t * 0.31 + vj * 2.1), vv = 5.5 + 4.5 * Math.sin(t * 0.23 + vj * 1.7); d = (b.ru - vu) * (b.ru - vu) + (b.rv - vv) * (b.rv - vv); gl = Math.max(gl, 0.55 * Math.exp(-d / 1.2)); } }
-          else { tn = 0.35 * Math.sin(t * 3 + b.ru * 0.8 + b.rv * 0.6); gl = tn > 0.2 ? 0.35 : 0; }
-          CFX[i * 4 + 3] = gl; CM[i * 2 + 1] = tn;
-        } else if (s2 === 1) {                                                           /* 화면: 리사주 곡선을 도는 공(꼬리) + 흰 파형, 아래 타임라인엔 재생 헤드와 키프레임 */
+        } else if (s2 === 1) {                                                           /* 화면: 옅게 그린 모션 패스 위를 공이 돈다(꼬리·키프레임마다 커짐·화면 밖으로 살짝 튀어나옴) + 흰 파형, 아래 타임라인엔 재생 헤드와 키프레임 */
+          var kp = 0; for (var kk = 0; kk < 4; kk++) { var dk = tau - [3, 9, 16, 22][kk] / 27; kp = Math.max(kp, Math.exp(-dk * dk * 900)); }
           if (b.sv >= 0) {
-            for (var tk = 0; tk < 7; tk++) { var tt2 = (tau - tk * 0.012) * 6.2832, bx2 = b.su - (13.5 + 10 * Math.sin(tt2)), by2 = b.sv - (8 + 5 * Math.sin(2 * tt2 + 0.6)); gl = Math.max(gl, Math.exp(-(bx2 * bx2 + by2 * by2) / 1.6) * (1 - tk / 7) * 0.85); }
-            var wy = 8 + 3 * Math.sin(b.su * 0.35 - t * 2.5); tn = Math.abs(b.sv - wy) < 0.6 ? 0.45 : -0.12;
+            for (var tk = 0; tk < 7; tk++) { var tt2 = (tau - tk * 0.012) * 6.2832, bx2 = b.su - (13.5 + 10 * Math.sin(tt2)), by2 = b.sv - (8 + 5 * Math.sin(2 * tt2 + 0.6)); q = Math.exp(-(bx2 * bx2 + by2 * by2) / (1.6 * (1 + 1.2 * kp))) * (1 - tk / 7); gl = Math.max(gl, q * 0.85); if (!tk) CFX[i * 4 + 2] = -1.1 * q; }
+            var wy = 8 + 3 * Math.sin(b.su * 0.35 - t * 2.5); tn = Math.abs(b.sv - wy) < 0.6 ? 0.45 : b.path ? 0.16 : -0.14;
           } else {
             var ph = tau * 27, kf = b.tr === 0 && (b.su === 3 || b.su === 9 || b.su === 16 || b.su === 22);
-            gl = 0.85 * Math.exp(-(b.su - ph) * (b.su - ph) / 0.5); if (kf) { tn = 0.35; gl = Math.max(gl, 0.6 * Math.exp(-(b.su - ph) * (b.su - ph) / 2)); }
+            gl = 0.85 * Math.exp(-(b.su - ph) * (b.su - ph) / 0.5); if (kf) { tn = 0.35 + 0.3 * kp; gl = Math.max(gl, 0.6 * Math.exp(-(b.su - ph) * (b.su - ph) / 2)); CFX[i * 4 + 2] = -0.4 * kp; }
+            else if (b.su < ph) tn = 0.1;                                                  /* 지나온 구간은 밝게 (재생 진행) */
           }
           CFX[i * 4 + 3] = gl; CM[i * 2 + 1] = tn;
-        } else if (s2 === 2) {                                                           /* 핀 바닥: 손 밑이 솟고, 1.5초마다 물결이 퍼진다 */
+        } else if (s2 === 2) {                                                           /* 핀 바닥: 손 밑이 솟고 물결이 퍼지며, 빗방울처럼 떨어지는 신호마다 작은 물결 — 높을수록 밝고 낮을수록 어둡게 (높이가 읽히게) */
           var du = b.pu - hand.u, dv = b.pv - hand.v, d2 = du * du + dv * dv, rp = t % 1.5; r = Math.sqrt(d2) - rp * 8;
           var hh = 2.6 * Math.exp(-d2 / 6) + 0.7 * Math.exp(-r * r / 1.2) * (1 - rp / 1.5);
-          CFX[i * 4 + 2] = -hh; CFX[i * 4 + 3] = 0.65 * Math.exp(-d2 / 3);
+          for (var dj = Math.floor(t / 0.35), dn = 0; dn < 5; dn++) { var dI = dj - dn, dage = t - dI * 0.35, ddx = b.pu - hs(dI + 0.13) * PG, ddy = b.pv - hs(dI + 0.71) * PG, dr = Math.sqrt(ddx * ddx + ddy * ddy) - dage * 7; hh += 0.8 * Math.exp(-dr * dr / 1.3) * Math.max(0, 1 - dage / 1.75); }
+          CFX[i * 4 + 2] = -hh; CFX[i * 4 + 3] = hh > 1.6 ? Math.min(0.75, (hh - 1.6) * 0.8) : 0; CM[i * 2 + 1] = Math.min(0.6, 0.28 * hh);
+        } else if (s2 === 3) {                                                           /* 오디오비주얼: 소리 스펙트럼의 폭포 — 맨 앞줄이 지금 소리, 뒤로 갈수록 조금 전 소리 (킥 · 멜로디 · 하이햇) */
+          var ta2 = t - (FROWS - 1 - b.fr) * 0.07, sc0 = b.fc, beat = Math.exp(-(ta2 % 0.48) * 7);
+          var amp = beat * Math.exp(-sc0 / 5) * 1.1 + 0.5 * Math.max(0, Math.sin(sc0 * 0.42 - ta2 * 2.6)) * (0.55 + 0.45 * Math.sin(ta2 * 0.9)) + 0.6 * Math.exp(-Math.pow(sc0 - (20 + 12 * Math.sin(ta2 * 0.7)), 2) / 6) + 0.3 * hs(Math.floor(ta2 * 14) * 1.3 + sc0 * 0.71) * (sc0 / FCOLS) * Math.exp(-((ta2 + 0.24) % 0.48) * 9);
+          amp = Math.min(1.3, amp);
+          CFX[i * 4 + 2] = -amp * 1.8; CFX[i * 4 + 3] = amp > 1.05 ? Math.min(0.6, (amp - 1.05) * 2) : 0; CM[i * 2 + 1] = 0.45 * amp - 0.06 - (FROWS - 1 - b.fr) * 0.012;   /* 높을수록 희게, 뒤(지난 소리)일수록 조금 어둡게 */
         }
         if (b.m > 0.001) ORDER[nFr++] = i;
       }
@@ -956,8 +980,8 @@
     var C2_STEPS = [
       Object.assign({}, C2, { form: 'room', yaw: 0.32, pitch: 0.4, sway: 0.04, flow: 0, lit: 0.45, wall: -40 }),    /* 기획·연출: 전시 공간 — 벽을 훑는 프로젝션 빛과 바닥을 거니는 관객 */
       Object.assign({}, C2, { form: 'screen', yaw: 0.2, pitch: -0.08, sway: 0.05, flow: 0, dep: 0.15, wall: -2.5 }),   /* 그래픽·영상: 화면 속 모션그래픽 + 타임라인 재생 헤드 */
-      Object.assign({}, C2, { form: 'pins', yaw: 0.25, pitch: -0.95, sway: 0.03, flow: 0, dep: 0.5, lit: 1 }),             /* 인터랙션·테크: 손(커서)이 지나가면 핀이 솟는다 */
-      C2];                                                                           /* 미디어아트(오디오비주얼): 데이터 필드 그대로 */
+      Object.assign({}, C2, { form: 'pins', yaw: 0.25, pitch: -0.95, sway: 0.03, flow: 0, dep: 0.5, lit: 0.55 }),             /* 인터랙션·테크: 손(커서)이 지나가면 핀이 솟는다 */
+      Object.assign({}, C2, { pitch: -0.85 })];                                      /* 미디어아트(오디오비주얼): 필드가 소리 스펙트럼의 폭포로 — 조금 더 위에서 내려다본다 */
     function stepper(i, looks, onStep){
       var el = chapters[i], ps = el.querySelectorAll('.panel'), ds = el.querySelectorAll('.dots li'), n = ps.length, cur = -1;
       function set(k){
