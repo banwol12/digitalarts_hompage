@@ -213,10 +213,22 @@
       return { x0: minx, x1: maxx, y0: miny, y1: maxy };
     }
     /* 챕터별 빈 영역(헤더·텍스트·푸터를 실측)에 로고를 contain 방식으로 맞춘다 */
+    /* 글 맞춤 (사용자 10-12: 기종마다 따로 맞추지 말고 화면 비율·크기에 맞춰): 단계 챕터(01·02)의 글 묶음을 남는 높이에 맞게 CSS zoom 으로 줄인다.
+       폰은 위쪽 로고 자리(헤더 아래의 34%)를 먼저 떼어 두고 남는 높이에, 데스크톱은 글이 화면보다 길 때만. 폰 글은 80% 밑으로 줄이지 않고 그래도 넘치면 로고 자리를 내준다.
+       원래 크기(zoom 1)에서 잰 높이로 정한다 — 줄인 채로 재면 줄이 길어진 만큼 단계마다 배율이 조금씩 달라졌다 */
+    function fitText(sec, hd){
+      var st = sec.querySelector('.stack'); if (!st) return;
+      var z0 = st.style.zoom; st.style.zoom = '';
+      var T = st.getBoundingClientRect().height, z;
+      if (MOBILE()) { var room = H - hd - 34; z = Math.min(1, Math.max((room - 0.34 * (H - hd)) / T, Math.min(0.8, (room - 60) / T))); }
+      else z = Math.min(1, Math.max(0.7, (H - hd - 48) / T));
+      st.style.zoom = z < 0.995 ? z.toFixed(3) : '';
+    }
     function frameFor(i){
       var c = CHAPTERS[i] || CHAPTERS[0], sec = chapters[i], hd = HDR(), M = 24;
       var shellL = (W - SHELL) / 2, shellR = shellL + SHELL, box;
-      var hOf = function(sel){ var e = sec.querySelector(sel); return e ? e.offsetHeight : 0; };
+      var hOf = function(sel){ var e = sec.querySelector(sel); return e ? e.getBoundingClientRect().height : 0; };   /* 실제 보이는 높이 (zoom 반영) */
+      if (sec.classList.contains('steps')) fitText(sec, hd);
       if (MOBILE()) {
         if (i === 0) box = { x0: shellL, x1: shellR, y0: hd + 16, y1: H - 0.12 * H - hOf('.wordmark') - 20 };
         else {

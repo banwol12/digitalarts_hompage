@@ -354,6 +354,10 @@ html.touch-paging .chapter.steps{scroll-snap-type:y mandatory}
   .set.two li .h3{font-size:13px}
   .steps .stage{align-content:end;padding-bottom:var(--space-24);padding-top:calc(var(--hdr) + 12vh)}
   .panel{gap:var(--space-12);text-align:left}
+  .panels{position:relative}
+  .panel:not(.on){position:absolute;left:0;right:0;bottom:0}                /* 폰: 지금 단계 글만 높이를 차지 — 가장 긴 단계에 맞춰 비워 두지 않고 남는 높이는 로고 자리로 */
+  .panel .demo,.steps .hintline{display:none}                              /* '옆의 로고' 안내는 폰에선 로고가 위라 맞지 않는다 · 높이를 아껴 로고에 */
+  #c1:not([data-step="0"]) .kicker,#c1:not([data-step="0"]) .h2{display:none}   /* 01 ① 단계부터는 헤더 메뉴의 '교육과정'이 제목 몫 */
   .panel .body{font-size:12.5px;line-height:1.65;max-width:none}
   #c2 .h2{font-size:14px}
   #c1:not([data-step="0"]) .h2{font-size:14px}
