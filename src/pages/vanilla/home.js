@@ -541,9 +541,9 @@
       var yaw = g.yaw + Math.sin(t * 0.22) * g.sway + spinAcc;
       yaw = Math.max(-0.35, Math.min(0.35, yaw));                     /* 정면 기준 ±20° 를 넘지 않는다 */
       if (active === 2 && c2step === 3 && introDone && !reduce) { var ak = sstep(0, 1, (t - c2T0 - 0.25) / 0.7); yaw += Math.sin((t - c2T0) * 0.35) * 0.12 * ak; }   /* 02 오디오비주얼: 카메라가 천천히 돈다 */
-      if (active === 2 && c2step === 1 && introDone && !reduce) { var tph = (t - c2T0) % 9; yaw += Math.sin((t - c2T0) * 0.7) * 0.5 * sstep(0, 1, (t - c2T0 - 0.25) / 0.7) * (1 - sstep(5.6, 6.2, tph) + sstep(8.4, 9, tph)); }   /* 02 CG: 모델링·애니메이션 동안 턴테이블처럼 돌고, 렌더 땐 멈춘다 */
+      if (active === 2 && c2step === 1 && introDone && !reduce) { var tph = ((t - c2T0) * PLAY) % 9; yaw += Math.sin((t - c2T0) * 0.7) * 0.5 * sstep(0, 1, (t - c2T0 - 0.25) / 0.7) * (1 - sstep(5.6, 6.2, tph) + sstep(8.4, 9, tph)); }   /* 02 CG: 모델링·애니메이션 동안 턴테이블처럼 돌고, 렌더 땐 멈춘다 */
       var pitch = g.pitch + Math.sin(t * 0.17) * g.sway * 0.35;
-      if (active === 2 && c2step === 0 && introDone && !reduce) { var bph = (t - c2T0) % C2LEN, ce = function(a, d){ return eio(Math.min(1, Math.max(0, (bph - a) / d))); }, c1 = ce(0.15, 1.1), c2 = ce(3.75, 1.5), cb = 1 - ce(12.95, 1.25), orb = sstep(6.4, 7.2, bph) * (1 - sstep(12.2, 12.9, bph)); yaw += (0.16 * c1 * (1 - c2) + (0.55 - 0.12 * shw.e1 + 0.1 * shw.e3 + 0.1 * Math.sin((bph - 6.4) * 0.5) * orb) * c2) * cb; pitch += (0.1 * c1 * (1 - c2) - 0.8 * c2) * cb; }   /* 02 기획·연출 카메라: 정면 로고 → 똑바로 내려다본 스케치 → 3D 모형 시점(연출 동안 그 존 쪽으로 살짝 돌며 천천히 좌우로) → 다시 정면 */
+      if (active === 2 && c2step === 0 && introDone && !reduce) { var bph = ((t - c2T0) * PLAY) % C2LEN, ce = function(a, d){ return eio(Math.min(1, Math.max(0, (bph - a) / d))); }, c1 = ce(0.15, 1.1), c2 = ce(3.75, 1.5), cb = 1 - ce(12.95, 1.25), orb = sstep(6.4, 7.2, bph) * (1 - sstep(12.2, 12.9, bph)); yaw += (0.16 * c1 * (1 - c2) + (0.55 - 0.12 * shw.e1 + 0.1 * shw.e3 + 0.1 * Math.sin((bph - 6.4) * 0.5) * orb) * c2) * cb; pitch += (0.1 * c1 * (1 - c2) - 0.8 * c2) * cb; }   /* 02 기획·연출 카메라: 정면 로고 → 똑바로 내려다본 스케치 → 3D 모형 시점(연출 동안 그 존 쪽으로 살짝 돌며 천천히 좌우로) → 다시 정면 */
       var cy = Math.cos(yaw), sy = Math.sin(yaw), cp = Math.cos(pitch), sp = Math.sin(pitch);
       var D = 72, F = Math.min(W, H) * 1.45, S = g.s, OX = g.cx, OY = g.cy;
       /* 광원이 아주 천천히 돌고, 부드러운 빛 띠가 표면을 스친다 */
@@ -684,7 +684,7 @@
       requestAnimationFrame(render);
     }
     /* 커서·누른 곳 (01 ① 관객이 비추는 빛 · 02 ③ 손) */
-    var ptr = { x: -1e4, y: -1e4, t: -1e9 }, taps = [], mfT0 = 0, c2T0 = 0, hand = { u: 0, v: 0 }, shw = { ph: 0, k: 0, bu: 0, fx: 0, e1: 0, e2: 0, e3: 0, bx: 0, by: 0, bh: 0, sq: 0 }, C2LEN = 15.2, cg = { ph: 0, k: 0 }, trk = { sw: 0, hist: [] }, av = { bi: 0, ph: 0, pump: 0 }, HP = null;
+    var ptr = { x: -1e4, y: -1e4, t: -1e9 }, taps = [], mfT0 = 0, c2T0 = 0, hand = { u: 0, v: 0 }, shw = { ph: 0, k: 0, bu: 0, fx: 0, e1: 0, e2: 0, e3: 0, bx: 0, by: 0, bh: 0, sq: 0 }, C2LEN = 15.2, PLAY = 1.6, cg = { ph: 0, k: 0 }, trk = { sw: 0, hist: [] }, av = { bi: 0, ph: 0, pump: 0 }, HP = null;   /* PLAY: 로고 플레이(01 ① · 02 ① · 02 ②) 진행 속도 — 사용자 10-26: 35–50% 짧게 → 1.6배 (37.5%) */
     /* 02 CG 렌더 버킷: 4×4 칸 타일 — 가운데서 가까운 순으로 네 개씩(스레드 4) 0.16초마다 */
     var TILE = (function(){
       var has = {}, list = [];
@@ -762,7 +762,7 @@
          ③ 실감 — 로고 픽셀이 벽에서 떨어져 원근을 따라 커지며 보는 사람 쪽으로 쏟아져 나온다 (커서 쪽으로 흐름이 기운다). 끝엔 다시 점으로.
          커서 둘레는 칸이 작아지는 렌즈, 누르면 작아지는 고리. 흑백만 (사용자 10-12) */
       if (s1 === 1 && !reduce) {
-        var mt = t - mfT0, mph = mt % 10, msi = mph < 3 ? 0 : mph < 6.6 ? 1 : 2;
+        var mt = t - mfT0, mph = (mt * PLAY) % 10, msi = mph < 3 ? 0 : mph < 6.6 ? 1 : 2;
         mf = { si: msi, ph: mph, u: msi === 0 ? mph / 3 : msi === 1 ? (mph - 3) / 3.6 : (mph - 6.6) / 3.4, k: sstep(0, 0.7, mt), ux: (ptr.x - OX) / U, uy: (ptr.y - OY) / U, pt: null };
         if (msi === 2) {                                                             /* 쏟아지는 픽셀 140개: 1.5초마다 다른 칸에서 출발 (상태 없이 시각으로 계산) — 막 떠난 칸은 비었다가 다시 찬다 */
           mf.pt = []; EM.fill(0);
@@ -772,14 +772,14 @@
       var mfo = !mf && active === 1 && !reduce ? 1 - (t - mfX) / 0.5 : 0;               /* ① 을 떠나면 0.5초 동안 디더로 다시 회색 */
       var c2k = s2 >= 0 && !reduce ? sstep(0, 1, (t - c2T0 - 0.25) / 0.7) : 0, ct = t - c2T0;   /* 02 연출은 단계에 들어와 로고가 자리 잡은 뒤 서서히 */
       if (s2 === 0) {                                                                  /* 기획·연출 15.2초 (사용자 10-26 ②): 로고 → 선으로만 그리는 스케치 도면 → 선이 3D 와이어로 솟음 → 픽셀이 와이어 안을 채움 → A 영상 · B 키네틱 · C 애니메이션 → 다시 로고 */
-        var sp0 = ct % C2LEN; shw.ph = sp0;
+        var sp0 = (ct * PLAY) % C2LEN; shw.ph = sp0;
         shw.k = sp0 < 3.7 ? 0 : sp0 < 6.5 ? 1 : sp0 < 8.7 ? 2 : sp0 < 10.9 ? 3 : sp0 < 13.0 ? 4 : 5;   /* 스케치 · 3D · 영상 · 키네틱 · 애니메이션 · 돌아감 */
         shw.fx = -20 + (sp0 - 14.7) / 0.5 * 40;
         shw.e1 = sstep(6.5, 6.85, sp0) * (1 - sstep(8.4, 8.75, sp0)); shw.e2 = sstep(8.7, 9.05, sp0) * (1 - sstep(10.6, 10.95, sp0)); shw.e3 = sstep(10.9, 11.25, sp0) * (1 - sstep(12.65, 13.0, sp0));
         shw.bu = Math.min(1, Math.max(0, (sp0 - 11.05) / 1.8)); var bA = ballAt(shw.bu); shw.bx = bA[0]; shw.by = bA[1]; shw.bh = bA[2]; shw.sq = shw.bu > 0 && shw.bu < 1 ? 1 - Math.min(1, shw.bh / 0.6) : 0;   /* 튀는 공: 닿는 순간 납작 */
       }
       if (s2 === 3) { var BT = 60 / 124; av.bi = Math.floor(ct / BT); av.ph = (ct - av.bi * BT) / BT; av.pump = Math.exp(-av.ph * 5) * (av.bi % 4 === 0 ? 1 : 0.35); }   /* 124 BPM: 박마다 충격파, 네 박마다 크게 */
-      if (s2 === 1) { cg.ph = ct % 9; cg.k = cg.ph < 3 ? 0 : cg.ph < 6 ? 1 : 2; }   /* CG: 모델링 3초 → 애니메이션 3초 → 렌더 3초 */
+      if (s2 === 1) { cg.ph = (ct * PLAY) % 9; cg.k = cg.ph < 3 ? 0 : cg.ph < 6 ? 1 : 2; }   /* CG: 모델링 3초 → 애니메이션 3초 → 렌더 3초 */
       if (s2 === 2) {                                                                  /* 손: 커서가 있으면 그 자리, 없으면 스스로 오간다 (부드럽게 따라감) */
         var hu = 9 * Math.sin(t * 0.6), hv = 7 * Math.sin(t * 0.83 + 1);
         if (pOn) { hu = (ptr.x - OX) / U; hv = (ptr.y - OY) / U; }
@@ -877,8 +877,8 @@
       var fw = g.flow, fx3 = Math.sin(t * 0.2) * 0.08, fy3 = 0.71, fz3 = 0.71, hd = g.head;   /* 00 은 빛이 카메라 위치에서 (g.head) */
       LV[0] = L[0] + (fx3 - L[0]) * fw; LV[1] = -L[1] + (fy3 + L[1]) * fw; LV[2] = -L[2] + (fz3 + L[2]) * fw;
       LV[0] += (-0.27 - LV[0]) * hd; LV[1] += (0.38 - LV[1]) * hd; LV[2] += (0.88 - LV[2]) * hd;   /* 카메라에 달린 조명: 렌즈 약간 위·왼쪽 */
-      /* 01 ② 폭발 시뮬레이션 (셰이더 BOOM): 로고 고르게 흩어진 열 곳이 0.16–0.5초 간격으로 무작위 차례로 터지고 (마지막이 가장 크다),
-         3.4초 동안 떨어지고 연기가 피어오른 뒤 한꺼번에 되감기(2초), 쉬었다가 다시. 단계를 떠나면 그 자리에서 빠르게 되감는다 */
+      /* 01 ② 폭발 시뮬레이션 (셰이더 BOOM): 로고 고르게 흩어진 열 곳이 0.1–0.32초 간격으로 무작위 차례로 터지고 (마지막이 가장 크다),
+         2.3초 동안 떨어지고 연기가 피어오른 뒤 한꺼번에 되감기(1.3초), 쉬었다가 다시. 단계를 떠나면 그 자리에서 빠르게 되감는다 */
       var bOn = s1 === 2 && !reduce;
       if (bOn && !boom.amp) { boom.t0 = t - boom.p + 0.45; boom.amp = 1; }              /* 들어오고 0.45초 뒤 첫 폭발 (그 전엔 쉬는 구간이라 켜도 그대로) */
       if (bOn && boom.code) { var bc = t - boom.t0; BOOMS.v[2] = bc; BOOMS.v[3] = 0.5; boom.p = bc + 1.1; boom.code = 0; boom.sa = 1; }   /* 코드로 가다 돌아오면 빠르게 되감고 다시 */
@@ -902,9 +902,9 @@
         }
         pts.sort(function(){ return Math.random() - 0.5; });                             /* 차례는 무작위 — 여기저기서 */
         var tb = 0;
-        pts.forEach(function(pp, q){ BOOMB[q * 4] = pp.x; BOOMB[q * 4 + 1] = -pp.y; BOOMB[q * 4 + 2] = tb; BOOMB[q * 4 + 3] = q === 9 ? 7.5 : 4.2 + Math.random() * 2.6; tb += 0.16 + Math.random() * 0.34; });
+        pts.forEach(function(pp, q){ BOOMB[q * 4] = pp.x; BOOMB[q * 4 + 1] = -pp.y; BOOMB[q * 4 + 2] = tb; BOOMB[q * 4 + 3] = q === 9 ? 7.5 : 4.2 + Math.random() * 2.6; tb += 0.1 + Math.random() * 0.22; });
         var tl = BOOMB[9 * 4 + 2];
-        BOOMS.v[2] = tl + 3.4; BOOMS.v[3] = 2.0; boom.p = tl + 3.4 + 2.0 + 1.4;           /* 다 터진 뒤 3.4초(파편이 땅에 떨어지고 연기가 피어오름) → 2초 동안 스르륵 되감기 */
+        BOOMS.v[2] = tl + 2.3; BOOMS.v[3] = 1.3; boom.p = tl + 2.3 + 1.3 + 0.8;           /* 다 터진 뒤 2.3초(파편이 땅에 떨어지고 연기가 피어오름) → 1.3초 동안 스르륵 되감기 (사용자 10-26: 로고 플레이 35–50% 짧게 — 전엔 3.4 · 2 · 1.4초, 간격 0.16–0.5) */
         boom.t0 = t;
       }
       BOOMS.v[0] = t - boom.t0; BOOMS.v[1] = boom.amp;            /* 화면 흔들림은 뺐다 (사용자 10-12: 너무 세다 — 충격은 큐브가 들썩이는 후폭풍으로) */
