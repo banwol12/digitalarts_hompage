@@ -321,6 +321,7 @@ void main(){
   float u = clamp((uTime - aAppear) / 0.6, 0.0, 1.0), e = 1.0 - (1.0 - u) * (1.0 - u) * (1.0 - u), lit = step(aAppear, uTime);
   vec3 base = vec3(P.xy, P.z * e) + C0.xyz, size = aSize.xyz * vec3(mix(0.8, 1.0, e), mix(0.8, 1.0, e), mix(0.04, 1.0, e)) * lit * (1.0 - C1.x);   /* C1.x: 칸이 작아짐 (코드 조각으로 바뀌며 사라짐 · 01 ① 하프톤 등) */
   base -= aLoc * C1.x;                                                                    /* 알갱이마다 제자리에서 줄면 사이로 # 모양 틈이 났다 → 칸 가운데로 모이며 줄어 칸 하나가 통째로 작아진다 */
+  base.z -= (C1.w - aLoc.z) * (1.0 - C1.x) * C1.z; size.z *= 1.0 + C1.z;                 /* C1.z: 칸 높이 늘이기 — 윗면은 그대로 두고 아래로 (02 ① 벽·기둥이 바닥에서 솟는다) · C1.w = 칸 반깊이 */
   float bright = smoothstep(0.0, 0.4, u) * lit, flash = 0.0, bev = 0.3, glowV = C0.w;
   vec3 tailB = base - V.xyz * 0.008;                                                      /* 꼬리 끝: 챕터 전환 땐 반 프레임 전 자리 (180° 셔터) (멈추면 꼬리 없음), 입장 땐 아래에서 */
   vec3 ax = normalize(vec3(fract(s * 7.13), fract(s * 3.37), fract(s * 5.71)) - 0.5 + 1e-3);
@@ -445,7 +446,8 @@ void main(){
   vec3 grow = vec3(mix(0.8, 1.0, e), mix(0.8, 1.0, e), mix(0.04, 1.0, e)) * step(aAppear, uTime);
   vec3 bo = vec3(0.0); float bt, bk, bs, bl, bz = 1.0;
   if (uBoom.y > 0.0) { bo = boomOff(P.xy, aSize.w, boomClock(uBoom.x), bt, bk, bs, bl) * uBoom.y; bz = boomSize(aSize.w, bt, bs); }   /* 폭발 큐브도 그림자를 따라 */
-  gl_Position = projectionMatrix * viewMatrix * uModel * vec4((vec3(P.xy, P.z * e) + C0.xyz + bo - aLoc * C1.x + position * aSize.xyz * grow * bz * (1.0 - C1.x)) * uScale, 1.0);
+  vec3 sz = aSize.xyz * grow * bz * (1.0 - C1.x); sz.z *= 1.0 + C1.z;
+  gl_Position = projectionMatrix * viewMatrix * uModel * vec4((vec3(P.xy, P.z * e) + C0.xyz + bo - aLoc * C1.x - vec3(0.0, 0.0, (C1.w - aLoc.z) * (1.0 - C1.x) * C1.z) + position * sz) * uScale, 1.0);
 }`;
 
 /* 입장 화면 효과 (입장 동안만): 초점 + 빨려 들 때 소실점으로 모이는 방사 블러 + 잔상.
@@ -613,7 +615,7 @@ export function createHomeScene({ canvas, cells, small }){
       freePost(); post = { scene: rt({ samples: 4, generateMipmaps: true, minFilter: LinearMipmapLinearFilter }), acc: [rt({ type: HalfFloatType }), rt({ type: HalfFloatType })], i: 0 };
       return { land: t + 2.65 / INTRO_RATE, end: t + INTRO_END / INTRO_RATE };
     },
-    /* 매 프레임: st = g (cx·cy·s·yaw·pitch·mode·flat·wall) + 빛 방향, cellFx = 칸마다 [dx,dy,dz,glow] (옛 좌표), cellM = [사라짐, 반짝임], boom = { v: [경과 초, 세기, 되감기 시작, 되감기 길이], bl: 폭발 10개 [x, y, 터지는 초, 반경] (새 좌표) } (01 ②) */
+    /* 매 프레임: st = g (cx·cy·s·yaw·pitch·mode·flat·wall) + 빛 방향, cellFx = 칸마다 [dx,dy,dz,glow] (옛 좌표), cellM = [사라짐, 반짝임], cellZ = 칸 높이 늘이기 (없으면 0), boom = { v: [경과 초, 세기, 되감기 시작, 되감기 길이], bl: 폭발 10개 [x, y, 터지는 초, 반경] (새 좌표) } (01 ②) */
     render(st){
       const t = st.t, dt = Math.min(Math.max(st.dt, 0), 1 / 30);
       const F = st.F, D = st.D;
@@ -644,7 +646,7 @@ export function createHomeScene({ canvas, cells, small }){
       for (let k = 0; k < N; k++) {
         const fx = st.cellFx, cm = st.cellM, o = k * 4, o2 = (N + k) * 4;
         cellData[o] = fx[o]; cellData[o + 1] = -fx[o + 1]; cellData[o + 2] = -fx[o + 2]; cellData[o + 3] = fx[o + 3];
-        cellData[o2] = cm[k * 2]; cellData[o2 + 1] = cm[k * 2 + 1];
+        cellData[o2] = cm[k * 2]; cellData[o2 + 1] = cm[k * 2 + 1]; cellData[o2 + 2] = st.cellZ ? st.cellZ[k] : 0; cellData[o2 + 3] = cells[k].h;
       }
       tCell.needsUpdate = true;
 
