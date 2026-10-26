@@ -71,11 +71,12 @@
       function trace(q){ Array.prototype.forEach.call(svg.children, function(pa, i){ pa.style.strokeDashoffset = LEN[i] * (1 - q); }); }
       try { new PerformanceObserver(function(l){ B.goal = Math.min(0.9, B.goal + (0.9 - B.goal) * 0.15 * l.getEntries().length); }).observe({ type: 'resource', buffered: true }); } catch (e) {}
       setTimeout(function(){ B.fin = true; B.cssLeft = 0; }, 10000);
+      var tq = performance.now(), TRACE = 1500;                                     /* 테두리는 로딩과 상관없이 1.5초 동안 같은 빠르기로 (사용자 10-26: 로딩에 묶여 마지막에 촤라락 그려졌다) */
       (function tick(){
-        var end = B.fin && B.cssLeft <= 0;
+        var end = B.fin && B.cssLeft <= 0, q = RED ? 1 : Math.min(1, (performance.now() - tq) / TRACE);
         p += ((end ? 1 : B.goal) - p) * (end ? 0.22 : 0.06);
-        logo.style.setProperty('--p', Math.ceil(p * 34 - 0.05) / 34); if (EDGE) trace(RED ? 1 : p);
-        if (end && p > 0.985) {
+        logo.style.setProperty('--p', Math.ceil(p * 34 - 0.05) / 34); if (EDGE) trace(q);
+        if (end && p > 0.985 && (!EDGE || q >= 1)) {
           logo.style.setProperty('--p', 1); if (EDGE) trace(1);
           setTimeout(function(){ B.over = true; B.cbs.splice(0).forEach(function(f){ f(); }); if (EDGE && B.to) edgeWait(); else grow(); }, 140);   /* 꽉 찬 로고를 잠깐 보여 준 뒤 */
           return;
