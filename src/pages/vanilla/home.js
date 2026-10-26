@@ -204,7 +204,7 @@
        전환의 시작·끝마다 캔버스를 새로 만들며 끊기고, 폰에선 움직이는 동안 흐릿했다. 화면이 아주 크면 4K 한 장(830만 화소)까지만,
        정말 버거운 기기에서만 govCap 으로 한 단계씩 낮춘다. 기기 배율은 매번 다시 읽는다 (브라우저 확대·다른 모니터) */
     var govCap = 3, PX_BUDGET = 8.3e6, fIv = [], fI = 0, cad = 16.7, fLast = 0, epN = 0, epLate = 0, ups = 0;
-    function naturalDPR(){ return Math.min(window.devicePixelRatio || 1, 3, Math.sqrt(PX_BUDGET / (W * H))); }
+    function naturalDPR(){ return Math.min(window.devicePixelRatio || 1, S3D && S3D.tier < 2 ? 2 : 3, Math.sqrt(PX_BUDGET / (W * H))); }   /* 폰·약한 기기: 2D 캔버스(선·글씨)는 2배면 충분 — 3배 화면에서도 차이가 거의 없고 칠할 화소는 절반 아래 */
     function resize(){
       hdrC = 0; lastDraw = 0;                                                     /* 캔버스를 새로 만들면 비워지니 다음 프레임은 건너뛰지 않고 그린다 */
       var sc = canvas.parentNode.getBoundingClientRect();
@@ -213,7 +213,7 @@
       var cw = Math.round(W * DPR), ch = Math.round(H * DPR);
       if (canvas.width !== cw || canvas.height !== ch) { canvas.width = cw; canvas.height = ch; lastFont = null; }   /* 캔버스를 새로 만들면 글꼴 설정도 풀린다 */
       canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
-      if (S3D) S3D.resize(W, H, Math.min(DPR, 2, Math.sqrt(4.2e6 / (W * H))));
+      if (S3D) S3D.resize(W, H, Math.min(DPR, [1.25, 1.6, 2][S3D.tier], Math.sqrt([2.1e6, 2.4e6, 4.2e6][S3D.tier] / (W * H))));   /* 3D 해상도: 등급별 상한 (큐브는 MSAA 라 1.6배도 거의 같아 보인다) */
       var sh = document.querySelector('.chapter .shell');
       if (sh) { var cs = getComputedStyle(sh); SHELL = sh.clientWidth - (parseFloat(cs.paddingLeft) || 0) - (parseFloat(cs.paddingRight) || 0); }
       if (!sh || SHELL < 200) SHELL = W;
@@ -227,7 +227,7 @@
     function watchFrames(now, full){
       var dt = now - fLast; fLast = now;
       if (epN && (!full || epN >= 120)) {
-        if (epN >= 20) { if (epLate * 4 > epN && DPR > 1.01) setCap(DPR * 0.75); else if (epLate * 20 < epN && ups < 3 && DPR < naturalDPR() - 0.01) { ups++; setCap(DPR / 0.75); } }
+        if (epN >= 20) { if (epLate * 4 > epN && DPR > 1.01) setCap(DPR * 0.75); else if (epLate * 4 > epN && S3D && !S3D.isLite()) S3D.lite(); else if (epLate * 20 < epN && ups < 3 && DPR < naturalDPR() - 0.01) { ups++; setCap(DPR / 0.75); } }
         epN = epLate = 0;
       }
       if (!(dt > 0 && dt < 250) || now - start < 800) return;
@@ -780,7 +780,7 @@
         if (mob) ctx.restore();
       }
       var TB = en ? ['01 MAPPING', '02 PROJECTION', '03 IMMERSIVE'] : ['01 매핑', '02 프로젝션', '03 실감'], tp = P(-16.5, 19.6), tx3 = tp[0];   /* 단계 탭 */
-      if (mob) { var mp = P(15.4, -16.2); txt(TB[mf.si], mp[0], mp[1], 'right', 0.92); ctx.fillStyle = ink + '0.8)'; var mw = ctx.measureText(TB[mf.si]).width; ctx.fillRect(mp[0] - mw, mp[1] + 7, mw * Math.min(1, mf.u), 1); ctx.restore(); return; }   /* 폰: 아래는 설명 글과 겹친다 → 로고 오른쪽 위 빈 모서리에 지금 단계만 */
+      if (mob) { var mp = P(13.3, -17); txt(TB[mf.si], mp[0], mp[1], 'right', 0.92); ctx.fillStyle = ink + '0.8)'; var mw = ctx.measureText(TB[mf.si]).width; ctx.fillRect(mp[0] - mw, mp[1] + 7, mw * Math.min(1, mf.u), 1); ctx.restore(); return; }   /* 폰: 아래는 설명 글과 겹친다 → 로고 오른쪽 위 빈 모서리에 지금 단계만 */
       for (var tj = 0; tj < 3; tj++) { var o1 = tj === mf.si, w3 = txt(TB[tj], tx3, tp[1], 'left', o1 ? 0.92 : 0.32); if (o1) { ctx.fillStyle = ink + '0.8)'; ctx.fillRect(tx3, tp[1] + 8, w3 * Math.min(1, mf.u), 1); } tx3 += w3 + 18; }
       ctx.restore();
     }
@@ -962,7 +962,8 @@
       BOOMS.v[0] = t - boom.t0; BOOMS.v[1] = boom.amp;            /* 화면 흔들림은 뺐다 (사용자 10-12: 너무 세다 — 충격은 큐브가 들썩이는 후폭풍으로) */
       /* 칸 연출 값은 스프링으로 따라간다 (사용자 10-26: 단계·루프가 바뀔 때 뚝뚝 끊김) — 목표가 갑자기 바뀌어도 속도를 이어 받아 부드럽게, 위치·크기는 살짝 넘쳤다 자리 잡는다(ζ 0.8) */
       var sdt = Math.min(0.05, Math.max(0, t - (lastFrameT || t)));
-      if (reduce || !sdt) { SFX.set(CFX); SCM.set(CM); SZ.set(CZ); } else {
+      if (reduce || !sdt) { SFX.set(CFX); SCM.set(CM); SZ.set(CZ); } else for (var sst = Math.ceil(sdt * 60 - 1e-3), sk = 0, sdt0 = sdt; sk < sst; sk++) {   /* 1/60초 이하로 쪼개서: 느린 기기(한 장 30ms 넘게)에선 한 번에 계산하면 스프링이 불안정해져 값이 튀고 화면이 검게 변했다 */
+        sdt = sdt0 / sst;
         var w1 = 19, w2 = 30, a1 = w1 * w1 * sdt, b1 = 2 * 0.8 * w1 * sdt, a2 = w2 * w2 * sdt, b2 = 2 * w2 * sdt;
         for (var si = 0; si < N * 4; si++) { SVF[si] += a1 * (CFX[si] - SFX[si]) - b1 * SVF[si]; SFX[si] += SVF[si] * sdt; }
         for (var sz = 0; sz < N; sz++) { SVZ[sz] += a1 * (CZ[sz] - SZ[sz]) - b1 * SVZ[sz]; SZ[sz] = Math.max(-0.97, SZ[sz] + SVZ[sz] * sdt); }   /* 높이 늘이기도 같은 스프링 (-1 아래로 가면 칸이 뒤집힌다) */
@@ -1523,7 +1524,7 @@
         var year = w.year || '';
         var catYear = category + (year ? ' · ' + year : '');
         var title = w.title || '(제목 없음)';
-        var student = w.student || '';
+        var student = (w.student || '').replace(/\s*[·•,]\s*/g, ' · ');   /* 이름 사이: 'A·B' → 'A · B' (붙어 보였다) */
         var slug = w.slug || ('work-' + (idx + 1));
         var href = 'portfolio.html#/work/' + encodeURIComponent(slug);
 

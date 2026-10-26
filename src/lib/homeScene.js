@@ -475,7 +475,14 @@ void main(){
 function rng(seed){ return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
 
 export function createHomeScene({ canvas, cells, small }){
-  const rand = rng(11), N = cells.length, M = small ? 3 : 4;   /* 한 칸 = M×M 픽셀 (폰은 3×3) */
+  const renderer = new WebGLRenderer({ canvas, antialias: true, alpha: true, premultipliedAlpha: true, powerPreference: 'high-performance' });
+  renderer.setClearColor(0x000000, 0);
+  /* 기기 등급 (10-26 최적화): 0 약한 GPU(저가 안드로이드 Mali·Adreno 6xx 이하·PowerVR, 인텔 내장, 소프트웨어, 메모리 3GB 이하) · 1 폰·태블릿 · 2 데스크톱.
+     등급이 낮을수록 칸당 알갱이·그림자 지도·그림자 샘플·3D 해상도(home.js)를 줄인다 — 좋은 기기는 예전 그대로 */
+  const gl = renderer.getContext(), dbg = gl.getExtension('WEBGL_debug_renderer_info'), gpuName = dbg ? String(gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL)) : '';
+  let tier = /Mali-(G[1-5]\d|T\d)|Adreno \(TM\) ([1-5]\d\d|6[01]\d)\b|PowerVR|Intel.*(HD|UHD) Graphics|SwiftShader|llvmpipe/i.test(gpuName) || (navigator.deviceMemory || 8) <= 3 ? 0 : small ? 1 : 2, tierQ = /[?&]tier=([012])/.exec(location.search);
+  if (tierQ) tier = +tierQ[1];   /* 검수용: ?tier=0|1|2 */
+  const rand = rng(11), N = cells.length, M = tier < 2 ? 3 : 4;   /* 한 칸 = M×M 픽셀 (폰·약한 기기는 3×3 — 알갱이 수가 절반 아래로) */
 
   /* ── 칸마다 껍데기 큐브(앞면 + 네 옆면). 뒤는 보이지 않아 뺀다 ── */
   const grains = [];
@@ -486,10 +493,8 @@ export function createHomeScene({ canvas, cells, small }){
       grains.push([k, (ix + 0.5) / M - 0.5, -((iy + 0.5) / M - 0.5), c.h - (iz + 0.5) * dz, dz, 1 - 0.55 * iz / nz]);
     }
   });
-  const n = grains.length, SX = 256, SY = Math.ceil(n / SX), SM = small ? 1024 : 2048;
-
-  const renderer = new WebGLRenderer({ canvas, antialias: true, alpha: true, premultipliedAlpha: true, powerPreference: 'high-performance' });
-  renderer.setClearColor(0x000000, 0);
+  const n = grains.length, SX = 256, SY = Math.ceil(n / SX), SM = tier < 2 ? 1024 : 2048;
+  const SQ = [[6, 12, 6, 10], [10, 18, 8, 14], [12, 24, 12, 20]][tier];   /* 그림자 샘플: 큐브 막는 것 · 부드러움, 벽 막는 것 · 부드러움 */
   const gpu = new GPUComputationRenderer(SX, SY, renderer);
   if (!renderer.extensions.has('EXT_color_buffer_float')) gpu.setDataType(HalfFloatType);
 
@@ -537,21 +542,21 @@ export function createHomeScene({ canvas, cells, small }){
   const FIRE = [['#FFFBEA', 0], ['#FFE36B', 0.1], ['#FFA21F', 0.26], ['#F2541B', 0.44], ['#A3170E', 0.62], ['#4A2A20', 0.8], ['#6E6762', 1]].map(([h, p]) => [new Color(h), p]);
   const uFire = { value: Array.from({ length: 24 }, (_, i) => new Vector3().fromArray(gradient(i / 23, ...FIRE).lRGB)) };   /* 불꽃 색 띠 (Spectral.js 물감 혼합, 선형 RGB) */
   const cubeMat = new ShaderMaterial({
-    vertexShader: CUBE_VS, fragmentShader: CUBE_FS, defines: { NB: 12, NP: 24, ...BDEF },
+    vertexShader: CUBE_VS, fragmentShader: CUBE_FS, defines: { NB: SQ[0], NP: SQ[1], ...BDEF },
     uniforms: { ...common, tPos: posTex, tVel: velTex, tCell: { value: tCell }, uNOff: { value: 0.1 }, uBias: { value: 0.03 }, uHead: { value: 0 }, uCamD: { value: 72 }, uShK: { value: 1 }, uHeadOff: { value: new Vector3(-0.3, 0.42, 0) }, uIT: { value: -1 }, uPC: { value: /[?&]intro=pc\b/.test(location.search) ? 1 : 0 }, uCamZ: { value: 72 }, uTanH: { value: 0.35 }, uAsp: { value: 1.6 },
       uAlb: { value: new Vector3(0.3567, 0.3567, 0.3567) }, uRef: { value: 2 }, uAmb: { value: 0.35 },   /* uAlb = #A0A0A0 (선형) */
       uKey: { value: new Vector3(0.905, 1.0, 0.087) }, uBoom, uBl, uFire, uExt: { value: new Vector2(-1e9, 0.9) } }
   });
   const cubes = new Mesh(geo, cubeMat); cubes.frustumCulled = false;
   const wallMat = new ShaderMaterial({
-    vertexShader: WALL_VS, fragmentShader: WALL_FS, defines: { NB: 12, NP: 20 }, transparent: true, premultipliedAlpha: true, depthWrite: false,
+    vertexShader: WALL_VS, fragmentShader: WALL_FS, defines: { NB: SQ[2], NP: SQ[3] }, transparent: true, premultipliedAlpha: true, depthWrite: false,
     uniforms: { ...common, uWallZ: { value: -5.5 }, uBiasW: { value: 0.05 } }
   });
   const wall = new Mesh(new PlaneGeometry(600, 400), wallMat); wall.frustumCulled = false; wall.renderOrder = -1;
   const NEUTRAL = new Vector3(1, 1, 1);
   let introS = null, post = null;
   const quadMat = { depthTest: false, depthWrite: false, blending: NoBlending };
-  const postMat = new ShaderMaterial({ ...quadMat, vertexShader: QUAD_VS, fragmentShader: POST_FS, defines: { NT: small ? 8 : 12 },
+  const postMat = new ShaderMaterial({ ...quadMat, vertexShader: QUAD_VS, fragmentShader: POST_FS, defines: { NT: [6, 8, 12][tier] },
     uniforms: { tC: { value: null }, tPrev: { value: null }, uPx: { value: new Vector2() }, uVP: { value: new Vector2() }, uBlur: { value: 0 }, uZoom: { value: 0 }, uDamp: { value: 0 }, uFZ: { value: 0 } } });
   const copyMat = new ShaderMaterial({ ...quadMat, vertexShader: QUAD_VS, fragmentShader: 'uniform sampler2D tC; varying vec2 vUv; void main(){ gl_FragColor = texture2D(tC, vUv); }', uniforms: { tC: { value: null } } });
   const quad = new Mesh(new PlaneGeometry(2, 2), postMat); quad.frustumCulled = false;
@@ -592,7 +597,12 @@ export function createHomeScene({ canvas, cells, small }){
   }
 
 
+  let lite = false;
   return {
+    tier,
+    /* 해상도를 1배까지 내려도 버거우면 마지막으로 그림자를 가볍게 (한 번만 — 셰이더를 다시 만든다) */
+    isLite(){ return lite; },
+    lite(){ if (lite) return; lite = true; Object.assign(cubeMat.defines, { NB: 4, NP: 8 }); Object.assign(wallMat.defines, { NB: 4, NP: 6 }); cubeMat.needsUpdate = wallMat.needsUpdate = true; },   /* 그림자 지도 크기는 그대로 — RenderTarget.setSize 가 깊이 텍스처 크기는 안 바꿔 그림자가 깨졌다(큐브가 검게) */
     grains: n,
     resize(w, h, dpr){ W = w; H = h; renderer.setPixelRatio(dpr); renderer.setSize(w, h, false); },
     /* 챕터 전환: pos = 칸 목표(옛 좌표, N×3), delay = 칸마다 출발 지연(초). snap = 날지 않고 바로 */

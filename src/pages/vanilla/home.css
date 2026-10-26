@@ -277,8 +277,8 @@ html.touch-paging .chapter.steps{scroll-snap-type:y mandatory}
 
 /* 01 수업은 묶음별 한 줄씩 · 02 진로는 가운데 정렬 + 일하는 곳 */
 .cl{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px}
-.cl li{line-height:1.55}
-.cl .grp{display:inline-block;min-width:calc(64px * var(--k));margin-right:var(--space-8);color:var(--text-muted);font-family:var(--font-core);letter-spacing:var(--tracking-ko)}   /* 01 수업: 묶음 이름 + 수업들 */
+.cl li{line-height:1.55;display:grid;grid-template-columns:calc(64px * var(--k)) 1fr;column-gap:var(--space-8)}   /* 묶음 이름 칸 + 수업 칸: 수업이 줄을 넘겨도 수업 칸 안에서 (폰에서 둘째 줄이 묶음 이름 아래로 파고들었다) */
+.cl .grp{color:var(--text-muted);font-family:var(--font-core);letter-spacing:var(--tracking-ko)}   /* 01 수업: 묶음 이름 + 수업들 */
 .panel .where{margin:0;color:var(--text-muted)}
 #c2 .panel .num,.panel .where,.facts dt,.panel .demo,.hintline{letter-spacing:var(--tracking-ko);text-transform:none;font-family:var(--font-core)}   /* 한글 작은 글씨: 영문용 넓은 자간이면 '미 디 어'처럼 벌어진다 */
 .center .panel{align-items:center;text-align:center}
@@ -386,7 +386,7 @@ html.touch-paging .chapter.steps{scroll-snap-type:y mandatory}
   .last .main{padding-bottom:var(--space-16)}
   .foot{padding-top:var(--space-20);padding-bottom:var(--space-12)}
   .foot .links{gap:var(--space-16)}
-  .foot .row>.cs-caption{letter-spacing:.08em}
+  .foot .row>.cs-caption{letter-spacing:.08em;text-wrap:balance}   /* 좁은 폰에서 'ARTS' 한 단어만 다음 줄로 넘어가지 않게 */
 }
 @media (max-width:409px){.site-header .cta-long{display:none}.site-header .btn.sm{padding:8px 12px}.site-header .hdr-actions{gap:2px}.site-header .lang-tg{padding:6px 4px}}
 @media (max-width:379px){.brand-text small{letter-spacing:.06em}}   /* 언어 버튼(EN/KO)이 들어온 뒤 360px 에서 입학처 버튼이 밀렸다 */   /* 좁은 폰: 헤더 버튼은 '입학처 ↗' 만 — 전에는 375px 이하에서 버튼이 화면 밖으로 잘렸다 */
