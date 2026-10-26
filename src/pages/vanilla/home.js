@@ -106,6 +106,21 @@
     return parts;
   }
   boxes.forEach(function(b){ b.parts = lexParts(b.token); });
+  /* 02 기획·연출 평면도 (사용자 10-26): 칸마다 갈 자리 — 0 바깥벽(입구·출구 틈) · 1 칸막이 둘 · 2 A 조명 설치물 · 3 B 영상 스크린 · 4 C 스피커 둘 · 5 바닥 점(나머지, 고르게 골라서).
+     벽·설치물 자리를 먼저 가장 가까운 칸이 맡고, 남은 칸이 바닥 점으로 */
+  (function(){
+    var T = [], used = {}, put = function(x, y, k){ if (used[x + ',' + y]) return; used[x + ',' + y] = 1; T.push({ x: x, y: y, k: k }); }, x, y;
+    for (x = -15; x <= 15; x++) { if (x < -13 || x > -11) put(x, 11, 0); if (x < 11 || x > 13) put(x, -11, 0); }
+    for (y = -10; y <= 10; y++) { put(-15, y, 0); put(15, y, 0); }
+    for (y = -10; y <= 3; y++) put(-5, y, 1); for (y = -3; y <= 10; y++) put(5, y, 1);
+    for (x = -12; x <= -9; x++) for (y = -6; y <= -3; y++) put(x, y, 2);
+    for (x = -3; x <= 3; x++) for (y = -9; y <= -8; y++) put(x, y, 3);
+    for (y = 5; y <= 7; y++) { put(7, y, 4); put(8, y, 4); put(12, y, 4); put(13, y, 4); }
+    var fl = []; for (y = -10; y <= 10; y++) for (x = -14; x <= 14; x++) if (!used[x + ',' + y]) fl.push([x, y]);
+    var nf = boxes.length - T.length; for (var j = 0; j < nf; j++) { var f = fl[Math.floor(j * fl.length / nf)]; T.push({ x: f[0], y: f[1], k: 5 }); }
+    var free = boxes.slice();
+    T.forEach(function(tg){ var bi = 0, bd = 1e9; for (var q = 0; q < free.length; q++) { var d = (free[q].gx - tg.x) * (free[q].gx - tg.x) + (free[q].gy - tg.y) * (free[q].gy - tg.y); if (d < bd) { bd = d; bi = q; } } free[bi].pl = tg; free.splice(bi, 1); });
+  })();
   var FCOLS = 24, FROWS = Math.ceil(N / FCOLS);   /* 24 열: 02 오른쪽 칸(세로로 긴 영역)에 맞게 정사각형에 가깝게 — 원근으로 깊이가 산다 */
   boxes.forEach(function(b, i){ b.fc = i % FCOLS; b.fr = Math.floor(i / FCOLS); });
 
@@ -121,17 +136,6 @@
     var LH = GRID.length, LW = 32, dist = new Int16Array(LW * LH).fill(-1), q = [], i, r, c, k;
     for (r = 0; r < LH; r++) for (c = 0; c < LW; c++) if (GRID[r][c] !== '#') { dist[r * LW + c] = 0; q.push(r * LW + c); }
     for (i = 0; i < q.length; i++) { r = Math.floor(q[i] / LW); c = q[i] % LW; [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(function(d){ var rr = r + d[0], cc = c + d[1]; if (rr < 0 || cc < 0 || rr >= LH || cc >= LW || dist[rr * LW + cc] >= 0) return; dist[rr * LW + cc] = dist[q[i]] + 1; q.push(rr * LW + cc); }); }
-    /* 02 기획·연출 Q4 피날레의 네 겹: 이어진 도형별로 — 가장 큰 몸통(원)은 맨 뒤(공간), 불꽃 획은 왼쪽부터 소리·영상·빛으로 한 겹씩 앞에 */
-    var id = new Int16Array(LW * LH).fill(-1), comps = [];
-    for (r = 0; r < LH; r++) for (c = 0; c < LW; c++) {
-      if (GRID[r][c] !== '#' || id[r * LW + c] >= 0) continue;
-      var st = [r * LW + c], cells = [], n = comps.length; id[r * LW + c] = n;
-      while (st.length) { var v = st.pop(), vr = Math.floor(v / LW), vc = v % LW; cells.push(vc); [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(function(d){ var rr = vr + d[0], cc = vc + d[1], w = rr * LW + cc; if (rr < 0 || cc < 0 || rr >= LH || cc >= LW || GRID[rr][cc] !== '#' || id[w] >= 0) return; id[w] = n; st.push(w); }); }
-      comps.push({ n: cells.length, mc: cells.reduce(function(a, x){ return a + x; }, 0) / cells.length });
-    }
-    var big = comps.reduce(function(a, x, j){ return x.n > comps[a].n ? j : a; }, 0);
-    comps.forEach(function(cm, j){ cm.ly = j === big ? 0 : cm.mc < 26 ? 1 : cm.mc < 29 ? 2 : 3; });
-    for (k = 0; k < N; k++) { var bl = boxes[k]; bl.ly = comps[id[bl.r * LW + bl.c]].ly; }
     for (k = 0; k < N; k++) { var bb = boxes[k], dd = dist[bb.r * LW + bb.c]; bb.dep = dd < 0 ? 1 + Math.min(bb.r, bb.c, LH - 1 - bb.r, LW - 1 - bb.c) : dd; bb.edge = bb.dep <= 1; bb.ang = Math.atan2(bb.gy, bb.gx); }
   })();
   /* 챕터별 회전·동작 설정. 위치와 크기는 frameFor() 가 화면과 텍스트를 실측해 "빈 영역"에 맞춘다 */
@@ -527,6 +531,7 @@
       if (active === 2 && c2step === 3 && introDone && !reduce) { var ak = sstep(0, 1, (t - c2T0 - 0.25) / 0.7); yaw += Math.sin((t - c2T0) * 0.35) * 0.12 * ak; }   /* 02 오디오비주얼: 카메라가 천천히 돈다 */
       if (active === 2 && c2step === 1 && introDone && !reduce) { var tph = (t - c2T0) % 9; yaw += Math.sin((t - c2T0) * 0.7) * 0.5 * sstep(0, 1, (t - c2T0 - 0.25) / 0.7) * (1 - sstep(5.6, 6.2, tph) + sstep(8.4, 9, tph)); }   /* 02 CG: 모델링·애니메이션 동안 턴테이블처럼 돌고, 렌더 땐 멈춘다 */
       var pitch = g.pitch + Math.sin(t * 0.17) * g.sway * 0.35;
+      if (active === 2 && c2step === 0 && introDone && !reduce) { var bph = (t - c2T0) % 12.5, be = sstep(4.2, 5.2, bph) * (1 - sstep(9.6, 10.6, bph)); yaw += 0.3 * be; pitch -= 0.28 * be; }   /* 02 기획·연출: 평면도가 솟는 동안 비스듬히 위에서 본다 */
       var cy = Math.cos(yaw), sy = Math.sin(yaw), cp = Math.cos(pitch), sp = Math.sin(pitch);
       var D = 72, F = Math.min(W, H) * 1.45, S = g.s, OX = g.cx, OY = g.cy;
       /* 광원이 아주 천천히 돌고, 부드러운 빛 띠가 표면을 스친다 */
@@ -667,7 +672,7 @@
       requestAnimationFrame(render);
     }
     /* 커서·누른 곳 (01 ① 관객이 비추는 빛 · 02 ③ 손) */
-    var ptr = { x: -1e4, y: -1e4, t: -1e9 }, taps = [], mfT0 = 0, c2T0 = 0, hand = { u: 0, v: 0 }, shw = { ph: 0, play: 0, fx: 0, bump: 0, sep: [0, 0, 0, 0] }, cg = { ph: 0, k: 0 }, trk = { sw: 0, hist: [] }, av = { bi: 0, ph: 0, pump: 0 }, HP = null;
+    var ptr = { x: -1e4, y: -1e4, t: -1e9 }, taps = [], mfT0 = 0, c2T0 = 0, hand = { u: 0, v: 0 }, shw = { ph: 0, k: 0, q: -1, qa: -1, bu: 0, fx: 0 }, cg = { ph: 0, k: 0 }, trk = { sw: 0, hist: [] }, av = { bi: 0, ph: 0, pump: 0 }, HP = null;
     /* 02 CG 렌더 버킷: 4×4 칸 타일 — 가운데서 가까운 순으로 네 개씩(스레드 4) 0.16초마다 */
     var TILE = (function(){
       var has = {}, list = [];
@@ -677,77 +682,58 @@
       list.forEach(function(id, k){ var s = 0.15 + Math.floor(k / 4) * 0.16; T.at[id] = s; T.st.push(s); T.tx.push(id % 8); T.ty.push(Math.floor(id / 8)); });
       return T;
     })();
-    function edgeAt(a){ var best = null, bs = -1e9; boxes.forEach(function(b){ if (!b.edge) return; var da = Math.atan2(Math.sin(b.ang - a), Math.cos(b.ang - a)), sc = Math.sqrt(b.gx * b.gx + b.gy * b.gy) - Math.abs(da) * 40; if (sc > bs) { bs = sc; best = b; } }); return [best.gx, best.gy]; }
-    var BEAM = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].map(function(k){ return edgeAt(-Math.PI + (k + 0.5) / 12 * Math.PI * 2); });   /* 01 ① 빛의 뿔이 닿는 윤곽 열두 곳 */
-    var ETH = { l: [], r: [] }; boxes.forEach(function(b){ if (b.edge) ETH[b.gx < 0 ? 'l' : 'r'].push([Math.abs(Math.atan2(b.gx, -b.gy)) / Math.PI, b.gx, b.gy]); }); ETH.l.sort(function(a, b){ return a[0] - b[0]; }); ETH.r.sort(function(a, b){ return a[0] - b[0]; });   /* 매핑 빛이 따라갈 윤곽 칸 (꼭대기에서 잰 각도순) */
-    var CAL = [-2.6, -1.57, -0.52, 0.52, 1.57, 2.6].map(edgeAt);   /* 매핑 보정점 여섯: 윤곽 위 고르게 */
-    function drawMedia(t, OX, OY, U, mf){                                          /* 01 ① 장면 설명: 빔·보정점·실감 공간·단계 탭 (로고와 같은 정면 2D 좌표) */
-      var en = document.documentElement.lang === 'en', mob = MOBILE(), ph = mf.ph, on = sstep(0, 0.45, ph) * (1 - sstep(6.5, 7.0, ph)), P = function(x, y){ return [OX + x * U, OY + y * U]; };
-      var ink = 'rgba(17,17,17,', bo = sstep(0, 0.45, ph) * (1 - sstep(6.5, 6.9, ph)), live = performance.now() - ptr.t < 2500;
+    function drawMedia(t, OX, OY, U, mf){                                          /* 01 ① 화면 위 요소: 정합 표시·스캔선(매핑) · 쏟아지는 픽셀(실감) · 단계 탭 — 로고와 같은 정면 2D 좌표 */
+      var en = document.documentElement.lang === 'en', mob = MOBILE(), ph = mf.ph, P = function(x, y){ return [OX + x * U, OY + y * U]; }, ink = 'rgba(17,17,17,';
       ctx.save(); ctx.globalAlpha = mf.k; ctx.lineWidth = 1; ctx.font = '500 ' + (mob ? 9 : 10.5) + 'px "Geist Mono", "Pretendard", ui-monospace, monospace'; lastFont = null; ctx.textBaseline = 'middle';
       var txt = function(s, x, y, al, a){ ctx.fillStyle = ink + (a === undefined ? 0.62 : a) + ')'; ctx.textAlign = al || 'left'; ctx.fillText(s, x, y); return ctx.measureText(s).width; };
-      if (bo > 0) {                                                                  /* 빔 (사용자 10-26: 프로젝터 그림은 짜침 → 로고 앞 z +10 쯤 한 점에서 빛이 쏘아진다). 그 점은 로고보다 앞이라 커서·시간에 따라 어긋나 보이며(시차) 떠 있는 게 느껴진다 */
-        var A = [OX - 1.5 * U * 1.16 + (live ? -(ptr.x - OX) * 0.07 : Math.sin(t * 0.45) * 1.4 * U), OY - 2 * U * 1.16 + (live ? -(ptr.y - OY) * 0.05 : Math.sin(t * 0.33) * 0.8 * U)];
-        var lerp = function(q, f){ return [A[0] + (q[0] - A[0]) * f, A[1] + (q[1] - A[1]) * f]; };
-        ctx.globalAlpha = mf.k * bo; ctx.strokeStyle = ink + '0.13)'; ctx.beginPath(); BEAM.forEach(function(c){ var q = P(c[0], c[1]); ctx.moveTo(A[0], A[1]); ctx.lineTo(q[0], q[1]); }); ctx.stroke();   /* 빛의 뿔: 한 점에서 로고 윤곽으로 */
-        BEAM.forEach(function(c, j){                                                 /* 빛 펄스가 줄을 타고 날아가 닿으면 작은 고리 */
-          var q = P(c[0], c[1]), pp = (t * 1.3 + j * 0.37) % 1, a0 = lerp(q, pp), a1 = lerp(q, Math.min(1, pp + 0.16));
-          ctx.strokeStyle = ink + (0.6 * Math.sin(Math.PI * pp)) + ')'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(a0[0], a0[1]); ctx.lineTo(a1[0], a1[1]); ctx.stroke();
-          if (pp > 0.84) { var hr = (pp - 0.84) / 0.16; ctx.strokeStyle = ink + (0.5 * (1 - hr)) + ')'; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(q[0], q[1], 2 + hr * 9, 0, 6.2832); ctx.stroke(); }
-        });
-        ctx.lineWidth = 1;
-        if (mf.si === 0) { var ta = (mf.u - 0.12) / 0.5; if (ta > 0 && ta < 1.02) [ETH.l, ETH.r].forEach(function(ls){ var c = ls[ls.length - 1]; for (var e = 0; e < ls.length; e++) if (ls[e][0] >= ta - 0.035) { c = ls[e]; break; } var q = P(c[1], c[2]); ctx.strokeStyle = ink + '0.75)'; ctx.lineWidth = 1.3; ctx.beginPath(); ctx.moveTo(A[0], A[1]); ctx.lineTo(q[0], q[1]); ctx.stroke(); ctx.beginPath(); ctx.arc(q[0], q[1], 0.55 * U, 0, 6.2832); ctx.stroke(); ctx.lineWidth = 1; }); }   /* 매핑: 두 줄기 빛이 윤곽을 그리는 자리를 따라간다 */
-        ctx.fillStyle = ink + '0.85)'; ctx.beginPath(); ctx.arc(A[0], A[1], 2.4, 0, 6.2832); ctx.fill(); ctx.strokeStyle = ink + '0.3)'; ctx.beginPath(); ctx.arc(A[0], A[1], 6 + 2 * Math.sin(t * 4), 0, 6.2832); ctx.stroke();   /* 빛이 나오는 점 */
+      if (mf.si === 0) {                                                             /* 매핑: 네 모서리 정합 표시 + 위에서 아래로 훑는 스캔선 */
+        var ra = sstep(0.05, 0.4, ph) * (1 - sstep(2.6, 3, ph)), bl = 1.4 * U * (0.6 + 0.4 * sstep(0.05, 0.4, ph));
+        ctx.globalAlpha = mf.k * ra; ctx.strokeStyle = ink + '0.75)'; ctx.beginPath();
+        [[-17.4, -17.4, 1, 1], [15.4, -17.4, -1, 1], [-17.4, 17.4, 1, -1], [15.4, 17.4, -1, -1]].forEach(function(c){ var q = P(c[0], c[1]); ctx.moveTo(q[0], q[1] + bl * c[3]); ctx.lineTo(q[0], q[1]); ctx.lineTo(q[0] + bl * c[2], q[1]); });
+        ctx.stroke();
+        if (ph > 0.15 && ph < 1.35) { var ys = -18 + (ph - 0.15) / 1.2 * 36, a0 = P(-17.4, ys), a1 = P(15.4, ys); ctx.strokeStyle = ink + '0.85)'; ctx.beginPath(); ctx.moveTo(a0[0], a0[1]); ctx.lineTo(a1[0], a1[1]); ctx.stroke(); if (!mob) txt('SCAN ' + ('00' + Math.round((ph - 0.15) / 1.2 * 100)).slice(-3), a1[0] + 10, a1[1], 'left', 0.7); }
         ctx.globalAlpha = mf.k;
       }
-      if (mf.si === 0) CAL.forEach(function(c, j){ var a = sstep(0.75 + j * 0.22, 0.95 + j * 0.22, ph) * (1 - sstep(2.7, 3, ph)); if (a <= 0) return; var q = P(c[0], c[1]), r = 0.75 * U; ctx.globalAlpha = mf.k * a; ctx.strokeStyle = ink + '0.9)'; ctx.beginPath(); ctx.moveTo(q[0] - r * 1.6, q[1]); ctx.lineTo(q[0] + r * 1.6, q[1]); ctx.moveTo(q[0], q[1] - r * 1.6); ctx.lineTo(q[0], q[1] + r * 1.6); ctx.rect(q[0] - r * 0.6, q[1] - r * 0.6, r * 1.2, r * 1.2); ctx.stroke(); if (!mob) txt('P' + (j + 1), q[0] + r * 1.2, q[1] - r * 1.2, 'left', 0.8); ctx.globalAlpha = mf.k; });   /* 보정점 */
-      if (mf.si === 2) {                                                             /* 실감 공간: 로고 = 정면 벽, 바닥·천장·옆벽 원근선 + 벽에서 나와 보는 사람 쪽으로 밀려오는 빛 고리 */
-        var rk = sstep(6.5, 7.1, ph) * (1 - sstep(10.1, 10.45, ph)), S1 = mob ? 1.18 : 1.24, bx = OX - U, by0 = OY, hw = 16.6 * U, hh = 17.6 * U, live = performance.now() - ptr.t < 2500;
-        var fx = bx - (live ? (ptr.x - bx) * 0.08 : Math.sin(t * 0.5) * U * 0.8), fy = by0 - (live ? (ptr.y - by0) * 0.06 : 0);   /* 앞쪽 중심: 커서(보는 사람) 반대로 — 원근이 따라 움직인다 */
-        var R = function(s){ var f = (s - 1) / (S1 - 1); return [bx + (fx - bx) * f, by0 + (fy - by0) * f, hw * s, hh * s]; };
-        var B0 = R(1), F0 = R(1 + (S1 - 1) * rk);
-        ctx.strokeStyle = ink + '0.4)'; ctx.beginPath();
-        [[-1, -1], [1, -1], [1, 1], [-1, 1]].forEach(function(c){ ctx.moveTo(B0[0] + c[0] * B0[2], B0[1] + c[1] * B0[3]); ctx.lineTo(F0[0] + c[0] * F0[2], F0[1] + c[1] * F0[3]); });   /* 방 모서리 넷 */
-        ctx.stroke(); ctx.strokeStyle = ink + '0.16)'; ctx.beginPath();
-        for (var fj = 1; fj < 6; fj++) { var fu = -1 + fj / 3; ctx.moveTo(B0[0] + fu * B0[2], B0[1] + B0[3]); ctx.lineTo(F0[0] + fu * F0[2], F0[1] + F0[3]); }   /* 바닥 줄 */
-        ctx.stroke();
-        if (ph > 7.0) for (var rj = 0; rj < 3; rj++) {                                  /* 빛 고리: 벽 가장자리에서 출발해 가까워질수록 빨라지며 옅어진다 */
-          var rp = ((ph - 7.0) / 1.8 + rj / 3) % 1, Rr = R(1 + (S1 - 1) * Math.pow(rp, 1.5));
-          ctx.strokeStyle = ink + (0.6 * (1 - rp) * Math.min(1, rp * 8) * rk) + ')'; ctx.lineWidth = 1 + 1.5 * rp; ctx.strokeRect(Rr[0] - Rr[2], Rr[1] - Rr[3], Rr[2] * 2, Rr[3] * 2);
+      if (mf.pt) {                                                                   /* 실감: 칸에서 떨어진 픽셀이 보는 사람 쪽으로 — 소실점(커서 쪽으로 기움)에서 멀어지며 커지고, 가까워지면 옅어진다 */
+        var live = performance.now() - ptr.t < 2500, vx = OX - 0.5 * U + (live ? (ptr.x - OX) * 0.3 : Math.sin(t * 0.4) * 2 * U), vy = OY + (live ? (ptr.y - OY) * 0.3 : Math.cos(t * 0.3) * 1.5 * U), ie = sstep(6.6, 7.0, ph) * (1 - sstep(9.5, 9.9, ph));
+        for (var k = 0; k < mf.pt.length; k += 2) {
+          var bx = boxes[mf.pt[k]], q = mf.pt[k + 1], ps = 1 / (1 - 0.85 * Math.pow(q, 1.7)), X = vx + (OX + bx.gx * U - vx) * ps, Y = vy + (OY + bx.gy * U - vy) * ps, sz = U * 0.96 * ps, al = ie * Math.min(1, q * 12) * (1 - sstep(0.62, 1, q)) * 0.9;
+          if (al < 0.01) continue; ctx.fillStyle = 'rgba(160,160,160,' + al + ')'; ctx.fillRect(X - sz / 2, Y - sz / 2, sz, sz);
         }
-        ctx.lineWidth = 1;
       }
-      var TB = en ? ['01 MAPPING', '02 PROJECTION', '03 IMMERSIVE ROOM'] : ['01 매핑', '02 프로젝션', '03 실감 공간'], tp = P(-16.5, 19.6), tx3 = tp[0];   /* 단계 탭 (바닥선 위에서도 읽히게 바탕색 띠) */
+      var TB = en ? ['01 MAPPING', '02 PROJECTION', '03 IMMERSIVE'] : ['01 매핑', '02 프로젝션', '03 실감'], tp = P(-16.5, 19.6), tx3 = tp[0];   /* 단계 탭 */
       if (mob) { var mp = P(15.4, -16.2); txt(TB[mf.si], mp[0], mp[1], 'right', 0.92); ctx.fillStyle = ink + '0.8)'; var mw = ctx.measureText(TB[mf.si]).width; ctx.fillRect(mp[0] - mw, mp[1] + 7, mw * Math.min(1, mf.u), 1); ctx.restore(); return; }   /* 폰: 아래는 설명 글과 겹친다 → 로고 오른쪽 위 빈 모서리에 지금 단계만 */
-      ctx.fillStyle = '#f6f6f4'; ctx.fillRect(tp[0] - 6, tp[1] - 9, TB.reduce(function(a, x){ return a + ctx.measureText(x).width; }, 0) + 48, 22);
-      for (var tj = 0; tj < 3; tj++) { var o1 = tj === mf.si, w3 = txt(TB[tj], tx3, tp[1], 'left', o1 ? 0.92 : 0.32); if (o1) { ctx.fillStyle = ink + '0.8)'; ctx.fillRect(tx3, tp[1] + 8, w3 * Math.min(1, mf.u), 1); } tx3 += w3 + (mob ? 10 : 18); }
+      for (var tj = 0; tj < 3; tj++) { var o1 = tj === mf.si, w3 = txt(TB[tj], tx3, tp[1], 'left', o1 ? 0.92 : 0.32); if (o1) { ctx.fillStyle = ink + '0.8)'; ctx.fillRect(tx3, tp[1] + 8, w3 * Math.min(1, mf.u), 1); } tx3 += w3 + 18; }
       ctx.restore();
     }
     function hudProj(x, y, z){ var h = HP, px = x * h.S, py = y * h.S, pz = z * h.S, cx0 = px * h.cy + pz * h.sy, cz0 = -px * h.sy + pz * h.cy, cy0 = py * h.cp - cz0 * h.sp, sc = h.F / (py * h.sp + cz0 * h.cp + h.D); return [h.OX + cx0 * sc, h.OY + cy0 * sc]; }   /* 로고 좌표 → 화면 (코드 조각 투영과 같은 식) */
     window.addEventListener('pointermove', function(e){ ptr.x = e.clientX; ptr.y = e.clientY; ptr.t = performance.now(); }, { passive: true });
     window.addEventListener('pointerdown', function(e){ ptr.x = e.clientX; ptr.y = e.clientY; ptr.t = performance.now(); taps.push({ x: e.clientX, y: e.clientY, t: sceneT }); if (taps.length > 4) taps.shift(); }, { passive: true });
     function hs(x){ x = Math.sin(x * 12.9898) * 43758.5453; return x - Math.floor(x); }
-    var BAY = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5].map(function(v){ return (v + 0.5) / 16; }), MDK = -0.9, MLT = 1.45, mfX = -1e9;   /* 4×4 디더 문턱 · ① 어둠/흰빛 밝기 (로고색 #A0A0A0 × (1+값)) */
+    var BAY = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5].map(function(v){ return (v + 0.5) / 16; }), MDK = -0.9, MLT = 1.45, mfX = -1e9, EM = new Float32Array(N);   /* 4×4 디더 문턱 · ① 어둠/흰빛 밝기 (로고색 #A0A0A0 × (1+값)) */
     function sstep(a, b, x){ x = Math.max(0, Math.min(1, (x - a) / (b - a))); return x * x * (3 - 2 * x); }
     function renderSC(t, yaw, pitch, F, D, S, OX, OY, pal){
       var hasFlow = g.flow > 0.01, nFr = 0, lv = g.live * (introDone ? Math.min(1, (t - introAt) / 1.5) : 0);
       var s1 = active === 1 && introDone ? c1step : 0, s2 = active === 2 && introDone ? c2step : -1;   /* 01·02 단계별 연출 */
       var U = S * F / D, pOn = performance.now() - ptr.t < 2500, mf = null, tau = (t % 3.2) / 3.2;
-      /* 01 ① 미디어아트·실감미디어 (사용자 10-26: 무슨 뜻인지 모르겠다 → 장면이 곧 설명이 되게). 로고 앞(z +10) 한 점에서 빔이 로고(벽)로 쏘아진다, 10.5초:
-         ① 매핑 — 어두운 벽에서 윤곽을 따고 보정점을 찍는다 → ② 프로젝션 — 그 모양 안에 영상이 흐른다 → ③ 실감 공간 — 빔이 꺼지고 로고를 정면 벽으로 하는 방이 그려진다.
-         로고 가운데서 가장자리로 빛이 번져 나가 방을 따라 보는 사람 쪽으로 밀려온다 (화면 밖으로 나와 나를 둘러싸는 미디어). 커서를 움직이면 방의 원근이 따라 움직인다 (사람 그림은 사용자 10-26: 짜침 → 뺌).
-         빛은 칸 단위로 딱 떨어지게(4×4 디더), 노랑 없이 흑백 (사용자 10-12). 커서는 관객이 비추는 빛, 누르면 빛 고리 */
+      /* 01 ① 미디어아트·실감미디어, 10초 (사용자 10-26: 선 긋는 모션·사물 그림은 짜침 → 픽셀 자체가 움직인다):
+         ① 매핑 — 로고가 점(포인트 클라우드)으로 흩어져 있고 스캔선이 훑은 뒤 가장자리부터 안쪽으로 점이 칸으로 차오른다 →
+         ② 프로젝션 — 칸 크기가 물결치는 하프톤 · 대각선으로 칸이 뒤집히며 밝아짐 · 줄이 어긋나는 글리치 →
+         ③ 실감 — 로고 픽셀이 벽에서 떨어져 원근을 따라 커지며 보는 사람 쪽으로 쏟아져 나온다 (커서 쪽으로 흐름이 기운다). 끝엔 다시 점으로.
+         커서 둘레는 칸이 작아지는 렌즈, 누르면 작아지는 고리. 흑백만 (사용자 10-12) */
       if (s1 === 1 && !reduce) {
-        var mt = t - mfT0, mph = mt % 10.5, msi = mph < 3 ? 0 : mph < 6.5 ? 1 : 2, mu = msi === 0 ? mph / 3 : msi === 1 ? (mph - 3) / 3.5 : (mph - 6.5) / 4;
-        mf = { si: msi, ph: mph, u: mu, k: sstep(0, 0.7, mt), ux: (ptr.x - OX) / U, uy: (ptr.y - OY) / U };
+        var mt = t - mfT0, mph = mt % 10, msi = mph < 3 ? 0 : mph < 6.6 ? 1 : 2;
+        mf = { si: msi, ph: mph, u: msi === 0 ? mph / 3 : msi === 1 ? (mph - 3) / 3.6 : (mph - 6.6) / 3.4, k: sstep(0, 0.7, mt), ux: (ptr.x - OX) / U, uy: (ptr.y - OY) / U, pt: null };
+        if (msi === 2) {                                                             /* 쏟아지는 픽셀 140개: 1.5초마다 다른 칸에서 출발 (상태 없이 시각으로 계산) — 막 떠난 칸은 비었다가 다시 찬다 */
+          mf.pt = []; EM.fill(0);
+          for (var pj = 0; pj < 140; pj++) { var tt0 = mph - 6.6 - hs(pj * 1.913) * 1.5; if (tt0 < 0 || mph > 9.3 + (tt0 % 1.5)) continue; var cyc = Math.floor(tt0 / 1.5), pq = (tt0 - cyc * 1.5) / 1.5, ci = Math.floor(hs(pj * 7.31 + cyc * 3.17) * N); mf.pt.push(ci, pq); if (pq < 0.35) EM[ci] = Math.max(EM[ci], 1 - pq / 0.35); }
+        }
       }
       var mfo = !mf && active === 1 && !reduce ? 1 - (t - mfX) / 0.5 : 0;               /* ① 을 떠나면 0.5초 동안 디더로 다시 회색 */
       var c2k = s2 >= 0 && !reduce ? sstep(0, 1, (t - c2T0 - 0.25) / 0.7) : 0, ct = t - c2T0;   /* 02 연출은 단계에 들어와 로고가 자리 잡은 뒤 서서히 */
-      if (s2 === 0) {                                                                  /* 기획·연출 13.2초 (사용자 10-26: 기획서를 쓰고 디렉팅하는 게 주가 되게): 기획서 작성(0–5.8) → 큐시트 연출(6–12.8) — 큐마다 STANDBY 0.45초 뒤 GO, 로고(무대)에서 그 큐가 실행된다 */
-        var sp0 = ct % 13.2, QS = [6.0, 7.5, 9.0, 10.5, 12.8]; shw.ph = sp0; shw.q = -1; shw.qa = -1; shw.qd = 1; shw.bump = 0;
-        for (var qi = 0; qi < 4; qi++) if (sp0 >= QS[qi] && sp0 < QS[qi + 1]) { shw.q = qi; shw.qa = sp0 - QS[qi] - 0.45; shw.qd = QS[qi + 1] - QS[qi] - 0.45; }
-        var qa0 = shw.q === 3 ? shw.qa : -1; shw.fx = -22 + (qa0 - 1.3) / 0.45 * 44; shw.bump = qa0 > 0 ? Math.exp(-Math.pow((qa0 - 1.45) / 0.12, 2)) : 0;
-        for (var sl = 0; sl < 4; sl++) shw.sep[sl] = qa0 > 0 ? sstep(0.1 + sl * 0.08, 0.6 + sl * 0.08, qa0) * (1 - sstep(1.05 + (3 - sl) * 0.05, 1.4 + (3 - sl) * 0.05, qa0)) * c2k : 0;   /* Q4 피날레: 네 겹으로 펼쳤다 합친다 */
+      if (s2 === 0) {                                                                  /* 기획·연출 12.5초 (사용자 10-26: 글 대신 움직임으로 납득되게): 로고 픽셀이 날아가 전시장 평면도가 되고(기획) → 벽·설치물이 솟고(공간 구성) → 타임라인 큐마다 구역이 차례로 켜지고(연출) → 다시 로고로 */
+        var sp0 = ct % 12.5; shw.ph = sp0; shw.k = sp0 < 4.2 ? 0 : sp0 < 5.4 ? 1 : 2; shw.q = sp0 >= 5.6 && sp0 < 9.6 ? Math.floor(sp0 - 5.6) : -1; shw.qa = shw.q >= 0 ? sp0 - 5.6 - shw.q : -1;
+        shw.bu = sstep(4.2, 5.2, sp0) * (1 - sstep(9.6, 10.4, sp0)); shw.fx = -20 + (sp0 - 11.05) / 0.5 * 40;
       }
       if (s2 === 3) { var BT = 60 / 124; av.bi = Math.floor(ct / BT); av.ph = (ct - av.bi * BT) / BT; av.pump = Math.exp(-av.ph * 5) * (av.bi % 4 === 0 ? 1 : 0.35); }   /* 124 BPM: 박마다 충격파, 네 박마다 크게 */
       if (s2 === 1) { cg.ph = ct % 9; cg.k = cg.ph < 3 ? 0 : cg.ph < 6 ? 1 : 2; }   /* CG: 모델링 3초 → 애니메이션 3초 → 렌더 3초 */
@@ -767,33 +753,42 @@
         CFX[i * 4] = 0; CFX[i * 4 + 1] = 0; CFX[i * 4 + 2] = bob + lvz; CFX[i * 4 + 3] = boost[i] * g.flow;
         CM[i * 2] = b.m; CM[i * 2 + 1] = 0;
         var gl = 0, tn = 0, d, r, q;
-        if (mf) {                                                                        /* 01 ①: Lt 0 = 꺼짐(어둠) … 1 = 흰 빛 */
-          var gx = b.gx, gy = b.gy, by = BAY[(b.r & 3) * 4 + (b.c & 3)], u = mf.u, Lt = 0;
-          if (mf.si === 0) {                                                             /* 매핑: 두 빛이 꼭대기에서 양쪽으로 윤곽을 따고 → 가장자리부터 안쪽으로 차며 투사 준비 */
-            var th = Math.abs(Math.atan2(gx, -gy)) / Math.PI, a = (u - 0.12) / 0.5;
-            if (b.edge && th < a) Lt = th > a - 0.07 ? 1 : 0.55;
-            if (!b.edge && (u - 0.68) / 0.25 - (b.dep - 2) * 0.16 > by) Lt = 0.45;
-          } else if (mf.si === 1) {                                                      /* 프로젝션: 그 모양 안에서만 영상 — 가로 빛띠가 흐르다가 사선 무늬가 돈다 */
-            if (u < 0.45) { var fb = (gy + 18 - u / 0.45 * 52) / 13, fq = fb - Math.floor(fb); Lt = fq > 0.86 ? 1 : fq > 0.55 && (fq - 0.55) / 0.31 > by ? 0.66 : 0.3; }
-            else { var an = 0.75 + u * 1.7, ph = (gx * Math.cos(an) + gy * Math.sin(an)) / 5 - t * 0.8, fr = ph - Math.floor(ph); Lt = Math.max(0, Math.min(1, (0.25 - Math.abs(fr - 0.5)) * 5 + 0.5)) > by ? 0.88 : 0.3; }
-          } else {                                                                       /* 실감 공간: 벽(로고)은 회색으로 켜지고, 가운데(깊은 칸)에서 가장자리로 물결이 0.6초마다 번져 나가 방의 고리로 이어진다 */
-            Lt = 0.45;                                                                   /* 흰 종이 위에서 흰 빛은 안 보인다 — 바탕은 회색, 번지는 빛만 희게 */
-            var wv = (mf.ph - 6.5) / 0.6, wf = wv - Math.floor(wv); if (mf.ph > 7.0 && Math.abs(b.dep - (7 - 6.4 * wf)) < 0.6) Lt = 0.06;   /* 물결은 방의 고리선처럼 진하게 (흰 물결은 가장자리에서 종이에 묻혔다) */
-            if (mf.ph > 10.2 && (mf.ph - 10.2) / 0.3 > by) Lt = 0;                    /* 끝: 다시 어둠 → 매핑부터 */
+        if (mf) {                                                                        /* 01 ①: Lt 밝기(0 어둠 … 1 흰빛) · sh 작아짐(0 꽉 찬 칸 … 1 사라짐) · dx 가로 어긋남 */
+          var gx = b.gx, gy = b.gy, by = BAY[(b.r & 3) * 4 + (b.c & 3)], ph = mf.ph, Lt = 0, sh = 0, dx = 0;
+          if (mf.si === 0) {                                                             /* 매핑: 점 → 스캔선이 지나간 점은 회색 → 가장자리부터 칸으로 (윤곽 회색 · 안은 어두운 스크린) */
+            var ys = -18 + (ph - 0.15) / 1.2 * 36, gr = sstep(0, 1, (ph - 1.5 - (b.dep - 1) * 0.12) / 0.3);
+            sh = 0.78 * (1 - gr); Lt = gy < ys ? 0.45 : 0;
+            if (Math.abs(gy - ys) < 0.8) { sh = 0.3; Lt = 0.45; }
+            if (gr > 0.5) Lt = b.edge ? 0.55 : 0;
+          } else if (mf.si === 1) {
+            if (ph < 4.9) { var hb = sstep(3.0, 3.4, ph), sxp = 8 * Math.sin(ph * 0.9), syp = 6 * Math.cos(ph * 0.7), rr = Math.sqrt((gx - sxp) * (gx - sxp) + (gy - syp) * (gy - syp)); sh = hb * 0.85 * (0.5 - 0.5 * Math.cos(rr * 0.9 - ph * 7)); Lt = b.edge ? 0.55 * (1 - hb) : 0; }   /* 하프톤 물결: 움직이는 한 점에서 칸 크기가 출렁인다 */
+            else if (ph < 6.0) { var kf = Math.max(0, Math.min(1, (-20 + (ph - 4.9) * 40 - (gx + gy) / 2) / 3)); sh = Math.sin(Math.PI * kf) * 0.95; Lt = kf > 0.5 ? 0.45 : 0; }   /* 대각선으로 칸이 뒤집히며(작아졌다 커짐) 밝은 면이 나온다 */
+            else { Lt = 0.45; var rh = hs(b.r * 3.1 + Math.floor(ph * 14)); dx = sstep(6.0, 6.08, ph) * (1 - sstep(6.45, 6.6, ph)) * (rh > 0.6 ? (rh - 0.6) * 15 * ((b.r & 1) ? 1 : -1) : 0); }   /* 글리치: 줄이 칸 단위로 어긋났다 제자리 */
+          } else {                                                                       /* 실감: 벽은 회색으로 켜져 있고, 픽셀이 떠난 칸은 잠깐 비고, 가운데서 어두운 고리가 번져 나간다 → 끝엔 다시 점으로 */
+            Lt = 0.45; sh = EM[i];
+            var lp = ph - 6.6, rw = Math.sqrt(gx * gx + gy * gy) - (lp % 0.8) * 30; if (lp > 0.4 && ph < 9.4 && Math.abs(rw) < 1) Lt = 0.15;
+            if (ph > 9.6) { sh = 0.78 * sstep(9.6, 10, ph); Lt = 0.45 * (1 - sstep(9.6, 9.9, ph)); }
           }
-          if (pOn) { d = (gx - mf.ux) * (gx - mf.ux) + (gy - mf.uy) * (gy - mf.uy); if (1.25 * Math.exp(-d / 12) > by) Lt = Math.max(Lt, 0.95); }   /* 관객이 비추는 빛 (가장자리도 디더) */
-          for (var ti = 0; ti < taps.length; ti++) { var ta = t - taps[ti].t; if (ta < 0 || ta > 1.3) continue; var tx2 = gx - (taps[ti].x - OX) / U, ty2 = gy - (taps[ti].y - OY) / U; if (Math.abs(Math.sqrt(tx2 * tx2 + ty2 * ty2) - ta * 18) < 0.75) Lt = 1; }
+          if (pOn) { d = (gx - mf.ux) * (gx - mf.ux) + (gy - mf.uy) * (gy - mf.uy); sh = Math.max(sh, 0.72 * Math.exp(-d / 10)); }   /* 커서 둘레: 칸이 작아지는 렌즈 */
+          for (var ti = 0; ti < taps.length; ti++) { var ta = t - taps[ti].t; if (ta < 0 || ta > 1.3) continue; var tx2 = gx - (taps[ti].x - OX) / U, ty2 = gy - (taps[ti].y - OY) / U; if (Math.abs(Math.sqrt(tx2 * tx2 + ty2 * ty2) - ta * 18) < 1) sh = Math.max(sh, 0.8 * (1 - ta / 1.3)); }
           tn = mf.k > by ? (Lt > 0 ? MDK + (MLT - MDK) * Lt : MDK) : 0;                  /* 들어올 땐 회색에서 디더로 꺼진다 */
-          CFX[i * 4 + 3] = 0; CM[i * 2 + 1] = tn;
+          CFX[i * 4] = dx; CFX[i * 4 + 3] = 0; CM[i * 2] = Math.max(CM[i * 2], sh * mf.k); CM[i * 2 + 1] = tn;
         } else if (mfo > 0) {
           CM[i * 2 + 1] = mfo > BAY[(b.r & 3) * 4 + (b.c & 3)] ? MDK : 0;
-        } else if (s2 === 0 && c2k > 0) {                                               /* 기획·연출: 기획서 쓰는 동안 로고(무대)는 그대로, 큐가 GO 되면 그 큐가 실행된다 */
-          var q = shw.q, qa = shw.qa, gx0 = b.gx, gy0 = b.gy, env = qa > 0 ? sstep(0, 0.18, qa) * (1 - sstep(shw.qd - 0.2, shw.qd, qa)) : 0;
-          tn = 0;
-          if (q === 0) { var psx = 13 * Math.sin(qa * 2.4 - 1.2), psy = -3 + 7 * Math.sin(qa * 3.3); tn = env * (-0.42 + 1.1 * Math.exp(-((gx0 - psx) * (gx0 - psx) + (gy0 - psy) * (gy0 - psy)) / 22)); }   /* Q1 조명: 어두운 무대를 핀 조명이 훑는다 */
-          else if (q === 1) tn = env * (Math.sin(gx0 * 0.75 - gy0 * 0.45 - qa * 8) > 0.2 ? 0.45 : -0.18);                                   /* Q2 영상: 무대 위로 영상이 흐른다 */
-          else if (q === 2) { var rq = Math.sqrt(gx0 * gx0 + gy0 * gy0) - (qa % 0.5) * 30, wq = Math.exp(-rq * rq / 3) * env; CFX[i * 4 + 2] = -1.8 * wq * c2k; tn = 0.35 * wq; }   /* Q3 사운드: 박마다 소리 물결이 튀어나온다 */
-          else if (q === 3) { var ly = b.ly, se = shw.sep[ly]; CFX[i * 4] = -ly * 1.1 * se; CFX[i * 4 + 2] = -4.2 * ly * se - 0.7 * shw.bump * c2k; tn = [-0.22, -0.06, 0.06, 0.16][ly] * se + (qa > 1.25 && qa < 1.8 ? 0.9 * Math.exp(-Math.pow(gx0 - shw.fx, 2) / 3) : 0); }   /* Q4 피날레 */
+        } else if (s2 === 0 && c2k > 0) {                                               /* 기획·연출: 칸마다 평면도 자리(b.pl) — 벽·칸막이·설치물 A(조명)·B(영상)·C(사운드)·바닥 점 */
+          var pl = b.pl, sp = shw.ph, st0 = hs(i * 0.61) * 0.3, mo = sstep(0.1 + st0, 1.0 + st0, sp) * (1 - sstep(9.6 + st0, 10.7 + st0, sp)), mo2 = mo * mo * (3 - 2 * mo), kd = pl.k;
+          var HZ = [-2.2, -1.8, -3.6, -2.6, -3.0, 0][kd], z0 = HZ * shw.bu, q = shw.q, qa = shw.qa;
+          CFX[i * 4] = (pl.x - b.gx) * mo2 * c2k; CFX[i * 4 + 1] = (pl.y - b.gy) * mo2 * c2k; CFX[i * 4 + 2] = z0 * c2k;
+          if (kd === 5) CM[i * 2] = Math.max(CM[i * 2], 0.8 * mo2 * c2k);                 /* 바닥 점: 작게 = 도면의 격자 */
+          tn = [-0.4, -0.3, 0.05, 0.05, 0.05, -0.15][kd] * mo;
+          if (q >= 0 && qa >= 0) {                                                       /* 큐: Q1 A 조명 · Q2 B 영상 · Q3 C 사운드 · Q4 전체 */
+            var qe = sstep(0, 0.12, qa) * (1 - sstep(0.85, 1, qa)), zx = [-10.5, 0, 10][Math.min(q, 2)], zy = [-4.5, -8.5, 6][Math.min(q, 2)], dq = Math.sqrt((pl.x - zx) * (pl.x - zx) + (pl.y - zy) * (pl.y - zy));
+            if (q === 0) { if (kd === 2) tn = 0.75 * qe * (0.8 + 0.2 * Math.sin(t * 30)); else if (kd === 5 && pl.x < -5) tn += qe * 0.7 * Math.exp(-dq * dq / 18); }
+            else if (q === 1) { if (kd === 3) tn = qe * (Math.sin(pl.x * 1.3 - t * 12) > 0 ? 0.7 : -0.35); else if (kd === 5 && pl.x > -5 && pl.x < 5) tn += qe * 0.45 * (hs(i + Math.floor(t * 16)) - 0.3); }
+            else if (q === 2) { if (kd === 4) { CFX[i * 4 + 2] -= qe * 1.2 * Math.max(0, Math.sin(t * 22)) * c2k; tn = 0.4 * qe; } else if (kd === 5 && pl.x > 5) { var rq = Math.min(Math.sqrt((pl.x - 7.5) * (pl.x - 7.5) + (pl.y - 6) * (pl.y - 6)), Math.sqrt((pl.x - 12.5) * (pl.x - 12.5) + (pl.y - 6) * (pl.y - 6))) - (qa % 0.35) * 28; tn += qe * 0.8 * Math.exp(-rq * rq / 1.5); } }
+            else { var fq = -18 + qa * 40; tn += qe * 0.85 * Math.exp(-Math.pow(pl.x - fq, 2) / 4); if (kd >= 2 && kd <= 4) tn = Math.max(tn, 0.5 * qe); }
+          }
+          if (sp > 11 && sp < 11.7) tn += 0.85 * Math.exp(-Math.pow(b.gx - shw.fx, 2) / 3);   /* 다시 로고: 빛이 한 번 휩쓸고 지나간다 */
           CM[i * 2 + 1] = tn * c2k;
         } else if (s2 === 1 && c2k > 0) {                                               /* CG: 모델링(아래부터 쌓기) → 애니메이션(줄 미끄러짐·열 튀어나옴) → 렌더(버킷이 칸씩 완성) */
           var ph1 = cg.ph, hsi = hs(i * 1.37), sh1 = 0;
@@ -880,44 +875,31 @@
       ctx.save(); ctx.globalAlpha = k; ctx.lineWidth = 1; ctx.strokeStyle = 'rgba(' + ink + ',0.5)'; ctx.font = '500 ' + (mob ? 9 : 10.5) + 'px "Geist Mono", ui-monospace, Menlo, monospace'; lastFont = null; ctx.textBaseline = 'middle';
       var txt = function(s, x, y, al, a){ ctx.fillStyle = 'rgba(' + ink + ',' + (a === undefined ? 0.62 : a) + ')'; ctx.textAlign = al || 'left'; ctx.fillText(s, x, y); return ctx.measureText(s).width; };
       [[X0, Y0, 1, 1], [X1, Y0, -1, 1], [X0, Y1, 1, -1], [X1, Y1, -1, -1]].forEach(function(c){ ctx.beginPath(); ctx.moveTo(c[0], c[1] + B * c[3]); ctx.lineTo(c[0], c[1]); ctx.lineTo(c[0] + B * c[2], c[1]); ctx.stroke(); });
-      if (s2 === 0) {                                                                  /* 기획·연출: 기획서 카드(타이핑 → 승인 도장) → 큐시트 카드(STANDBY → GO) · 기획 땐 공간 치수선 */
-        var en = document.documentElement.lang === 'en', sp = shw.ph, plan = sp < 5.8, W0 = X1 - X0, KO = '"Pretendard", "Noto Sans KR", sans-serif', MONO = '"Geist Mono", "Pretendard", ui-monospace, monospace';
-        var TB0 = en ? ['01 PROPOSAL', '02 CUE SHEET'] : ['01 기획서', '02 큐시트 \u00B7 연출'], tx0 = X0 + ins;
-        for (var j = 0; j < 2; j++) { var o0 = (j === 0) === plan, w0 = txt(TB0[j], tx0, TY, 'left', o0 ? 0.92 : 0.32); if (o0) { ctx.fillStyle = 'rgba(' + ink + ',0.8)'; ctx.fillRect(tx0, TY + 8, w0 * Math.min(1, plan ? sp / 5.8 : (sp - 5.8) / 7.2), 1); } tx0 += w0 + 16; }
+      if (s2 === 0) {                                                                  /* 기획·연출: 단계 탭 · 동선(행진하는 점선) · 구역 이름 · 큐 타임라인 */
+        var en = document.documentElement.lang === 'en', sp = shw.ph, plk = sstep(1.2, 1.6, sp) * (1 - sstep(9.5, 9.9, sp)), BZ = shw.bu;
+        var TB0 = en ? ['01 PLAN', '02 BUILD', '03 DIRECT'] : ['01 기획', '02 공간 구성', '03 연출'], tx0 = X0 + ins, kk = sp < 11 ? shw.k : 2;
+        for (var j = 0; j < 3; j++) { var o0 = j === kk, w0 = txt(TB0[j], tx0, TY, 'left', o0 ? 0.92 : 0.32); if (o0) { ctx.fillStyle = 'rgba(' + ink + ',0.8)'; ctx.fillRect(tx0, TY + 8, w0 * Math.min(1, kk === 0 ? sp / 4.2 : kk === 1 ? (sp - 4.2) / 1.2 : (sp - 5.4) / 4.2), 1); } tx0 += w0 + (mob ? 10 : 16); }
         if (!mob) txt(tc, X1 - ins, TY, 'right');
-        var dk = mob ? 0 : sstep(1.9, 2.4, sp) * (1 - sstep(5.3, 5.7, sp));                     /* 공간 치수선: 무대(로고)의 가로 12 m · 세로 8 m */
-        if (dk > 0) { ctx.globalAlpha = k * dk; ctx.strokeStyle = 'rgba(' + ink + ',0.55)'; var d0 = hudProj(-17, -17.75, 0), d1 = hudProj(15, -17.75, 0), e0 = hudProj(16.6, -17, 0), e1 = hudProj(16.6, 17, 0); ctx.beginPath(); ctx.moveTo(d0[0], d0[1]); ctx.lineTo(d1[0], d1[1]); ctx.moveTo(d0[0], d0[1] - 4); ctx.lineTo(d0[0], d0[1] + 4); ctx.moveTo(d1[0], d1[1] - 4); ctx.lineTo(d1[0], d1[1] + 4); ctx.moveTo(e0[0], e0[1]); ctx.lineTo(e1[0], e1[1]); ctx.moveTo(e0[0] - 4, e0[1]); ctx.lineTo(e0[0] + 4, e0[1]); ctx.moveTo(e1[0] - 4, e1[1]); ctx.lineTo(e1[0] + 4, e1[1]); ctx.stroke(); var dl = txt('12 m', (d0[0] + d1[0]) / 2, (d0[1] + d1[1]) / 2, 'center', 0); ctx.fillStyle = '#f6f6f4'; ctx.fillRect((d0[0] + d1[0]) / 2 - dl / 2 - 4, (d0[1] + d1[1]) / 2 - 7, dl + 8, 14); txt('12 m', (d0[0] + d1[0]) / 2, (d0[1] + d1[1]) / 2, 'center', 0.85); var el = txt('8 m', (e0[0] + e1[0]) / 2, (e0[1] + e1[1]) / 2, 'center', 0); ctx.fillStyle = '#f6f6f4'; ctx.fillRect((e0[0] + e1[0]) / 2 - el / 2 - 4, (e0[1] + e1[1]) / 2 - 7, el + 8, 14); txt('8 m', (e0[0] + e1[0]) / 2, (e0[1] + e1[1]) / 2, 'center', 0.85); ctx.globalAlpha = k; }
-        var fs = mob ? 10 : 12.5, rh = mob ? 17 : 23, pad = mob ? 10 : 16, cw = mob ? W0 - 2 * ins : Math.min(340, W0 * 0.64), cx = X0 + ins, lw0 = mob ? 40 : 54;
-        var card = function(a, rows, head, ttl, draw){                                 /* 종이 카드: 흰 바탕 · 머리줄 · 제목 · 줄들 (아래 상태줄 바로 위) */
-          var ch = pad * 2 + 18 + (ttl ? rh + 6 : 0) + rows * rh, cy = BY - 16 - ch + (1 - a) * 14;
-          ctx.save(); ctx.globalAlpha = k * a; ctx.shadowColor = 'rgba(0,0,0,0.10)'; ctx.shadowBlur = 22; ctx.shadowOffsetY = 6; ctx.fillStyle = '#ffffff'; ctx.fillRect(cx, cy, cw, ch); ctx.restore();
-          ctx.save(); ctx.globalAlpha = k * a; ctx.strokeStyle = 'rgba(' + ink + ',0.14)'; ctx.strokeRect(cx + 0.5, cy + 0.5, cw - 1, ch - 1);
-          ctx.font = '500 ' + (mob ? 9 : 10.5) + 'px ' + MONO; txt(head[0], cx + pad, cy + pad + 6, 'left', 0.55); txt(head[1], cx + cw - pad, cy + pad + 6, 'right', 0.4);
-          ctx.fillStyle = 'rgba(' + ink + ',0.12)'; ctx.fillRect(cx + pad, cy + pad + 16, cw - pad * 2, 1);
-          draw(cy + pad + 18 + (ttl ? 4 : 0)); ctx.restore(); ctx.font = '500 ' + (mob ? 9 : 10.5) + 'px ' + MONO;
-        };
-        var typ = function(s, t0, cps){ var n = Math.max(0, Math.min(s.length, Math.floor((sp - t0) * cps))); return [s.slice(0, n), n > 0 && n < s.length]; };
-        var a1 = sstep(0, 0.35, sp) * (1 - sstep(5.3, 5.7, sp)), a2 = sstep(5.75, 6.05, sp) * (1 - sstep(12.8, 13.15, sp)), caret = Math.floor(t * 2.5) % 2 === 0;
-        if (a1 > 0) card(a1, 4, en ? ['PROPOSAL', 'DOC-02 \u00B7 v1.2'] : ['기획서 \u00B7 PROPOSAL', 'DOC-02 \u00B7 v1.2'], true, function(y){
-          var T = typ(en ? '"Forest of Light" immersive show' : '〈빛의 숲〉 몰입형 미디어 전시', 0.45, 24);
-          ctx.font = '600 ' + (fs + 2) + 'px ' + KO; var tw = txt(T[0], cx + pad, y + rh / 2, 'left', 0.92); if (T[1] && caret) { ctx.fillStyle = 'rgba(' + ink + ',0.9)'; ctx.fillRect(cx + pad + tw + 2, y + rh / 2 - fs * 0.6, 1.5, fs * 1.2); }
-          var RW = en ? [['SPACE', '12 \u00D7 8 m black box'], ['AUDIENCE', '30 per show \u00B7 15 min'], ['MEDIA', '4 projectors \u00B7 8ch \u00B7 12 lights'], ['FLOW', 'Entry \u2192 Immersion \u2192 Finale']] : [['공간', '12 \u00D7 8 m 블랙박스'], ['관객', '회차당 30명 \u00B7 15분'], ['매체', '프로젝터 4 \u00B7 사운드 8ch \u00B7 조명 12'], ['구성', '입장 \u2192 몰입 \u2192 피날레']];
-          RW.forEach(function(r, ri){ var yy = y + rh + 6 + ri * rh + rh / 2, t0 = 1.3 + ri * 0.82; if (sp < t0 - 0.15) return; ctx.font = '500 ' + (mob ? 9 : 10.5) + 'px ' + MONO; txt(r[0], cx + pad, yy, 'left', 0.5); var V = typ(r[1], t0, 30); ctx.font = '400 ' + fs + 'px ' + KO; var vw = txt(V[0], cx + pad + lw0, yy, 'left', 0.85); if (V[1] && caret) { ctx.fillStyle = 'rgba(' + ink + ',0.9)'; ctx.fillRect(cx + pad + lw0 + vw + 2, yy - fs * 0.6, 1.5, fs * 1.2); } });
-          var sa = sstep(4.6, 4.75, sp); if (sa > 0) { ctx.save(); ctx.globalAlpha *= sa; ctx.translate(cx + cw - pad - (mob ? 30 : 42), y + rh * 0.9); ctx.rotate(-0.18); ctx.scale(1 + (1 - sa) * 0.6, 1 + (1 - sa) * 0.6); ctx.strokeStyle = acc; ctx.lineWidth = 1.5; var sw0 = mob ? 50 : 66, sh0 = mob ? 20 : 26; ctx.strokeRect(-sw0 / 2, -sh0 / 2, sw0, sh0); ctx.font = '700 ' + (mob ? 10 : 12) + 'px ' + KO; ctx.fillStyle = acc; ctx.textAlign = 'center'; ctx.fillText(en ? 'APPROVED' : '승인', 0, 1); ctx.restore(); }   /* 승인 도장 → 연출로 */
-        });
-        if (a2 > 0) card(a2, 4, en ? ['CUE SHEET', 'SHOW 01'] : ['큐시트 \u00B7 CUE SHEET', 'SHOW 01'], false, function(y){
-          var CQ = en ? [['00:05', 'LIGHT', 'pin spot in'], ['00:20', 'VIDEO', 'main loop'], ['00:45', 'SOUND', '8ch wave'], ['01:30', 'ALL', 'finale']] : [['00:05', '조명', '핀 조명 IN'], ['00:20', '영상', '메인 영상 재생'], ['00:45', '사운드', '8ch 웨이브'], ['01:30', '전체', '피날레']];
-          CQ.forEach(function(r, ri){
-            var yy = y + ri * rh + rh / 2, cur = ri === shw.q, done = shw.q > ri || sp >= 12.8, go = cur && shw.qa >= 0;
-            if (cur) { ctx.fillStyle = go ? 'rgba(150,166,0,0.14)' : 'rgba(' + ink + ',0.06)'; ctx.fillRect(cx + 4, yy - rh / 2 + 1, cw - 8, rh - 2); }
-            var al = cur ? 0.95 : done ? 0.35 : 0.6; ctx.font = '500 ' + (mob ? 9 : 10.5) + 'px ' + MONO; txt((cur ? '\u25B6 ' : done ? '\u2713 ' : '  ') + 'Q' + (ri + 1), cx + pad - (mob ? 4 : 6), yy, 'left', al); if (!mob) txt(r[0], cx + pad + 42, yy, 'left', al * 0.8);
-            ctx.font = (cur ? '600 ' : '400 ') + fs + 'px ' + KO; var x2 = cx + pad + (mob ? 34 : 92), w2 = txt(r[1], x2, yy, 'left', al); txt(r[2], x2 + w2 + 8, yy, 'left', al * 0.8);
-            if (cur) { ctx.font = '600 ' + (mob ? 9 : 10.5) + 'px ' + MONO; if (go) { ctx.fillStyle = acc; ctx.textAlign = 'right'; ctx.fillText('GO', cx + cw - pad, yy); } else if (caret) txt('STANDBY', cx + cw - pad, yy, 'right', 0.7); }
-          });
-        });
-        var qn = shw.q + 1, gq = shw.q >= 0 && shw.qa >= 0;                           /* 아래 상태줄: 디렉터의 콜 */
-        if (plan) { txt(en ? 'DRAFT v1.2' : '초안 v1.2', X0 + ins, BY, 'left', 0.5); txt(sp > 4.6 ? (en ? 'APPROVED' : '승인됨') : (en ? 'WRITING\u2026' : '작성 중\u2026'), X1 - ins, BY, 'right', sp > 4.6 ? 0.92 : 0.5); }
-        else { txt(en ? 'DIRECTOR CALL' : '디렉터 콜', X0 + ins, BY, 'left', 0.5); ctx.fillStyle = gq ? acc : 'rgba(' + ink + ',0.25)'; ctx.fillRect(X1 - (mob ? 66 : 92), BY - 3, 6, 6); txt(qn ? (gq ? 'GO Q' + qn : 'STANDBY Q' + qn) : 'END', X1 - ins, BY, 'right', gq ? 0.92 : 0.6); }
+        if (plk > 0) {
+          var FP = [[-12, 12.6], [-12, 7.2], [-7, 7.6], [-3, 6], [0, 1], [2, -4.5], [7, -6], [11, -2], [12, -12.6]], rv = sstep(1.5, 2.9, sp), segs = [], tot = 0;   /* 관객 동선: 입구 → A → B → C → 출구 */
+          for (var f = 1; f < FP.length; f++) { var pa0 = hudProj(FP[f - 1][0], FP[f - 1][1], 0), pa1 = hudProj(FP[f][0], FP[f][1], 0), sl = Math.hypot(pa1[0] - pa0[0], pa1[1] - pa0[1]); segs.push([pa0, pa1, sl]); tot += sl; }
+          var lim = tot * rv, run = 0, tip = null; ctx.globalAlpha = k * plk; ctx.setLineDash([5, 5]); ctx.lineDashOffset = -t * 24; ctx.strokeStyle = 'rgba(' + ink + ',0.75)'; ctx.lineWidth = 1.5; ctx.beginPath();
+          segs.forEach(function(sg){ if (run >= lim) return; var fr = Math.min(1, (lim - run) / sg[2]), e = [sg[0][0] + (sg[1][0] - sg[0][0]) * fr, sg[0][1] + (sg[1][1] - sg[0][1]) * fr]; ctx.moveTo(sg[0][0], sg[0][1]); ctx.lineTo(e[0], e[1]); tip = [e[0], e[1], Math.atan2(sg[1][1] - sg[0][1], sg[1][0] - sg[0][0])]; run += sg[2]; });
+          ctx.stroke(); ctx.setLineDash([]); ctx.lineWidth = 1;
+          if (tip) { ctx.fillStyle = 'rgba(' + ink + ',0.85)'; ctx.beginPath(); ctx.moveTo(tip[0] + Math.cos(tip[2]) * 7, tip[1] + Math.sin(tip[2]) * 7); ctx.lineTo(tip[0] + Math.cos(tip[2] + 2.5) * 6, tip[1] + Math.sin(tip[2] + 2.5) * 6); ctx.lineTo(tip[0] + Math.cos(tip[2] - 2.5) * 6, tip[1] + Math.sin(tip[2] - 2.5) * 6); ctx.fill(); }
+          var io = hudProj(-12, 13.6, 0), oo = hudProj(12, -13.6, 0); txt('IN', io[0], io[1] + 4, 'center', 0.7); if (rv > 0.95) txt('OUT', oo[0], oo[1] - 4, 'center', 0.7);
+          var ZN = en ? ['A \u00B7 LIGHT', 'B \u00B7 VIDEO', 'C \u00B7 SOUND'] : ['A \u00B7 조명', 'B \u00B7 영상', 'C \u00B7 사운드'], ZP = [[-10.5, -8.2, -3.6], [0, -6.4, -2.6], [10, 3.4, -3.0]];
+          ZN.forEach(function(zn, zj){ var zp = hudProj(ZP[zj][0], ZP[zj][1], ZP[zj][2] * BZ), on = shw.q === zj || shw.q === 3, zw = ctx.measureText(zn).width; ctx.fillStyle = '#f6f6f4'; ctx.fillRect(zp[0] - zw / 2 - 5, zp[1] - 8, zw + 10, 16); if (on) { ctx.fillStyle = 'rgba(150,166,0,0.22)'; ctx.fillRect(zp[0] - zw / 2 - 5, zp[1] - 8, zw + 10, 16); } txt(zn, zp[0], zp[1], 'center', on ? 0.95 : 0.7); });
+          ctx.globalAlpha = k;
+        }
+        if (sp < 4.2) txt(en ? 'FLOOR PLAN \u00B7 12 \u00D7 8 m' : '평면도 \u00B7 12 \u00D7 8 m', X0 + ins, BY, 'left', 0.6);
+        else if (sp < 5.4) txt((en ? 'BUILD ' : '공간 구성 ') + Math.round(sstep(4.2, 5.2, sp) * 100) + '%', X0 + ins, BY, 'left', 0.6);
+        else if (sp < 10.4) {                                                          /* 큐 타임라인: 재생 헤드가 지나가면 그 큐가 GO */
+          var cw0 = txt('CUE', X0 + ins, BY, 'left', 0.6), tl0 = X0 + ins + cw0 + 14, tl1 = X1 - ins - (mob ? 8 : 70), ph0 = Math.min(1, (sp - 5.4) / 4.4);
+          ctx.fillStyle = 'rgba(' + ink + ',0.2)'; ctx.fillRect(tl0, BY, tl1 - tl0, 1); ctx.fillStyle = 'rgba(' + ink + ',0.8)'; ctx.fillRect(tl0, BY, (tl1 - tl0) * ph0, 1);
+          for (var qj = 0; qj < 4; qj++) { var qx = tl0 + (tl1 - tl0) * (0.2 + qj) / 4.4, hit = sp - 5.6 - qj; ctx.fillStyle = hit >= 0 ? (hit < 1 ? 'rgb(150,166,0)' : 'rgba(' + ink + ',0.55)') : 'rgba(' + ink + ',0.3)'; ctx.fillRect(qx - 3, BY - 3, 6, 6); if (!mob || hit >= 0 && hit < 1) txt(hit >= 0 && hit < 0.6 ? 'GO' : 'Q' + (qj + 1), qx, BY - 12, 'center', hit >= 0 && hit < 1 ? 0.95 : 0.45); }
+          ctx.fillStyle = 'rgba(' + ink + ',0.9)'; ctx.fillRect(tl0 + (tl1 - tl0) * ph0 - 0.5, BY - 7, 1.5, 14);
+        }
       } else if (s2 === 1) {                                                           /* CG: 작업 단계 탭 · 단계별 정보 · 렌더 땐 버킷 괄호 */
         var TB = ['MODEL', 'ANIMATE', 'RENDER'], tx3 = X0 + ins, up = (cg.ph % 3) / 3;
         for (var tj = 0; tj < 3; tj++) { var on1 = tj === cg.k, w3 = txt(TB[tj], tx3, TY, 'left', on1 ? 0.92 : 0.32); if (on1) { ctx.fillStyle = 'rgba(' + ink + ',0.8)'; ctx.fillRect(tx3, TY + 8, w3 * up, 1); } tx3 += w3 + (mob ? 10 : 16); }
@@ -974,8 +956,10 @@
       var shown = function(){
         var now = (performance.now() - start) / 1000, mx = 0;
         if (edge) {
-          var cx = B.click ? (B.click.x - fz.cx) / u : 0, cy = B.click ? (B.click.y - fz.cy) / u : 0, dl = new Float32Array(N);
-          for (var k = 0; k < N && !reduce; k++) { dl[k] = Math.sqrt((boxes[k].gx - cx) * (boxes[k].gx - cx) + (boxes[k].gy - cy) * (boxes[k].gy - cy)) * CASC + Math.random() * 0.04; if (dl[k] > mx) mx = dl[k]; }
+          var cx = B.click ? (B.click.x - fz.cx) / u : 0, cy = B.click ? (B.click.y - fz.cy) / u : 0, dl = new Float32Array(N), md = 1;
+          for (var k = 0; k < N; k++) { dl[k] = Math.sqrt((boxes[k].gx - cx) * (boxes[k].gx - cx) + (boxes[k].gy - cy) * (boxes[k].gy - cy)); if (dl[k] > md) md = dl[k]; }
+          CASC = 0.46 / md; B.casc = u / CASC;                                          /* 누른 자리에서 가장 먼 칸까지 0.5초 (사용자 10-26: 촤라락을 조금 더 길게) — 테두리를 지우는 원도 같은 빠르기 */
+          for (k = 0; k < N && !reduce; k++) { dl[k] = dl[k] * CASC + Math.random() * 0.04; if (dl[k] > mx) mx = dl[k]; }
           S3D.cascade(now, dl);
         }
         extT = reduce ? -1e9 : now + (edge ? mx + 0.3 : 0.05);

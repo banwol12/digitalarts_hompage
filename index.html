@@ -71,7 +71,7 @@
       function trace(q){ Array.prototype.forEach.call(svg.children, function(pa, i){ pa.style.strokeDashoffset = LEN[i] * (1 - q); }); }
       try { new PerformanceObserver(function(l){ B.goal = Math.min(0.9, B.goal + (0.9 - B.goal) * 0.15 * l.getEntries().length); }).observe({ type: 'resource', buffered: true }); } catch (e) {}
       setTimeout(function(){ B.fin = true; B.cssLeft = 0; }, 10000);
-      var tq = performance.now(), TRACE = 1500;                                     /* 테두리는 로딩과 상관없이 1.5초 동안 같은 빠르기로 (사용자 10-26: 로딩에 묶여 마지막에 촤라락 그려졌다) */
+      var tq = performance.now(), TRACE = 1000;                                     /* 테두리는 로딩과 상관없이 1초 동안 같은 빠르기로 (사용자 10-26: 로딩에 묶여 마지막에 촤라락 그려졌다) */
       (function tick(){
         var end = B.fin && B.cssLeft <= 0, q = RED ? 1 : Math.min(1, (performance.now() - tq) / TRACE);
         p += ((end ? 1 : B.goal) - p) * (end ? 0.22 : 0.06);

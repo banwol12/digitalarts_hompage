@@ -304,6 +304,7 @@ uniform float uScale, uTime, uIT, uCamZ, uTanH, uAsp, uPC, uFlat;
 uniform vec2 uExt;     /* 납작한 로고 → 입체: [시작 초, 칸마다 걸리는 초] (로딩 로고가 걷힌 뒤 가운데부터 솟는다) */
 attribute vec4 aRef;   /* xy 시뮬레이션 uv · z 칸 u · w 깊이 AO */
 attribute vec4 aSize;  /* xyz 큐브 크기 · w 무작위 */
+attribute vec3 aLoc;   /* 칸 가운데에서 이 알갱이까지 */
 attribute float aAppear;
 varying vec3 vN, vW, vBox, vAx, vAy, vAz;
 varying float vAo, vGlow, vSeed, vRise, vFlash, vBev, vTail, vStr, vEmis, vBurn, vLit, vFl, vTone;
@@ -318,7 +319,8 @@ void main(){
   vec4 C0 = texture2D(tCell, vec2(aRef.z, 0.25)), C1 = texture2D(tCell, vec2(aRef.z, 0.75));
   float s = aSize.w, tilt = clamp(length(V.xyz) * 0.04, 0.0, 1.0);                    /* 나는 동안만 기울고, 멈추면 반듯하게 */
   float u = clamp((uTime - aAppear) / 0.6, 0.0, 1.0), e = 1.0 - (1.0 - u) * (1.0 - u) * (1.0 - u), lit = step(aAppear, uTime);
-  vec3 base = vec3(P.xy, P.z * e) + C0.xyz, size = aSize.xyz * vec3(mix(0.8, 1.0, e), mix(0.8, 1.0, e), mix(0.04, 1.0, e)) * lit * (1.0 - C1.x);   /* C1.x: 02 챕터 코드 조각으로 바뀌며 사라짐 */
+  vec3 base = vec3(P.xy, P.z * e) + C0.xyz, size = aSize.xyz * vec3(mix(0.8, 1.0, e), mix(0.8, 1.0, e), mix(0.04, 1.0, e)) * lit * (1.0 - C1.x);   /* C1.x: 칸이 작아짐 (코드 조각으로 바뀌며 사라짐 · 01 ① 하프톤 등) */
+  base -= aLoc * C1.x;                                                                    /* 알갱이마다 제자리에서 줄면 사이로 # 모양 틈이 났다 → 칸 가운데로 모이며 줄어 칸 하나가 통째로 작아진다 */
   float bright = smoothstep(0.0, 0.4, u) * lit, flash = 0.0, bev = 0.3, glowV = C0.w;
   vec3 tailB = base - V.xyz * 0.008;                                                      /* 꼬리 끝: 챕터 전환 땐 반 프레임 전 자리 (180° 셔터) (멈추면 꼬리 없음), 입장 땐 아래에서 */
   vec3 ax = normalize(vec3(fract(s * 7.13), fract(s * 3.37), fract(s * 5.71)) - 0.5 + 1e-3);
@@ -433,6 +435,7 @@ uniform mat4 uModel;
 uniform float uScale, uTime, uIT;
 attribute vec4 aRef;
 attribute vec4 aSize;
+attribute vec3 aLoc;
 attribute float aAppear;
 ${BOOM}
 void main(){
@@ -442,7 +445,7 @@ void main(){
   vec3 grow = vec3(mix(0.8, 1.0, e), mix(0.8, 1.0, e), mix(0.04, 1.0, e)) * step(aAppear, uTime);
   vec3 bo = vec3(0.0); float bt, bk, bs, bl, bz = 1.0;
   if (uBoom.y > 0.0) { bo = boomOff(P.xy, aSize.w, boomClock(uBoom.x), bt, bk, bs, bl) * uBoom.y; bz = boomSize(aSize.w, bt, bs); }   /* 폭발 큐브도 그림자를 따라 */
-  gl_Position = projectionMatrix * viewMatrix * uModel * vec4((vec3(P.xy, P.z * e) + C0.xyz + bo + position * aSize.xyz * grow * bz * (1.0 - C1.x)) * uScale, 1.0);
+  gl_Position = projectionMatrix * viewMatrix * uModel * vec4((vec3(P.xy, P.z * e) + C0.xyz + bo - aLoc * C1.x + position * aSize.xyz * grow * bz * (1.0 - C1.x)) * uScale, 1.0);
 }`;
 
 /* 입장 화면 효과 (입장 동안만): 초점 + 빨려 들 때 소실점으로 모이는 방사 블러 + 잔상.
@@ -525,7 +528,7 @@ export function createHomeScene({ canvas, cells, small }){
   const box = new BoxGeometry(1, 1, 1), geo = new InstancedBufferGeometry();
   geo.index = box.index; geo.setAttribute('position', box.getAttribute('position')); geo.setAttribute('normal', box.getAttribute('normal'));
   const appear = new InstancedBufferAttribute(new Float32Array(n).fill(-10), 1);
-  geo.setAttribute('aRef', new InstancedBufferAttribute(aRef, 4)); geo.setAttribute('aSize', new InstancedBufferAttribute(aSize, 4)); geo.setAttribute('aAppear', appear);
+  geo.setAttribute('aRef', new InstancedBufferAttribute(aRef, 4)); geo.setAttribute('aSize', new InstancedBufferAttribute(aSize, 4)); geo.setAttribute('aAppear', appear); geo.setAttribute('aLoc', new InstancedBufferAttribute(local, 3));
   geo.instanceCount = n;
   const BDEF = { B_SPREAD: small ? '0.7' : '1.0', B_FLOOR: (-Math.max(...cells.map((c) => c.gy)) - 1.5).toFixed(2) };   /* 폭발 정의: 폰은 덜 퍼지게 · 땅 = 로고 맨 아래보다 1.5칸 아래 */
   const uBoom = { value: new Vector4() }, uBl = { value: Array.from({ length: 10 }, () => new Vector4(0, 0, 1e9, 0)) };   /* 01 ② 연쇄 폭발 (BOOM) — 큐브·그림자가 같이 쓴다 */
