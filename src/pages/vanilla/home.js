@@ -829,8 +829,21 @@
       setFormation(0, true);
       if (S3D && scLand) INTRO_T = scLand;                                    /* 3D: 모래가 대부분 내려앉을 때 제목·헤더가 올라온다 */   /* 1.3초: 제목·헤더가 올라오기 시작 (바깥 로고 픽셀이 닿는 1.6초와 겹쳐 1.9초에 모두 끝난다) */
       var B = window.__boot, fz = frameFor(0), u = fz.s * Math.min(W, H) * 1.45 / 72;
-      if (B) B.to = { x: fz.cx - u, y: fz.cy, w: 32 * u };                   /* 로딩 로고가 커져 닿을 자리 = 첫 화면 로고 (32×34 칸, 가운데가 칸 좌표 -1, 0) */
-      var shown = function(){ introFinish(); extT = reduce ? -1e9 : (performance.now() - start) / 1000 + 0.05; };   /* 로딩 막이 걷히면 납작한 로고가 가운데부터 입체로 솟는다 (사용자 10-12: 로딩 로고가 갑자기 3D 로 바뀌는 느낌) */
+      if (B) B.to = { x: fz.cx - 0.45 * u, y: fz.cy + 0.23 * u, w: 32.6 * u };   /* 로딩 테두리가 옮겨 갈 자리 = 첫 화면 로고 (높이 34칸, 원본 비율 · 원근까지 실측해 맞춤) */
+      /* 첫 입장 (사용자 10-26): 로딩 화면이 원본 로고 테두리를 그려 놓고 기다리는 동안 픽셀은 숨겨 두고, 누르면 누른 자리에서 퍼지는 원을 따라
+         칸이 톡톡 나타난 뒤(index.html 이 같은 빠르기로 테두리를 지운다) 가운데부터 입체로 솟는다. 테두리 입장이 아니면 바로 솟는다 (사용자 10-12) */
+      var CASC = 0.016, edge = !!(B && B.edge && S3D && !B.shown);
+      if (edge) { S3D.hide(); B.casc = u / CASC; }
+      var shown = function(){
+        var now = (performance.now() - start) / 1000, mx = 0;
+        if (edge) {
+          var cx = B.click ? (B.click.x - fz.cx) / u : 0, cy = B.click ? (B.click.y - fz.cy) / u : 0, dl = new Float32Array(N);
+          for (var k = 0; k < N && !reduce; k++) { dl[k] = Math.sqrt((boxes[k].gx - cx) * (boxes[k].gx - cx) + (boxes[k].gy - cy) * (boxes[k].gy - cy)) * CASC + Math.random() * 0.04; if (dl[k] > mx) mx = dl[k]; }
+          S3D.cascade(now, dl);
+        }
+        extT = reduce ? -1e9 : now + (edge ? mx + 0.3 : 0.05);
+        if (edge && !reduce) setTimeout(introFinish, (mx + 0.15) * 1000); else introFinish();
+      };
       if (introReduce) { if (B && B.reveal) B.reveal(shown); else shown(); } else setTimeout(introFinish, 3000 * IK);   /* 탭이 가려져 프레임이 멈춰도 3초 뒤엔 풀린다 */
       requestAnimationFrame(render);
     }

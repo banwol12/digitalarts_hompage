@@ -599,6 +599,9 @@ export function createHomeScene({ canvas, cells, small }){
       tA.needsUpdate = tB.needsUpdate = true;
       simUntil = Math.max(simUntil, t + Math.max(...delay) + 2.5);
     },
+    /* 첫 화면 테두리 → 픽셀 (index.html 의 테두리 로고를 누르면): hide() 로 숨겨 두었다가 cascade(t, 칸마다 지연) 로 칸이 차례로 톡톡 나타난다 */
+    hide(){ appear.array.fill(1e9); appear.needsUpdate = true; },
+    cascade(t, delay){ for (let i = 0; i < n; i++) appear.array[i] = t + delay[cellOf[i]]; appear.needsUpdate = true; },
     /* 첫 입장: 모두 셰이더가 시간으로 그린다 (큐브는 setTargets snap 으로 이미 제자리). 반환: land = 제목·헤더가 올라오는 시각 */
     intro(t){
       appear.array.fill(-10); appear.needsUpdate = true;
