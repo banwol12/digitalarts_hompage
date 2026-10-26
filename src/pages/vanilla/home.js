@@ -696,7 +696,7 @@
     })();
     /* 01 ① 화면 위 그림 (사용자 10-26 ②) — 로고 칸 하나 = 2×2 픽셀인 작은 캔버스. 체커 테스트 화면(2.7–3.85) → 대각선으로 넘어가며 우주 영상(프로젝션 · 실감) */
     var MOC = document.createElement('canvas'); MOC.width = 64; MOC.height = 68;
-    var MCX = MOC.getContext('2d'), MID = MCX.createImageData(64, 68), MPAL = [[233, 78, 119], [245, 166, 35], [248, 231, 28], [126, 211, 33], [80, 227, 194], [74, 144, 226], [144, 19, 254], [189, 16, 224]];
+    var MCX = MOC.getContext('2d'), MID = MCX.createImageData(64, 68), MPAL = [[214, 240, 40], [246, 246, 240], [200, 200, 196], [160, 160, 160], [110, 110, 108], [40, 40, 40], [214, 240, 40], [160, 160, 160]];   /* 체커 색: 사이트 색 (라임 · 회색 단계 — 짙은 라임은 탁한 올리브로 보여 뺐다) — 사용자 10-26: 레퍼런스 색 말고 기존 색과 맞게 */
     var MEDGE = (function(){                                                         /* 마스크 윤곽: 칸 모양의 바깥 변 — 각도 순으로 (한 바퀴 돌며 그린다) */
       var occ = {}, E = []; boxes.forEach(function(b){ occ[b.c + ',' + b.r] = 1; });
       boxes.forEach(function(b){ var x0 = b.gx - 0.5, y0 = b.gy - 0.5; if (!occ[b.c + ',' + (b.r - 1)]) E.push([x0, y0, x0 + 1, y0]); if (!occ[b.c + ',' + (b.r + 1)]) E.push([x0, y0 + 1, x0 + 1, y0 + 1]); if (!occ[(b.c - 1) + ',' + b.r]) E.push([x0, y0, x0, y0 + 1]); if (!occ[(b.c + 1) + ',' + b.r]) E.push([x0 + 1, y0, x0 + 1, y0 + 1]); });
@@ -710,13 +710,13 @@
         if (ph >= 3.35) {
           var m = ph >= 3.85 ? 1 : Math.min(1, Math.max(0, (wf - (x + y)) / 4)), fl = ph < 3.85 ? Math.max(0, 1 - Math.abs(wf - (x + y) - 2) / 2) : 0;   /* 대각선으로 넘어가는 앞머리는 하얗게 */
           if (m > 0) {
-            var X = x * zm, Y = y * zm, v = (Y + 17) / 34, sr = 8 + 34 * v, sg = 10 + 8 * v, sb = 34 + 62 * v;
-            var nb = Math.max(0, Math.sin(X * 0.23 + Y * 0.31 + t * 0.6) + Math.sin(X * 0.41 - Y * 0.17 - t * 0.45 + 1.3) + Math.sin((X + Y) * 0.13 + t * 0.3) - 0.7) * 0.55; sr += 190 * nb; sg += 50 * nb; sb += 120 * nb;   /* 흐르는 성운 */
-            var fx = X - 7, fy = Y + 12.5, fe = Math.exp(-(fx * fx + fy * fy) / 22) * (0.9 + 0.1 * Math.sin(t * 2)); sr += 255 * fe; sg += 215 * fe; sb += 170 * fe;   /* 오른쪽 위 빛 번짐 */
-            var sid = px + py * 64; if (hs(sid * 0.371) > 0.955) { var tw = 0.5 + 0.5 * Math.sin(t * 4 + sid); sr += 200 * tw; sg += 200 * tw; sb += 220 * tw; }   /* 반짝이는 별 */
+            var X = x * zm, Y = y * zm, v = (Y + 17) / 34, sr = 20 + 22 * v, sg = 20 + 22 * v, sb = 19 + 20 * v;   /* 우주는 사이트 색으로: 먹색 바탕 · 회색 성운 · 회색 행성 · 라임은 대기 테두리와 별 몇 개만 */
+            var nb = Math.max(0, Math.sin(X * 0.23 + Y * 0.31 + t * 0.6) + Math.sin(X * 0.41 - Y * 0.17 - t * 0.45 + 1.3) + Math.sin((X + Y) * 0.13 + t * 0.3) - 0.7) * 0.55; sr += 130 * nb; sg += 132 * nb; sb += 126 * nb;   /* 흐르는 성운 (회색 연기 — 라임을 어두운 바탕에 섞으면 탁한 올리브가 됐다) */
+            var fx = X - 7, fy = Y + 12.5, fe = Math.exp(-(fx * fx + fy * fy) / 22) * (0.9 + 0.1 * Math.sin(t * 2)); sr += 240 * fe; sg += 244 * fe; sb += 214 * fe;   /* 오른쪽 위 빛 번짐 (따뜻한 흰빛) */
+            var sid = px + py * 64; if (hs(sid * 0.371) > 0.955) { var tw = 0.5 + 0.5 * Math.sin(t * 4 + sid), lm = hs(sid * 0.13) > 0.8; sr += (lm ? 214 : 216) * tw; sg += (lm ? 240 : 216) * tw; sb += (lm ? 40 : 210) * tw; }   /* 반짝이는 별 (다섯에 하나는 라임) */
             var qx = X - pcx, qy = Y - pcy, pd = Math.sqrt(qx * qx + qy * qy);
-            if (pd < PR) { var nz = Math.sqrt(1 - pd * pd / (PR * PR)), lam = Math.max(0, 0.5 * qx / PR - 0.55 * qy / PR + 0.67 * nz), bnd = 0.5 + 0.5 * Math.sin(qx * 0.9 + t * 0.7 + Math.sin(qy * 0.6) * 1.6), lk = 0.12 + 0.95 * lam; sr = (30 + 40 * bnd) * lk; sg = (80 + 90 * bnd) * lk; sb = (190 - 60 * bnd) * lk; }   /* 행성: 로고가 꽉 찬 왼쪽 위에 · 오른쪽 위 빛을 받고 띠가 천천히 돈다 */
-            else if (pd < PR + 1.4) { var at = 1 - (pd - PR) / 1.4; at *= at; sr += 60 * at; sg += 170 * at; sb += 255 * at; }   /* 대기 */
+            if (pd < PR) { var nz = Math.sqrt(1 - pd * pd / (PR * PR)), lam = Math.max(0, 0.5 * qx / PR - 0.55 * qy / PR + 0.67 * nz), bnd = 0.5 + 0.5 * Math.sin(qx * 0.9 + t * 0.7 + Math.sin(qy * 0.6) * 1.6), lk = 0.12 + 0.95 * lam, gv = (120 + 95 * bnd) * lk; sr = gv; sg = gv; sb = gv * 0.97; }   /* 행성: 로고가 꽉 찬 왼쪽 위에 · 오른쪽 위 빛을 받고 띠가 천천히 돈다 */
+            else if (pd < PR + 1.4) { var at = 1 - (pd - PR) / 1.4; at *= at; sr += 190 * at; sg += 214 * at; sb += 30 * at; }   /* 대기 (라임) */
             r += (sr - r) * m; g += (sg - g) * m; bl += (sb - bl) * m; a = Math.max(a * (1 - m), m);
           }
           if (fl > 0) { r += (255 - r) * fl; g += (255 - g) * fl; bl += (255 - bl) * fl; a = Math.max(a, fl); }
@@ -736,7 +736,7 @@
         for (var q = 0; q < 4; q++) { var pu = Math.min(1, Math.max(0, (ph - 0.95 - q * 0.25) / 0.6)), pe = pu < 1 ? 1 + 2.2 * Math.pow(pu - 1, 3) + 1.2 * Math.pow(pu - 1, 2) : 1; cn.push([K0[q][0] + (RG[q][0] - K0[q][0]) * pe, K0[q][1] + (RG[q][1] - K0[q][1]) * pe]); land.push(pu); }
         var QP = function(uu, vv){ var ax = cn[0][0] + (cn[1][0] - cn[0][0]) * uu, ay = cn[0][1] + (cn[1][1] - cn[0][1]) * uu, bx2 = cn[3][0] + (cn[2][0] - cn[3][0]) * uu, by2 = cn[3][1] + (cn[2][1] - cn[3][1]) * uu; return P(ax + (bx2 - ax) * vv, ay + (by2 - ay) * vv); };
         var ga = sstep(0.3, 0.42, ph) * (ph < 0.62 ? (hs(Math.floor(ph * 30)) > 0.35 ? 1 : 0.25) : 1) * (1 - sstep(3.0, 3.4, ph)), fls = ph > 2.35 && ph < 2.6 ? 1 - (ph - 2.35) / 0.25 : 0;   /* 켜질 땐 두어 번 깜박 · 다 맞으면 한 번 번쩍 */
-        var gcol = function(uu, a){ return 'hsla(' + Math.round(125 - 125 * uu) + ',95%,' + (55 + 40 * fls) + '%,' + a + ')'; };
+        var gcol = function(uu, a){ var w = fls; return 'rgba(' + Math.round(214 - 14 * uu + (255 - 214) * w) + ',' + Math.round(240 - 40 * uu + 15 * w) + ',' + Math.round(40 + 156 * uu + (255 - 40) * w) + ',' + a + ')'; };   /* 격자: 라임 → 밝은 회색 (다 맞으면 하얗게 번쩍) */
         var grid = function(a, lw){
           ctx.lineWidth = lw;
           for (var gi = 0; gi <= 16; gi++) { var uu = gi / 16, p0 = QP(uu, 0), p1 = QP(uu, 1); ctx.strokeStyle = gcol(uu, a); ctx.beginPath(); ctx.moveTo(p0[0], p0[1]); ctx.lineTo(p1[0], p1[1]); ctx.stroke(); }
@@ -745,7 +745,7 @@
         if (ga > 0) {
           ctx.save(); ctx.globalAlpha = mf.k * ga; grid(0.16, 1);                    /* 칸 밖으로 샌 빛은 옅게 */
           ctx.clip(CP); grid(0.95, mob ? 1 : 1.3);
-          var c0 = QP(0.5, 0), c1 = QP(0.5, 1), c2 = QP(0, 0.5), c3 = QP(1, 0.5); ctx.lineWidth = mob ? 1.6 : 2.2; ctx.strokeStyle = ctx.fillStyle = 'hsla(125,100%,62%,0.95)'; ctx.beginPath(); ctx.moveTo(c0[0], c0[1]); ctx.lineTo(c1[0], c1[1]); ctx.moveTo(c2[0], c2[1]); ctx.lineTo(c3[0], c3[1]); ctx.stroke();   /* 가운데 십자 */
+          var c0 = QP(0.5, 0), c1 = QP(0.5, 1), c2 = QP(0, 0.5), c3 = QP(1, 0.5); ctx.lineWidth = mob ? 1.6 : 2.2; ctx.strokeStyle = ctx.fillStyle = 'rgba(214,240,40,0.95)'; ctx.beginPath(); ctx.moveTo(c0[0], c0[1]); ctx.lineTo(c1[0], c1[1]); ctx.moveTo(c2[0], c2[1]); ctx.lineTo(c3[0], c3[1]); ctx.stroke();   /* 가운데 십자 */
           for (var tj2 = 1; tj2 < 17; tj2 += 2) { var tq = QP(0.5, tj2 / 17); ctx.beginPath(); ctx.moveTo(tq[0] - 3.5, tq[1] - 3); ctx.lineTo(tq[0] + 3.5, tq[1] - 3); ctx.lineTo(tq[0], tq[1] + 3); ctx.fill(); }   /* 정렬 표시 삼각형 */
           ctx.restore();
         }
@@ -824,7 +824,7 @@
          ① 매핑 — 비뚤게 뜬 테스트 격자(초록→빨강)를 네 모서리 핀으로 로고에 맞추고, 마스크 윤곽을 딴 뒤 컬러 체커 테스트 화면 →
          ② 프로젝션 — 대각선으로 넘어가며 우주 영상(성운 · 별 · 천천히 도는 행성)이 로고 칸 위에 픽셀로 →
          ③ 실감 — 그 영상 픽셀이 벽에서 떨어져 원근을 따라 커지며 보는 사람 쪽으로 쏟아져 나온다 (커서 쪽으로 흐름이 기운다). 끝엔 다시 점으로.
-         커서 둘레는 칸이 작아지는 렌즈, 누르면 작아지는 고리. (사용자 10-26 ②: 매핑은 테스트 이미지를 띄우는 느낌으로, 프로젝션은 다른 디자인으로 — 레퍼런스가 컬러라 이 단계만 색을 쓴다) */
+         커서 둘레는 칸이 작아지는 렌즈, 누르면 작아지는 고리. (사용자 10-26 ②: 매핑은 테스트 이미지를 띄우는 느낌으로, 프로젝션은 다른 디자인으로 — 색은 사이트 색(먹 · 회색 · 라임)으로) */
       if (s1 === 1 && !reduce) {
         var mt = t - mfT0, mph = (mt * PLAY) % 10, msi = mph < 3.6 ? 0 : mph < 6.6 ? 1 : 2;
         mf = { si: msi, ph: mph, u: msi === 0 ? mph / 3.6 : msi === 1 ? (mph - 3.6) / 3 : (mph - 6.6) / 3.4, k: sstep(0, 0.7, mt), ux: (ptr.x - OX) / U, uy: (ptr.y - OY) / U, pt: null };
