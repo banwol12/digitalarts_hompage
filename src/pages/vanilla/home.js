@@ -1078,12 +1078,13 @@
     }); });
     function glide(to, ms){                                                            /* 데스크톱: 창 스크롤을 부드럽게 to 까지 */
       var from = window.scrollY, t0 = performance.now(), dur = reduce ? 1 : 620, AN = AM();
-      paging = true;
-      if (AN && !reduce) { var sp = { y: from }; AN.animate(sp, { y: to, duration: ms, ease: 'inOut(3)', onUpdate: function(){ window.scrollTo(0, sp.y); }, onComplete: function(){ window.scrollTo(0, to); paging = false; pick(); } }); return; }
+      var R = document.documentElement.style, end = function(){ window.scrollTo(0, to); R.scrollSnapType = ''; paging = false; pick(); };
+      paging = true; R.scrollSnapType = 'none';                                     /* 가는 동안 브라우저 스냅이 끌어당기지 않게 */
+      if (AN && !reduce) { var sp = { y: from }; AN.animate(sp, { y: to, duration: ms, ease: 'out(4)', onUpdate: function(){ window.scrollTo(0, sp.y); }, onComplete: end }); return; }   /* out: 굴리자마자 움직이고 천천히 멈춘다 */
       (function step(now){
-        var p = Math.min(1, (now - t0) / dur), e = 1 - Math.pow(1 - p, 3);
+        var p = Math.min(1, (now - t0) / dur), e = 1 - Math.pow(1 - p, 4);
         window.scrollTo(0, from + (to - from) * e);
-        if (p < 1) requestAnimationFrame(step); else { window.scrollTo(0, to); paging = false; pick(); }
+        if (p < 1) requestAnimationFrame(step); else end();
       })(t0);
     }
     if (PAGED) {
@@ -1126,22 +1127,42 @@
       document.addEventListener('touchcancel', tEnd, { passive: true });
       if (STATIC) window.__paging = { goTo: goTo };
     }
-    /* ── 끝(04)까지 본 뒤 거꾸로 올라갈 땐 단계를 하나하나 되짚지 않고 챕터 단위로 (사용자 10-12): 챕터 중간이면 그 챕터 처음, 처음이면 앞 챕터 처음으로.
-       04 에 닿기 전엔 거꾸로 굴려도 본 단계 그대로 하나씩 돌아간다 (seenEnd).
-       한 번 굴림(트랙패드 관성 포함)에 한 번만 — 0.22초 쉬었거나, 0.9초 넘게 세게 계속 굴릴 때 다음 것 ── */
+    /* ── 데스크톱 휠: 한 번 굴리면 한 화면 (사용자 10-26: 불친절 — 브라우저 스냅은 화면 반 넘게 굴리지 않으면 제자리로 튕겼다. 마우스 한 칸·트랙패드 살짝도 넘어가게).
+       한 번 굴림(트랙패드 관성 포함)에 한 번만 — 0.2초 쉬었거나 방향을 바꿨거나, 관성 중에 다시 세게 밀면 다음 것.
+       끝(04)까지 본 뒤 거꾸로는 단계를 되짚지 않고 챕터 단위로 (사용자 10-12): 챕터 중간이면 그 챕터 처음, 처음이면 앞 챕터 처음 ── */
     if (!PAGED && !ONLY) {
-      var wUp = { last: 0, fired: 0 };
+      var wq = { last: 0, fired: 0, dir: 0, acc: 0, prev: 0, armed: true };
+      var stops = function(){                                                      /* 멈출 자리: 챕터마다 한 화면씩 (01·02 는 단계 수만큼) */
+        var T = [], vh = VH();
+        chapters.forEach(function(c){ var t = c.offsetTop, e = t + c.offsetHeight - vh; for (var y = t; y < e + vh - 4; y += vh) T.push(Math.min(y, e)); });
+        return T;
+      };
       window.addEventListener('wheel', function(e){
-        if (e.deltaY > 0 && active !== chapters.length - 1) seenEnd = false;            /* 다시 내려가면 보통 스크롤로 (04 에서 더 굴리는 건 빼고) */
-        if (!seenEnd || !introDone || e.ctrlKey || e.deltaY >= 0 || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
+        if (!introDone || e.ctrlKey || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
         e.preventDefault();
-        var now = performance.now(), d = -e.deltaY * (e.deltaMode === 1 ? 33 : 1), fresh = now - wUp.last > 220 || (now - wUp.fired > 900 && d >= 40);
-        wUp.last = now;
-        if (!fresh || paging) return;
-        wUp.fired = now;
-        var top = chapters[active].offsetTop;
-        glide(window.scrollY > top + 4 ? top : chapters[Math.max(0, active - 1)].offsetTop, 640);
+        var now = performance.now(), d = e.deltaY * (e.deltaMode === 1 ? 33 : e.deltaMode === 2 ? VH() : 1), ad = Math.abs(d), dir = d > 0 ? 1 : -1;
+        if (now - wq.last > 200 || dir !== wq.dir) { wq.acc = 0; wq.armed = true; wq.dir = dir; }
+        else if (!wq.armed && ((now - wq.fired > 900 && ad >= 40) || (now - wq.fired > 450 && ad > 14 && ad > wq.prev * 1.6))) wq.armed = true;   /* 관성은 줄어들기만 한다 — 다시 커지면 손가락으로 또 민 것 */
+        wq.last = now; wq.prev = ad; wq.acc += ad;
+        if (!wq.armed || (wq.acc < 12 && Math.abs(e.wheelDeltaY || 0) < 120)) return;   /* 트랙패드 살짝 스친 건 무시, 마우스 한 칸(120)은 바로 */
+        wq.armed = false;
+        if (page(dir)) wq.fired = now;
       }, { passive: false });
+      window.addEventListener('keydown', function(e){                               /* 화살표·PageUp/Down·스페이스도 휠과 똑같이 한 화면씩 */
+        var k = e.key, dir = k === 'ArrowDown' || k === 'PageDown' || (k === ' ' && !e.shiftKey) ? 1 : k === 'ArrowUp' || k === 'PageUp' || (k === ' ' && e.shiftKey) ? -1 : 0;
+        if (!dir || !introDone || e.altKey || e.metaKey || e.ctrlKey || (e.target.closest && e.target.closest('input, textarea, select, [contenteditable]')) || (k === ' ' && e.target.closest && e.target.closest('button, a'))) return;
+        e.preventDefault(); page(dir);
+      });
+    }
+    function page(dir){
+      if (paging) return false;
+      if (dir > 0 && active !== chapters.length - 1) seenEnd = false;
+      var y = window.scrollY, to = null, T = stops(), k;
+      if (dir > 0) { for (k = 0; k < T.length; k++) if (T[k] > y + 4) { to = T[k]; break; } }
+      else if (seenEnd) { var top = chapters[active].offsetTop; to = y > top + 4 ? top : chapters[Math.max(0, active - 1)].offsetTop; }
+      else { for (k = T.length - 1; k >= 0; k--) if (T[k] < y - 4) { to = T[k]; break; } }
+      if (to === null || Math.abs(to - y) < 2) return false;
+      glide(to, 700); return true;
     }
     window.addEventListener('resize', function(){ resize(); setFormation(active, false, true); pick(); moveInd(active, true); });
     if (document.fonts && document.fonts.ready) document.fonts.ready.then(function(){ resize(); if (active !== 0) setFormation(active, false, true); });
