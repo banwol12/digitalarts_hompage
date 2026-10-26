@@ -64,7 +64,6 @@
   var TOKENS = ['float', 'int', 'auto', 'nullptr', 'std::vector', 'std::sin(t)', 'class Particle', 'update(dt)', 'const float dt', '#include <cmath>', 'pos += vel * dt', 'template<T>', 'new Pixel[n]', 'return pos;',
                 'def render():', 'import numpy', 'np.zeros(n)', 'self.vel += g', 'lambda x: x * x', 'async def loop', 'yield frame', 'range(len(px))', 'True', 'None', 'print(fps)', '__main__', 'for i in range', 'dt = 1 / 60'];
   var GLYPH = '<>/\\|{}[]#$%&*+=01_', GL_DUR = 0.24;                       /* 01 ③ 글리치: 섞이는 글자 · 길이(초) */
-  var KINDS = ['code','none','none','none','none','none','none'];      /* 코드 글자(약 14%, 75개쯤)만 남기고 나머지는 흩어지며 사라짐 — 더 많으면 겹쳐서 읽히지 않는다 */
   GRID.forEach(function(row, r){
     for (var c = 0; c < row.length; c++) {
       if (row[c] !== '#') continue;
@@ -72,7 +71,7 @@
       var bulge = Math.sqrt(Math.max(0, 1 - (d*d) / (R*R)));
       var ang = Math.random() * Math.PI * 2, mag = 24 + Math.random() * 30, seed = Math.random(), seed2 = Math.random();
       boxes.push({ gx: x, gy: y, h: 0.5 + 1.3 * bulge, r: r, c: c, seed: seed, seed2: seed2,
-        kind: KINDS[Math.floor(seed * KINDS.length)], token: TOKENS[Math.floor(seed2 * TOKENS.length)], rot: seed * 6.283,
+        kind: 'none', token: TOKENS[Math.floor(seed2 * TOKENS.length)], rot: seed * 6.283,
         cur: { x: Math.cos(ang) * mag, y: Math.sin(ang) * mag, z: (Math.random() - 0.5) * 40 },
         from: null, to: null, t0: 0, tw: 0, dur: 1, m: 0, mFrom: 0, mTo: 0, fc: 0, fr: 0,
         ox: 0, oy: 0, vx: 0, vy: 0, pox: 0, poy: 0, sx: 0, sy: 0, sw: 0, sh: 0, held: false, thrown: false, rest: false, launched: false, hitT: 0, drawK: 0,
@@ -81,6 +80,13 @@
     }
   });
   N = boxes.length;
+  /* 01 ③ 코드로 쓴 로고 (사용자 10-26: 흩어진 코드 조각이 겹쳐 지저분 → 로고 한 줄 한 줄을 코드 한 줄로). 가로로 이어진 칸 묶음(140개)마다 맨 앞 칸이 그 묶음 폭만큼의 코드 한 줄을 맡는다 */
+  var SYM = ['{}', '()', '[]', '=>', '++', '::', '<>', '&&', '||', '==', '!=', '//', '0x1', '01', '*=', '->', '%', ';', '#', '|'];   /* 1–3 칸짜리 짧은 묶음은 기호로 */
+  function codeLine(){ var s = ''; while (s.length < 90) s += TOKENS[Math.floor(Math.random() * TOKENS.length)] + ' '; return s; }
+  (function(){
+    var at = {}; boxes.forEach(function(b){ at[b.r + ',' + b.c] = b; });
+    GRID.forEach(function(row, r){ for (var c = 0; c < row.length; c++) { if (row[c] !== '#' || row[c - 1] === '#') continue; var n = 0; while (row[c + n] === '#') n++; var b = at[r + ',' + c]; b.kind = 'code'; b.run = { n: n, x: b.gx + (n - 1) / 2 }; b.line = codeLine(); b.pn = -1; } });
+  })();
   /* 02 챕터 코드 조각: VS Code Dark+ 배색으로 토큰을 부분별 채색 */
   var VS = { ctrl:'#C586C0', type:'#569CD6', fn:'#DCDCAA', num:'#B5CEA8', str:'#CE9178', vari:'#9CDCFE', td:'#4EC9B0', punc:'#D4D4D4' };
   var VS_PAPER = { '#C586C0':'#A8288F', '#569CD6':'#1D63B8', '#DCDCAA':'#1E7F7A', '#B5CEA8':'#5A3FC0', '#CE9178':'#C0362C', '#9CDCFE':'#2B3440', '#4EC9B0':'#8B5A1E', '#D4D4D4':'#7A808A' };   /* 흰 바탕(01 ③): Xcode·VS Code Light+·GitHub Light 를 참고한 밝은 테마 — 키워드 자홍 · 타입 파랑 · 함수 청록 · 숫자 보라 · 문자열 빨강 · 네임스페이스 갈색 · 변수 먹 · 기호 회색 (사용자 10-12: 너무 한 색 같다) */
@@ -100,12 +106,14 @@
     return parts;
   }
   boxes.forEach(function(b){ b.parts = lexParts(b.token); });
+  var LYA = null;
   var FCOLS = 24, FROWS = Math.ceil(N / FCOLS);   /* 24 열: 02 오른쪽 칸(세로로 긴 영역)에 맞게 정사각형에 가깝게 — 원근으로 깊이가 산다 */
   boxes.forEach(function(b, i){ b.fc = i % FCOLS; b.fr = Math.floor(i / FCOLS); });
 
   /* 포메이션: 각 픽셀의 목표 위치(로고 단위) */
   var FORM = {
     logo:  function(b){ return { x: b.gx, y: b.gy, z: 0 }; },
+    code:  function(b){ return { x: b.run ? b.run.x : b.gx, y: b.gy, z: 0 }; },   /* 코드 줄은 제 묶음 가운데, 나머지 칸은 제자리에서 작아져 사라진다 */
     burst: function(b){ return { x: b.gx * (MOBILE() ? 1.5 : 1.25) + (b.seed - 0.5) * 6, y: b.gy * (MOBILE() ? 1.8 : 1.15) + (b.seed2 - 0.5) * 5, z: (b.seed - 0.5) * 26 }; },   /* 폰: 세로로 더 퍼뜨려 좁고 긴 영역을 채운다 */
     field: function(b){ return { x: (b.fc - (FCOLS - 1) / 2) * 1.3, y: (b.fr - (FROWS - 1) / 2) * 1.3, z: 0 }; }
   };
@@ -114,6 +122,18 @@
     var LH = GRID.length, LW = 32, dist = new Int16Array(LW * LH).fill(-1), q = [], i, r, c, k;
     for (r = 0; r < LH; r++) for (c = 0; c < LW; c++) if (GRID[r][c] !== '#') { dist[r * LW + c] = 0; q.push(r * LW + c); }
     for (i = 0; i < q.length; i++) { r = Math.floor(q[i] / LW); c = q[i] % LW; [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(function(d){ var rr = r + d[0], cc = c + d[1]; if (rr < 0 || cc < 0 || rr >= LH || cc >= LW || dist[rr * LW + cc] >= 0) return; dist[rr * LW + cc] = dist[q[i]] + 1; q.push(rr * LW + cc); }); }
+    /* 02 기획·연출의 네 겹: 이어진 도형별로 — 가장 큰 몸통(원)은 맨 뒤(공간), 불꽃 획은 왼쪽부터 소리·영상·빛으로 한 겹씩 앞에 */
+    var id = new Int16Array(LW * LH).fill(-1), comps = [];
+    for (r = 0; r < LH; r++) for (c = 0; c < LW; c++) {
+      if (GRID[r][c] !== '#' || id[r * LW + c] >= 0) continue;
+      var st = [r * LW + c], cells = [], n = comps.length; id[r * LW + c] = n;
+      while (st.length) { var v = st.pop(), vr = Math.floor(v / LW), vc = v % LW; cells.push(vc); [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(function(d){ var rr = vr + d[0], cc = vc + d[1], w = rr * LW + cc; if (rr < 0 || cc < 0 || rr >= LH || cc >= LW || GRID[rr][cc] !== '#' || id[w] >= 0) return; id[w] = n; st.push(w); }); }
+      comps.push({ n: cells.length, mc: cells.reduce(function(a, x){ return a + x; }, 0) / cells.length });
+    }
+    var big = comps.reduce(function(a, x, j){ return x.n > comps[a].n ? j : a; }, 0);
+    comps.forEach(function(cm, j){ cm.ly = j === big ? 0 : cm.mc < 26 ? 1 : cm.mc < 29 ? 2 : 3; });
+    LYA = [null, null, null, null];
+    for (k = 0; k < N; k++) { var bl = boxes[k]; bl.ly = comps[id[bl.r * LW + bl.c]].ly; if (!LYA[bl.ly] || bl.gy < LYA[bl.ly].y) LYA[bl.ly] = { x: bl.gx, y: bl.gy }; }   /* 겹마다 맨 위 칸 = 이름표 자리 */
     for (k = 0; k < N; k++) { var bb = boxes[k], dd = dist[bb.r * LW + bb.c]; bb.dep = dd < 0 ? 1 + Math.min(bb.r, bb.c, LH - 1 - bb.r, LW - 1 - bb.c) : dd; bb.edge = bb.dep <= 1; bb.ang = Math.atan2(bb.gy, bb.gx); }
   })();
   /* 챕터별 회전·동작 설정. 위치와 크기는 frameFor() 가 화면과 텍스트를 실측해 "빈 영역"에 맞춘다 */
@@ -433,17 +453,24 @@
       if (b.kind === 'none') return;
       ctx.globalAlpha = alpha; ctx.lineWidth = 1; ctx.strokeStyle = rgb(pal.mid); ctx.fillStyle = rgb(pal.light);
       if (b.kind === 'code') {
-        if (MOBILE() && b.seed2 > 0.5) return;                                       /* 폰: 영역이 작아 조각을 절반만 (75 → 약 37개) — 겹쳐서 깨져 보이던 문제 */
-        /* 글자 크기는 0.25px 단위로 — 크기가 매 프레임 조금씩 달라져 글리프를 새로 그리느라 데스크톱에서 프레임당 25ms 가 들던 것 (0.25px 차이는 눈에 안 보인다) */
-        var fpx = Math.round(Math.max(MOBILE() ? 10 : 11, sz * 1.9) * (b.held ? 1.18 : 1) * 4) / 4;
+        /* 글자 크기는 0.25px 단위로 — 크기가 매 프레임 조금씩 달라져 글리프를 새로 그리느라 데스크톱에서 프레임당 25ms 가 들던 것 (0.25px 차이는 눈에 안 보인다).
+           줄 높이 = 칸 하나, 글자 수 = 묶음 폭에 들어가는 만큼 (고정폭이라 글자 하나 폭으로 나눈다) */
+        var fpx = Math.round(Math.max(6, sz * 1.72) * (b.held ? 1.18 : 1) * 4) / 4;
         var font = '500 ' + fpx + 'px ui-monospace, Menlo, Consolas, monospace'; if (font !== lastFont) { ctx.font = font; lastFont = font; }
+        var chW = textW.get('0|' + fpx); if (chW === undefined) { chW = ctx.measureText('0000000000').width / 10; textW.set('0|' + fpx, chW); }
+        var nCh = Math.max(1, Math.floor(b.run.n * 2 * sz / chW)); if (nCh !== b.pn) { b.pn = nCh; b.token = nCh <= 3 ? SYM[Math.floor(b.seed2 * SYM.length)].slice(0, nCh) : b.line.slice(0, nCh).replace(/ $/, ';'); b.parts = lexParts(b.token); }
         ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
         var parts = b.parts || [[b.token, VS.vari]], total = 0, widths = [];
         for (var pi = 0; pi < parts.length; pi++) { var wkey = parts[pi][0] + '|' + fpx, pw = textW.get(wkey); if (pw === undefined) { pw = ctx.measureText(parts[pi][0]).width; textW.set(wkey, pw); } widths.push(pw); total += pw; }
         b.sx = X; b.sy = Y; b.sw = total; b.sh = fpx * 1.15; b.pox = b.ox || 0; b.poy = b.oy || 0; if (alpha > 0.5) b.seenT = sceneT;
         var cx2 = X - total / 2, gl = b.glT !== undefined ? sceneT - b.glT : -1;
+        if (!TOUCH && !play.drag && performance.now() - ptr.t < 2500 && Math.abs(ptr.y - Y) < fpx * 0.6 && Math.abs(ptr.x - X) < total / 2 + 2) {   /* 커서가 올라간 줄: 편집기의 지금 줄처럼 옅은 띠 + 깜박이는 커서 */
+          var ink2 = g.mode < 0.5 ? '17,17,17' : '243,243,243', ga0 = ctx.globalAlpha; ctx.fillStyle = 'rgba(' + ink2 + ',0.07)'; ctx.fillRect(cx2 - 4, Y - fpx * 0.62, total + 8, fpx * 1.24);
+          if (Math.floor(sceneT * 2) % 2 === 0) { ctx.fillStyle = 'rgba(' + ink2 + ',0.85)'; ctx.fillRect(Math.round(ptr.x), Y - fpx * 0.55, 1.5, fpx * 1.1); }
+          ctx.globalAlpha = ga0;
+        }
         if (gl >= 0 && gl < GL_DUR) {                                                  /* 지지직: 색이 갈라지고 흔들리며 글자가 뒤섞였다가 다른 함수·변수로 */
-          if (gl > GL_DUR * 0.55 && b.nextTok) { b.token = b.nextTok; b.parts = lexParts(b.token); b.nextTok = null; }
+          if (gl > GL_DUR * 0.55 && b.nextTok) { b.line = b.nextTok; b.pn = -1; b.nextTok = null; }
           var gk = 1 - gl / GL_DUR, jx = (Math.random() - 0.5) * 12 * gk, sh = 2 + 3 * gk, txt = b.token, scr = '';
           for (var ci = 0; ci < txt.length; ci++) scr += Math.random() < 0.45 * gk ? GLYPH.charAt(Math.floor(Math.random() * GLYPH.length)) : txt.charAt(ci);
           var ga = ctx.globalAlpha; ctx.globalAlpha = ga * 0.6;
@@ -490,9 +517,9 @@
       if (now - lastDraw < (skipK - 0.5) * cad) { requestAnimationFrame(render); return; }
       lastDraw = now;
       if (play.on) updatePlay(t);
-      if (active === 1 && c1step === 3 && introDone && !reduce && t - glLast > 1.5) {   /* 01 ③: 1.5초마다 코드 조각 40% 가 글리치와 함께 다른 토큰으로 */
+      if (active === 1 && c1step === 3 && introDone && !reduce && t - glLast > 1.5) {   /* 01 ③: 1.5초마다 코드 줄 10% 가 글리치와 함께 다른 코드로 (AI 가 고쳐 쓰듯) */
         glLast = t;
-        for (var gi = 0; gi < N; gi++) { var gb = boxes[gi]; if (gb.kind === 'code' && !gb.held && Math.random() < 0.4) { gb.glT = t + Math.random() * 0.14; gb.nextTok = TOKENS[Math.floor(Math.random() * TOKENS.length)]; } }
+        for (var gi = 0; gi < N; gi++) { var gb = boxes[gi]; if (gb.kind === 'code' && !gb.held && Math.random() < 0.1) { gb.glT = t + Math.random() * 0.3; gb.nextTok = codeLine(); } }
       }
       if (gFrom && gTo) { var gp = Math.max(0, Math.min(1, (t - gT0) / gDur)), ge = easeOut4(gp); for (var key in gTo) g[key] = gFrom[key] + (gTo[key] - gFrom[key]) * ge; if (gp >= 1) gFrom = gTo = null; }
       spinAcc += g.spin * (t - lastSpin); lastSpin = t;
@@ -500,7 +527,7 @@
       var yaw = g.yaw + Math.sin(t * 0.22) * g.sway + spinAcc;
       yaw = Math.max(-0.35, Math.min(0.35, yaw));                     /* 정면 기준 ±20° 를 넘지 않는다 */
       if (active === 2 && c2step === 3 && introDone && !reduce) { var ak = sstep(0, 1, (t - c2T0 - 0.25) / 0.7); yaw += Math.sin((t - c2T0) * 0.35) * 0.12 * ak; }   /* 02 오디오비주얼: 카메라가 천천히 돈다 */
-      if (active === 2 && c2step === 1 && introDone && !reduce) yaw += Math.sin((t - c2T0) * 0.55) * 0.6 * sstep(0, 1, (t - c2T0 - 0.25) / 0.7);   /* 02 렌더: 턴테이블처럼 좌우로 돈다 */
+      if (active === 2 && c2step === 1 && introDone && !reduce) { var tph = (t - c2T0) % 9; yaw += Math.sin((t - c2T0) * 0.7) * 0.5 * sstep(0, 1, (t - c2T0 - 0.25) / 0.7) * (1 - sstep(5.6, 6.2, tph) + sstep(8.4, 9, tph)); }   /* 02 CG: 모델링·애니메이션 동안 턴테이블처럼 돌고, 렌더 땐 멈춘다 */
       var pitch = g.pitch + Math.sin(t * 0.17) * g.sway * 0.35;
       var cy = Math.cos(yaw), sy = Math.sin(yaw), cp = Math.cos(pitch), sp = Math.sin(pitch);
       var D = 72, F = Math.min(W, H) * 1.45, S = g.s, OX = g.cx, OY = g.cy;
@@ -642,7 +669,17 @@
       requestAnimationFrame(render);
     }
     /* 커서·누른 곳 (01 ① 관객이 비추는 빛 · 02 ③ 손) */
-    var ptr = { x: -1e4, y: -1e4, t: -1e9 }, taps = [], mfT0 = 0, c2T0 = 0, hand = { u: 0, v: 0 }, cue = {}, rnd = { p: 0, y: -18 }, trk = { sw: 0, hist: [] }, av = { bi: 0, ph: 0, pump: 0 };
+    var ptr = { x: -1e4, y: -1e4, t: -1e9 }, taps = [], mfT0 = 0, c2T0 = 0, hand = { u: 0, v: 0 }, shw = { ph: 0, play: 0, fx: 0, bump: 0, sep: [0, 0, 0, 0] }, cg = { ph: 0, k: 0 }, trk = { sw: 0, hist: [] }, av = { bi: 0, ph: 0, pump: 0 }, HP = null;
+    /* 02 CG 렌더 버킷: 4×4 칸 타일 — 가운데서 가까운 순으로 네 개씩(스레드 4) 0.16초마다 */
+    var TILE = (function(){
+      var has = {}, list = [];
+      boxes.forEach(function(b){ b.tile = Math.floor(b.r / 4) * 8 + Math.floor(b.c / 4); if (!has[b.tile]) { has[b.tile] = 1; list.push(b.tile); } });
+      list.sort(function(a, b){ var ax = (a % 8) * 4 - 14, ay = Math.floor(a / 8) * 4 - 15, bx = (b % 8) * 4 - 14, by = Math.floor(b / 8) * 4 - 15; return ax * ax + ay * ay - bx * bx - by * by; });
+      var T = { n: list.length, at: {}, st: [], tx: [], ty: [] };
+      list.forEach(function(id, k){ var s = 0.15 + Math.floor(k / 4) * 0.16; T.at[id] = s; T.st.push(s); T.tx.push(id % 8); T.ty.push(Math.floor(id / 8)); });
+      return T;
+    })();
+    function hudProj(x, y, z){ var h = HP, px = x * h.S, py = y * h.S, pz = z * h.S, cx0 = px * h.cy + pz * h.sy, cz0 = -px * h.sy + pz * h.cy, cy0 = py * h.cp - cz0 * h.sp, sc = h.F / (py * h.sp + cz0 * h.cp + h.D); return [h.OX + cx0 * sc, h.OY + cy0 * sc]; }   /* 로고 좌표 → 화면 (코드 조각 투영과 같은 식) */
     window.addEventListener('pointermove', function(e){ ptr.x = e.clientX; ptr.y = e.clientY; ptr.t = performance.now(); }, { passive: true });
     window.addEventListener('pointerdown', function(e){ ptr.x = e.clientX; ptr.y = e.clientY; ptr.t = performance.now(); taps.push({ x: e.clientX, y: e.clientY, t: sceneT }); if (taps.length > 4) taps.shift(); }, { passive: true });
     function hs(x){ x = Math.sin(x * 12.9898) * 43758.5453; return x - Math.floor(x); }
@@ -661,13 +698,12 @@
       }
       var mfo = !mf && active === 1 && !reduce ? 1 - (t - mfX) / 0.5 : 0;               /* ① 을 떠나면 0.5초 동안 디더로 다시 회색 */
       var c2k = s2 >= 0 && !reduce ? sstep(0, 1, (t - c2T0 - 0.25) / 0.7) : 0, ct = t - c2T0;   /* 02 연출은 단계에 들어와 로고가 자리 잡은 뒤 서서히 */
-      if (s2 === 0) {                                                                  /* 큐 넷 × 2.2초 */
-        var cph = ct % 8.8; cue.i = Math.floor(cph / 2.2); cue.u = (cph - cue.i * 2.2) / 2.2; cue.w = sstep(0, 0.08, cue.u) * (1 - sstep(0.92, 1, cue.u));
-        cue.sx = -12 + 24 * cue.u; cue.sy = -6 + 8 * Math.sin(cue.u * Math.PI); cue.lp = cue.u * 50 - 25;
-        var bt = ct % 0.55; cue.R = bt * 40; cue.bw = 1 - bt / 0.55; cue.pump = Math.exp(-bt * 8); cue.fy = 18 - (cue.u - 0.35) / 0.6 * 40;
+      if (s2 === 0) {                                                                  /* 기획·연출: 7.2초 — 로고가 네 겹(빛·영상·소리·공간)으로 갈라져 앞으로 펼쳐지고, 겹마다 제 일을 하다가 GO 에 하나로 합쳐진다 */
+        var sp0 = ct % 7.2; shw.ph = sp0; shw.play = sstep(1.4, 1.8, sp0) * (1 - sstep(4.6, 5.0, sp0)); shw.fx = -22 + (sp0 - 5.3) / 0.55 * 44; shw.bump = Math.exp(-Math.pow((sp0 - 5.5) / 0.12, 2));
+        for (var sl = 0; sl < 4; sl++) shw.sep[sl] = sstep(0.5 + sl * 0.12, 1.4 + sl * 0.12, sp0) * (1 - sstep(4.95 + (3 - sl) * 0.06, 5.4 + (3 - sl) * 0.06, sp0)) * c2k;
       }
       if (s2 === 3) { var BT = 60 / 124; av.bi = Math.floor(ct / BT); av.ph = (ct - av.bi * BT) / BT; av.pump = Math.exp(-av.ph * 5) * (av.bi % 4 === 0 ? 1 : 0.35); }   /* 124 BPM: 박마다 충격파, 네 박마다 크게 */
-      if (s2 === 1) { var rp2 = (ct % 4.2) / 3.2; rnd.p = Math.min(1, rp2); rnd.y = -18 + rnd.p * 37; }   /* 3.2초 동안 렌더, 1초 완성본 */
+      if (s2 === 1) { cg.ph = ct % 9; cg.k = cg.ph < 3 ? 0 : cg.ph < 6 ? 1 : 2; }   /* CG: 모델링 3초 → 애니메이션 3초 → 렌더 3초 */
       if (s2 === 2) {                                                                  /* 손: 커서가 있으면 그 자리, 없으면 스스로 오간다 (부드럽게 따라감) */
         var hu = 9 * Math.sin(t * 0.6), hv = 7 * Math.sin(t * 0.83 + 1);
         if (pOn) { hu = (ptr.x - OX) / U; hv = (ptr.y - OY) / U; }
@@ -704,17 +740,29 @@
           CFX[i * 4 + 3] = 0; CM[i * 2 + 1] = tn;
         } else if (mfo > 0) {
           CM[i * 2 + 1] = mfo > BAY[(b.r & 3) * 4 + (b.c & 3)] ? MDK : 0;
-        } else if (s2 === 0 && c2k > 0) {                                               /* 기획·연출 = 쇼 컨트롤: 큐 넷을 차례로 '실행'하면 로고가 무대처럼 반응한다 (오른쪽 아래 큐 목록) */
-          var gx0 = b.gx, gy0 = b.gy;
-          if (cue.i === 0) { d = (gx0 - cue.sx) * (gx0 - cue.sx) + (gy0 - cue.sy) * (gy0 - cue.sy); tn = 0.7 * Math.exp(-d / 30) - 0.32; }                       /* LIGHT: 어두운 무대를 핀 조명이 훑는다 */
-          else if (cue.i === 1) { var pv = gx0 * 0.6 - gy0 * 0.35; tn = 0.3 * Math.sin(pv - t * 5) + 0.55 * Math.exp(-Math.pow(gx0 * 0.8 + gy0 * 0.6 - cue.lp, 2) / 0.8); }   /* PROJECTION: 비스듬한 빛 무늬가 흐르고 날카로운 선이 지나간다 */
-          else if (cue.i === 2) { r = Math.sqrt(gx0 * gx0 + gy0 * gy0) - cue.R; q = Math.exp(-r * r / 4) * cue.bw; CFX[i * 4 + 2] = -(1.5 * q + 0.35 * cue.pump); tn = 0.42 * q; }   /* SOUND: 박자마다 가운데서 소리 물결이 튀어나온다 */
-          else { tn = cue.u < 0.35 ? -0.5 * sstep(0, 0.15, cue.u) : (gy0 > cue.fy ? 0 : -0.5) + 0.75 * Math.exp(-(gy0 - cue.fy) * (gy0 - cue.fy) / 0.7); }   /* BLACKOUT → 아래부터 다시 켜진다 */
-          CFX[i * 4 + 2] *= c2k; CM[i * 2 + 1] = tn * cue.w * c2k;
-        } else if (s2 === 1 && c2k > 0) {                                               /* 그래픽·영상 = 렌더: 턴테이블 위 로고를 위에서부터 렌더 줄이 내려가며 '완성'한다 (아래는 아직 클레이) */
-          var ly = rnd.y, dl = b.gy - ly; tn = dl > 0 ? -0.45 : 0; tn += 0.8 * Math.exp(-dl * dl / 0.35);
-          if (dl > 0.5 && dl < 2.6 && rnd.p < 1) tn = hs(i * 0.37 + Math.floor(t * 18) * 1.7) * 0.9 - 0.4;   /* 렌더 줄 바로 아래는 계산 중인 버킷처럼 지직 */
+        } else if (s2 === 0 && c2k > 0) {                                               /* 기획·연출: 줄마다 네 겹 중 하나 — 겹은 앞으로 펼쳐지며(가까울수록 밝게) 제 일을 한다 */
+          var ly = b.ly, se = shw.sep[ly], gx0 = b.gx, gy0 = b.gy, pk = shw.play * se;
+          CFX[i * 4] = -ly * 1.1 * se; CFX[i * 4 + 2] = -4.2 * ly * se - 0.7 * shw.bump * c2k;
+          tn = [-0.22, -0.06, 0.06, 0.16][ly] * se;
+          if (ly === 3) tn += pk * (0.9 * Math.exp(-Math.pow(gy0 - 16 * Math.sin(t * 1.8), 2) / 4) - 0.1);                  /* 빛: 핀 조명이 위아래로 훑는다 */
+          else if (ly === 2) tn += pk * (Math.sin(gy0 * 1.1 - t * 8) > 0.2 ? 0.45 : -0.12);                              /* 영상: 화면 줄이 흐른다 */
+          else if (ly === 1) { var sw1 = Math.max(0, Math.sin(gy0 * 0.7 - t * 9)); CFX[i * 4 + 2] -= pk * 1.4 * sw1; tn += pk * 0.22 * sw1; }   /* 소리: 파형처럼 출렁인다 */
+          else tn += pk * (0.3 * Math.exp(-Math.pow(gx0 + 4 - 10 * Math.sin(t * 0.9), 2) / 40) - 0.06);                 /* 공간: 큰 몸통 위로 무대 조명이 천천히 */
+          if (shw.ph > 5.3 && shw.ph < 5.9) tn += 0.9 * Math.exp(-Math.pow(gx0 - shw.fx, 2) / 3);                          /* GO: 하나로 합쳐지는 순간 빛이 휩쓴다 */
           CM[i * 2 + 1] = tn * c2k;
+        } else if (s2 === 1 && c2k > 0) {                                               /* CG: 모델링(아래부터 쌓기) → 애니메이션(줄 미끄러짐·열 튀어나옴) → 렌더(버킷이 칸씩 완성) */
+          var ph1 = cg.ph, hsi = hs(i * 1.37), sh1 = 0;
+          if (cg.k === 0) {
+            var tw = 0.05 + (b.gy + 16.5) / 33 * 0.45 + hsi * 0.08, tb = 0.75 + (16.5 - b.gy) / 33 * 1.8 + hsi * 0.12, yh = 16.5 - (ph1 - 0.75) / 1.8 * 33;
+            sh1 = sstep(tw, tw + 0.18, ph1) * (1 - sstep(tb, tb + 0.15, ph1)); tn = -0.3 + (ph1 > 0.75 && ph1 < 2.7 ? 0.9 * Math.exp(-Math.pow(b.gy - yh, 2) / 0.6) : 0);
+          } else if (cg.k === 1) {
+            var ua = ph1 - 3, rd = b.r * 0.022, cd = b.c * 0.028, k1 = sstep(0.1 + rd, 0.6 + rd, ua) - sstep(1.1 + rd, 1.6 + rd, ua), k2 = sstep(1.6 + cd, 1.95 + cd, ua) - sstep(2.15 + cd, 2.55 + cd, ua);
+            k1 = k1 * k1 * (3 - 2 * Math.abs(k1)) * (k1 < 0 ? -1 : 1); CFX[i * 4] = ((b.r & 1) ? 4.2 : -4.2) * k1 * c2k; CFX[i * 4 + 2] = -3.2 * k2 * c2k; CFX[i * 4 + 1] = -0.8 * k2 * c2k; tn = -0.3 + 0.35 * k2;
+          } else {
+            var st1 = TILE.at[b.tile], ur = ph1 - 6;
+            tn = ur < st1 ? -0.48 + 0.1 * hs(i + Math.floor(t * 20)) : ur < st1 + 0.16 ? -0.2 + 0.6 * hs(i * 0.7 + Math.floor(t * 30)) : 0.04 + 0.55 * Math.exp(-(ur - st1 - 0.16) / 0.22);
+          }
+          CM[i * 2] = Math.max(CM[i * 2], sh1 * c2k); CM[i * 2 + 1] = tn * c2k;
         } else if (s2 === 2 && c2k > 0) {                                               /* 인터랙션·테크 = 트래킹: 손(커서) 둘레의 픽셀이 힘에 밀려 벌어지고 앞으로 솟는다 + 센서 스윕 */
           var tdx = b.gx - hand.u, tdy = b.gy - hand.v, td2 = tdx * tdx + tdy * tdy, tdl = Math.sqrt(td2) || 1, push = 2.4 * Math.exp(-td2 / 16) * c2k;
           CFX[i * 4] = tdx / tdl * push; CFX[i * 4 + 1] = tdy / tdl * push; CFX[i * 4 + 2] = -push * 0.9;
@@ -773,6 +821,7 @@
         var cx0 = px * cy + pz * sy, cz0 = -px * sy + pz * cy, cy0 = py * cp - cz0 * sp, cz1 = py * sp + cz0 * cp, scC = F / (cz1 + D);
         bx.drawK = k; drawFragment(bx, OX + cx0 * scC + (bx.ox || 0), OY + cy0 * scC + (bx.oy || 0), HS * S * scC, null, bx.m, pal);
       }
+      HP = { S: S, F: F, D: D, cy: cy, sy: sy, cp: cp, sp: sp, OX: OX, OY: OY };
       if (active === 2 && introDone && !reduce) drawHud(t, OX, OY, S * F / D, sstep(0, 1, (t - c2T0 - 0.45) / 0.6), yaw, pitch);
     }
     /* 02 작업 화면 표시: 로고 둘레 모서리 괄호 + 네 모서리 글 (고정폭 작은 글씨, 먹 55%) — 직업마다 그 일의 화면 */
@@ -785,18 +834,27 @@
       ctx.save(); ctx.globalAlpha = k; ctx.lineWidth = 1; ctx.strokeStyle = 'rgba(' + ink + ',0.5)'; ctx.font = '500 ' + (mob ? 9 : 10.5) + 'px "Geist Mono", ui-monospace, Menlo, monospace'; lastFont = null; ctx.textBaseline = 'middle';
       var txt = function(s, x, y, al, a){ ctx.fillStyle = 'rgba(' + ink + ',' + (a === undefined ? 0.62 : a) + ')'; ctx.textAlign = al || 'left'; ctx.fillText(s, x, y); return ctx.measureText(s).width; };
       [[X0, Y0, 1, 1], [X1, Y0, -1, 1], [X0, Y1, 1, -1], [X1, Y1, -1, -1]].forEach(function(c){ ctx.beginPath(); ctx.moveTo(c[0], c[1] + B * c[3]); ctx.lineTo(c[0], c[1]); ctx.lineTo(c[0] + B * c[2], c[1]); ctx.stroke(); });
-      if (s2 === 0) {
+      if (s2 === 0) {                                                                  /* 기획·연출: 쇼 컨트롤 — 네 겹(트랙) 이름표가 겹을 따라가고, 합쳐질 땐 GO */
         txt('SHOW CONTROL', X0 + ins, TY); txt(tc, X1 - ins, TY, 'right');
-        var CUES = ['01 LIGHT', '02 PROJECTION', '03 SOUND', '04 BLACKOUT'], cx3 = X0 + ins;
-        for (var j = mob ? cue.i : 0; j < (mob ? cue.i + 1 : 4); j++) { var on = j === cue.i, ww = txt(CUES[j], cx3, BY, 'left', on ? 0.92 : 0.3); if (on) { ctx.fillStyle = 'rgba(' + ink + ',0.15)'; ctx.fillRect(cx3, BY + 8, ww, 1); ctx.fillStyle = 'rgba(' + ink + ',0.8)'; ctx.fillRect(cx3, BY + 8, ww * cue.u, 1); } cx3 += ww + 18; }
-        ctx.fillStyle = acc; ctx.fillRect(X1 - 46, BY - 3, 6, 6); txt('GO', X1 - ins, BY, 'right', 0.92);
-      } else if (s2 === 1) {
-        if (Math.floor(t * 1.6) % 2 === 0) { ctx.fillStyle = 'rgb(214,64,64)'; ctx.beginPath(); ctx.arc(X0 + 28, TY, 3.5, 0, 6.2832); ctx.fill(); }
-        txt('REC', X0 + 36, TY); txt(tc, X1 - ins, TY, 'right');
-        ctx.beginPath(); ctx.moveTo(OX - 7, OY); ctx.lineTo(OX + 7, OY); ctx.moveTo(OX, OY - 7); ctx.lineTo(OX, OY + 7); ctx.stroke();
-        txt((mob ? '' : '1920\u00D71080 \u00B7 24 fps \u00B7 ') + 'BEAUTY ' + (rnd.p < 1 ? Math.round(rnd.p * 100) + '%' : 'DONE'), X0 + ins, BY, 'left', rnd.p < 1 ? 0.62 : 0.92);
+        var TR = ['LIGHT', 'VIDEO', 'SOUND', 'SPACE'], go = shw.ph > 4.9 && shw.ph < 6.2, cx3 = X0 + ins;
+        for (var j = 0; j < 4; j++) {
+          var se = shw.sep[3 - j];
+          if (se > 0.05 && !mob) { var an = LYA[3 - j], pa = hudProj(an.x - (3 - j) * 1.1 * se, an.y - 1, -4.2 * (3 - j) * se); ctx.globalAlpha = k * Math.min(1, se * 1.5); ctx.beginPath(); ctx.moveTo(pa[0] - 6, pa[1]); ctx.lineTo(pa[0] - 26, pa[1]); ctx.stroke(); var lb = 'L' + (j + 1) + ' ' + TR[j], lw3 = ctx.measureText(lb).width; ctx.fillStyle = g.mode > 0.5 ? 'rgba(17,17,17,0.85)' : 'rgba(246,246,244,0.85)'; ctx.fillRect(pa[0] - 34 - lw3, pa[1] - 8, lw3 + 8, 16); txt(lb, pa[0] - 30, pa[1], 'right', 0.85); ctx.globalAlpha = k; }   /* 큐브 위에 겹쳐도 읽히게 바탕색 띠 */
+          if (!mob || j === 0) { var ww = txt(mob ? (go ? 'ALL TRACKS' : '4 TRACKS') : TR[j], cx3, BY, 'left', go || shw.play > 0.5 ? 0.92 : 0.35); cx3 += ww + 16; }
+        }
+        ctx.fillStyle = go ? acc : 'rgba(' + ink + ',0.25)'; ctx.fillRect(X1 - 46, BY - 3, 6, 6); txt(go ? 'GO' : 'STANDBY', X1 - ins, BY, 'right', go ? 0.92 : 0.5);
+      } else if (s2 === 1) {                                                           /* CG: 작업 단계 탭 · 단계별 정보 · 렌더 땐 버킷 괄호 */
+        var TB = ['MODEL', 'ANIMATE', 'RENDER'], tx3 = X0 + ins, up = (cg.ph % 3) / 3;
+        for (var tj = 0; tj < 3; tj++) { var on1 = tj === cg.k, w3 = txt(TB[tj], tx3, TY, 'left', on1 ? 0.92 : 0.32); if (on1) { ctx.fillStyle = 'rgba(' + ink + ',0.8)'; ctx.fillRect(tx3, TY + 8, w3 * up, 1); } tx3 += w3 + (mob ? 10 : 16); }
+        if (!mob) txt(tc, X1 - ins, TY, 'right');
+        if (cg.k === 0) txt('VOXELS ' + Math.round(N * sstep(0.75, 2.6, cg.ph)) + ' / ' + N, X0 + ins, BY, 'left');
+        else if (cg.k === 1) { var kw = txt('KEYS', X0 + ins, BY), kx0 = X0 + ins + kw + 12, kl = mob ? 60 : 120; ctx.fillStyle = 'rgba(' + ink + ',0.3)'; ctx.fillRect(kx0, BY, kl, 1); ctx.fillStyle = 'rgba(' + ink + ',0.8)'; [0.03, 0.2, 0.37, 0.53, 0.65, 0.85].forEach(function(f){ ctx.save(); ctx.translate(kx0 + f * kl, BY); ctx.rotate(0.785); ctx.fillRect(-2.5, -2.5, 5, 5); ctx.restore(); }); ctx.fillRect(kx0 + up * kl, BY - 6, 1, 12); }
+        else {
+          var ur2 = cg.ph - 6, nd = 0;
+          for (var ti2 = 0; ti2 < TILE.n; ti2++) { var s0 = TILE.st[ti2]; if (ur2 >= s0 + 0.16) nd++; else if (ur2 >= s0) { var tx4 = TILE.tx[ti2] * 4 - 17, ty4 = TILE.ty[ti2] * 4 - 17, q0 = hudProj(tx4, ty4, 0), q1 = hudProj(tx4 + 4, ty4 + 4, 0), bl = Math.max(3, (q1[0] - q0[0]) * 0.28); ctx.strokeStyle = 'rgba(' + ink + ',0.9)'; ctx.beginPath(); [[q0[0], q0[1], 1, 1], [q1[0], q0[1], -1, 1], [q0[0], q1[1], 1, -1], [q1[0], q1[1], -1, -1]].forEach(function(c){ ctx.moveTo(c[0], c[1] + bl * c[3]); ctx.lineTo(c[0], c[1]); ctx.lineTo(c[0] + bl * c[2], c[1]); }); ctx.stroke(); } }
+          ctx.strokeStyle = 'rgba(' + ink + ',0.5)'; txt((mob ? '' : 'BUCKET 32\u00D732 \u00B7 4 THREADS \u00B7 ') + (nd < TILE.n ? Math.round(nd / TILE.n * 100) + '%' : 'DONE'), X0 + ins, BY, 'left', nd < TILE.n ? 0.62 : 0.92);
+        }
         txt((mob ? 'F ' : 'FRAME ') + ('000' + Math.floor(ct * 24)).slice(-4), X1 - ins, BY, 'right');
-        ctx.fillStyle = 'rgba(' + ink + ',0.12)'; ctx.fillRect(X0, Y1 + 8, X1 - X0, 1); ctx.fillStyle = 'rgba(' + ink + ',0.7)'; ctx.fillRect(X0, Y1 + 8, (X1 - X0) * rnd.p, 1);
       } else if (s2 === 3) {                                                           /* 오디오비주얼: LIVE · BPM · 박에 맞춰 뛰는 스펙트럼 막대 */
         var lw2 = txt('LIVE', X0 + ins, TY); if (av.ph < 0.5) { ctx.fillStyle = acc; ctx.fillRect(X0 + ins + 8 + lw2, TY - 3, 6, 6); }
         txt('124 BPM \u00B7 ' + (av.bi % 4 + 1) + '/4', X1 - ins, TY, 'right');
@@ -1015,13 +1073,13 @@
     var C1_STEPS = [C1,
       C1,                                                                            /* ① 2D 미디어 파사드 (mediaFx) */
       Object.assign({}, C1, { flat: 0, yaw: -0.12, pitch: -0.26, sway: 0.3 }),       /* ② 위에서 비스듬히 + 턴테이블처럼 좌우로 — 두께와 그림자 */
-      Object.assign({}, C1, { form: 'burst', morph: 1, fit: 0.86, wall: -16 }),      /* ③ 픽셀이 코드 조각으로 풀린다 — 끌어서 던질 수 있다 */
+      Object.assign({}, C1, { form: 'code', morph: 1 }),                             /* ③ 로고가 코드로 쓰인 로고로 — 줄을 끌어서 던질 수 있다 */
       C1];                                                                           /* ④ 창작 스튜디오 — 다시 하나의 로고로 */
     /* 02 진로 (사용자 10-12: 방·화면·핀은 설명과 안 맞고 허접 → 로고가 직업마다 다른 일을 하고, 그 위에 그 일의 작업 화면 표시(HUD)를 얹는다. 오디오비주얼은 원래 필드) */
     var C2 = CHAPTERS[2], c2step = 0, L2 = { form: 'logo', yaw: -0.16, pitch: -0.1, sway: 0.05, spin: 0, morph: 0, flow: 0, live: 0, sMax: 1.0, sMin: 0.2, fit: 0.74, wall: -5.5 };
     var C2_STEPS = [
-      L2,                                                                            /* 기획·연출: 쇼 컨트롤 — 큐(조명·프로젝션·사운드·암전)를 실행하면 로고가 무대처럼 반응 */
-      Object.assign({}, L2, { yaw: 0, sway: 0 }),                                    /* 그래픽·영상: 턴테이블 위 로고를 렌더 — 뷰파인더·REC·타임코드·렌더 진행 */
+      Object.assign({}, L2, { yaw: -0.33, pitch: -0.2, sway: 0.02 }),               /* 기획·연출: 네 겹(빛·영상·소리·공간)으로 펼쳐졌다 GO 에 하나로 — 비스듬히 봐야 겹이 보인다 */
+      Object.assign({}, L2, { yaw: 0, sway: 0 }),                                    /* 그래픽·영상: 모델링 → 애니메이션 → 렌더 (턴테이블·작업 단계 탭·버킷) */
       Object.assign({}, L2, { yaw: -0.08, sway: 0.03 }),                             /* 인터랙션·테크: 손(커서)을 추적해 픽셀이 반응 — 조준점·좌표·센서 그래프 */
       C2];                                                                           /* 미디어 아티스트(오디오비주얼): 원래 데이터 필드 */
     function stepper(i, looks, onStep){

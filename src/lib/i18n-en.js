@@ -56,7 +56,7 @@ const text = {
   '엔진·XR': 'Engines/XR',
   '게임엔진 테크놀로지 I·II · 유니티 프로그래밍 · 리얼타임 영상 제작 · 가상현실 콘텐츠': 'Game Engine Technology I·II · Unity Programming · Real-time Video Production · Virtual Reality Content',
   '인공지능과 크리에이티브 씽킹 · 데이터 분석 및 AI 활용 · 창업과 AI 비즈니스': 'AI & Creative Thinking · Data Analysis & Applied AI · Startups & AI Business',
-  '옆의 로고 — 코드 조각으로 풀린 픽셀, 끌어서 던져 보세요': 'The logo — pixels unravelled into code. Drag and throw a piece',
+  '옆의 로고 — 한 줄 한 줄 코드로 다시 쓴 로고. 줄을 끌어서 던져 보세요': 'The logo — rewritten line by line in code. Drag and throw a line',
   '세 분야에서 배운 것을 한 작품으로 묶습니다. 한 해의 작업은 디지털아트페스티벌(DIAF)에서 전시합니다.': 'Bring everything from the three fields into a single work. Each year’s work is shown at the Digital Arts Festival (DIAF).',
   '디지털아트 창작실습 I·II · 산학 프로젝트 스튜디오 · 포트폴리오 워크숍': 'Digital Art Studio Practice I·II · Industry Project Studio · Portfolio Workshop',
   '전시': 'Exhibition',
