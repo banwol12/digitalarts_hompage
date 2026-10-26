@@ -267,6 +267,14 @@ html.touch-paging .chapter.steps{scroll-snap-type:y mandatory}
 .facts>div:last-child{border-bottom:1px solid var(--border-hairline)}
 .facts dt{color:var(--text-muted);font-family:var(--font-core);padding-top:2px}
 .facts dd{margin:0;font-size:clamp(12.5px,0.92vw,calc(14.5px * var(--k)));line-height:1.6;color:var(--text-body)}
+/* 01 ④ 전시: DIAF 홈페이지로 — DIAF 사이트의 글자 마크처럼 굵고 크게 + 라임 밑줄 (사용자 10-26: 눈길이 가게) */
+.diaf{display:inline-flex;align-items:baseline;gap:var(--space-8);color:var(--text-body);text-decoration:none;padding:2px 0}
+.diaf b{font:600 clamp(20px,1.75vw,calc(27px * var(--k)))/1 var(--font-brand);letter-spacing:.01em;background:linear-gradient(var(--blue-primary),var(--blue-primary)) 0 88%/100% .3em no-repeat;padding:0 .06em;transition:background-size var(--duration-base) var(--ease)}
+.diaf span{font-weight:500;color:var(--text-secondary)}
+.diaf i{font-style:normal;display:inline-block;transition:transform var(--duration-base) var(--ease)}
+.diaf:hover,.diaf:focus-visible{color:var(--text-body)}   /* 공통 링크 hover 색(라임)이면 라임 밑줄과 섞여 글자가 안 보였다 */
+.diaf:hover b,.diaf:focus-visible b{background-size:100% .62em}
+.diaf:hover i,.diaf:focus-visible i{transform:translate(2px,-2px)}
 .panel .demo{display:flex;align-items:center;gap:var(--space-8);color:var(--text-muted);font-family:var(--font-core)}
 .panel .demo::before{content:"";width:8px;height:8px;background:var(--accent,#e6ff16);flex:none}
 .dots{display:flex;gap:6px;list-style:none;margin:0;padding:0}

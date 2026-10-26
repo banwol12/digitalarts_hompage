@@ -61,6 +61,8 @@ const text = {
   '디지털아트 창작실습 I·II · 산학 프로젝트 스튜디오 · 포트폴리오 워크숍': 'Digital Art Studio Practice I·II · Industry Project Studio · Portfolio Workshop',
   '전시': 'Exhibition',
   '디지털아트페스티벌 (DIAF) ↗': 'Digital Arts Festival (DIAF) ↗',
+  '디지털아트페스티벌': 'Digital Arts Festival',
+  '디지털아트페스티벌 DIAF 홈페이지 (새 창)': 'Digital Arts Festival (DIAF) website (opens in a new tab)',
   '옆의 로고 — 흩어졌던 픽셀이 다시 하나로': 'The logo — scattered pixels come back together',
   '수업 이름은 교육과정에 따라 바뀔 수 있습니다.': 'Course names may change with the curriculum.',
 
