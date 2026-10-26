@@ -158,7 +158,7 @@ html.booting.mo-in .site-header{opacity:1;transform:none}html.booting.mo-in .pro
 .brand .mark svg{width:100%;height:100%;fill:currentColor}
 .brand-text{display:flex;flex-direction:column;gap:2px;line-height:1.1}
 .brand-text small{font:500 calc(9.5px * var(--k))/1.1 var(--font-mono);letter-spacing:0.13em;text-transform:uppercase;color:var(--text-muted)}
-.brand-text strong{font:600 calc(20px * var(--k))/1.05 var(--font-brand);letter-spacing:-0.02em;text-transform:uppercase}   /* 헤더 브랜드도 가운데 제목(.intro-sub·.intro-title)과 같은 서체·대문자 (사용자 요청 2026-09-28: 두 글씨 통일 · 10-26: 윗줄 Geist Mono, 아랫줄 Geist 로 다듬기) */
+.brand-text strong{font:600 calc(20px * var(--k))/1.05 var(--font-brand);letter-spacing:0.035em;text-transform:uppercase}   /* 헤더 브랜드도 가운데 제목(.intro-sub·.intro-title)과 같은 서체·대문자 (사용자 요청 2026-09-28: 두 글씨 통일 · 10-26: 윗줄 Geist Mono, 아랫줄 Geist 로 다듬기 · 자간은 붙어 보인다고 해서 넓게) */
 .site-nav{display:flex;gap:var(--space-32);position:relative}
 .nav-ind{position:absolute;left:0;bottom:calc(-9px * var(--k));width:0;height:1px;background:var(--text-body);opacity:0;pointer-events:none}
 .site-nav a{font:var(--type-label);letter-spacing:var(--tracking-label);text-transform:uppercase;color:var(--text-muted)}
@@ -202,7 +202,7 @@ html.touch-paging .cards{touch-action:pan-x}
 .intro{text-align:center;align-content:end;padding-bottom:12vh}
 .intro .wordmark{display:flex;flex-direction:column;gap:var(--space-12);align-items:center}
 .intro-sub{font:500 clamp(11px,1.1vw,calc(15px * var(--k)))/1.4 var(--font-mono);letter-spacing:0.28em;text-transform:uppercase;color:var(--text-muted);text-align:center;padding-left:0.3em}
-.intro-title{font:600 clamp(2.5rem,9vw,calc(7rem * var(--k)))/.94 var(--font-brand);letter-spacing:-0.04em;text-transform:uppercase;color:var(--text-body);text-align:center;margin-top:2px}   /* 포트폴리오 푸터 워드마크와 같은 서체·자간 (사용자 요청) */
+.intro-title{font:600 clamp(2.5rem,9vw,calc(7rem * var(--k)))/.94 var(--font-brand);letter-spacing:0.01em;text-transform:uppercase;color:var(--text-body);text-align:center;margin-top:2px}   /* 포트폴리오 푸터 워드마크와 같은 서체·자간 (사용자 요청) */
 .js .intro .wordmark{opacity:0;transform:translateY(14px);transition:opacity var(--duration-slow) var(--ease),transform var(--duration-slow) var(--ease)}
 .js .intro.is-ready .wordmark{opacity:1;transform:none}
 .intro .hint{position:absolute;left:0;right:0;bottom:var(--space-24);display:flex;justify-content:center}
