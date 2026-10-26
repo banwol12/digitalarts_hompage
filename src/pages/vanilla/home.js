@@ -646,18 +646,20 @@
     window.addEventListener('pointermove', function(e){ ptr.x = e.clientX; ptr.y = e.clientY; ptr.t = performance.now(); }, { passive: true });
     window.addEventListener('pointerdown', function(e){ ptr.x = e.clientX; ptr.y = e.clientY; ptr.t = performance.now(); taps.push({ x: e.clientX, y: e.clientY, t: sceneT }); if (taps.length > 4) taps.shift(); }, { passive: true });
     function hs(x){ x = Math.sin(x * 12.9898) * 43758.5453; return x - Math.floor(x); }
+    var BAY = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5].map(function(v){ return (v + 0.5) / 16; }), MDK = -0.9, MLT = 1.45, mfX = -1e9;   /* 4×4 디더 문턱 · ① 어둠/흰빛 밝기 (로고색 #A0A0A0 × (1+값)) */
     function sstep(a, b, x){ x = Math.max(0, Math.min(1, (x - a) / (b - a))); return x * x * (3 - 2 * x); }
     function renderSC(t, yaw, pitch, F, D, S, OX, OY, pal){
       var hasFlow = g.flow > 0.01, nFr = 0, lv = g.live * (introDone ? Math.min(1, (t - introAt) / 1.5) : 0);
       var s1 = active === 1 && introDone ? c1step : 0, s2 = active === 2 && introDone ? c2step : -1;   /* 01·02 단계별 연출 */
       var U = S * F / D, pOn = performance.now() - ptr.t < 2500, mf = null, tau = (t % 3.2) / 3.2;
-      /* 01 ① 미디어아트·실감미디어: 2D 로고 위의 프로젝션 매핑 — 빛과 그림자(흑백)만으로 짧은 장면 셋을 돌려 튼다 (사용자 10-12: 노랗게 차는 로고는 다른 전공 색이라 안 됨).
-         출렁임(평면이 물결치는 착시) · 플립닷(칸이 뒤집히며 무늬) · 윤곽 추적(가장자리를 달리는 빛 → 안쪽으로 차는 빛). 커서는 관객이 비추는 빛, 누르면 그 자리에서 빛 물결 */
+      /* 01 ① 미디어아트·실감미디어: 프로젝션 매핑 — 로고를 어둡게 꺼서 스크린으로 만들고 그 위에 흰 빛만 쏜다 (사용자 10-12: 노랗게 차는 로고는 다른 전공 색이라 안 됨).
+         사용자 10-26: 번진 회색 얼룩이 짜쳤다 → 빛은 칸 단위로 딱 떨어지게 (4×4 디더). 장면 셋 × 3.2초: 윤곽을 그리고 안쪽으로 차기 · 스캔 · 줄무늬.
+         커서는 관객이 비추는 빛, 누르면 그 자리에서 빛 고리 */
       if (s1 === 1 && !reduce) {
-        var mph = (t - mfT0) % 8.4, msi = Math.floor(mph / 2.8), mu = (mph - msi * 2.8) / 2.8, mn = Math.floor((t - mfT0) / 8.4);
-        mf = { si: msi, u: mu, w: sstep(0, 0.1, mu) * (1 - sstep(0.9, 1, mu)), ux: (ptr.x - OX) / U, uy: (ptr.y - OY) / U,
-               bx: (hs(mn + 0.31) - 0.5) * 16, by: (hs(mn + 0.77) - 0.5) * 16, ca: -Math.PI * 0.75 + mu * Math.PI * 2.6 };
+        var mt = t - mfT0, mph = mt % 9.6, msi = Math.floor(mph / 3.2);
+        mf = { si: msi, u: (mph - msi * 3.2) / 3.2, k: sstep(0, 0.7, mt), ux: (ptr.x - OX) / U, uy: (ptr.y - OY) / U };
       }
+      var mfo = !mf && active === 1 && !reduce ? 1 - (t - mfX) / 0.5 : 0;               /* ① 을 떠나면 0.5초 동안 디더로 다시 회색 */
       var c2k = s2 >= 0 && !reduce ? sstep(0, 1, (t - c2T0 - 0.25) / 0.7) : 0, ct = t - c2T0;   /* 02 연출은 단계에 들어와 로고가 자리 잡은 뒤 서서히 */
       if (s2 === 0) {                                                                  /* 큐 넷 × 2.2초 */
         var cph = ct % 8.8; cue.i = Math.floor(cph / 2.2); cue.u = (cph - cue.i * 2.2) / 2.2; cue.w = sstep(0, 0.08, cue.u) * (1 - sstep(0.92, 1, cue.u));
@@ -682,24 +684,26 @@
         CFX[i * 4] = 0; CFX[i * 4 + 1] = 0; CFX[i * 4 + 2] = bob + lvz; CFX[i * 4 + 3] = boost[i] * g.flow;
         CM[i * 2] = b.m; CM[i * 2 + 1] = 0;
         var gl = 0, tn = 0, d, r, q;
-        if (mf) {                                                                        /* 01 ①: 노란빛 없이 빛과 그림자만 — 평평한 로고가 출렁이고(착시), 칸이 뒤집히고, 윤곽을 빛이 달린다 */
-          var gx = b.gx, gy = b.gy;
-          if (mf.si === 0) {                                                             /* 출렁임: 물결 높이의 기울기로 빛·그림자만 칠해 평면이 울렁이는 것처럼 */
-            var p1 = gx * 0.55 + gy * 0.34 - t * 3.4, p2 = -gx * 0.4 + gy * 0.65 - t * 2.5, rr2 = Math.sqrt((gx - mf.bx) * (gx - mf.bx) + (gy - mf.by) * (gy - mf.by)) || 1, p3 = rr2 * 0.9 - t * 5;
-            var dhx = 0.55 * Math.cos(p1) - 0.28 * Math.cos(p2) + 0.7 * Math.cos(p3) * (gx - mf.bx) / rr2 * Math.exp(-rr2 / 9), dhy = 0.34 * Math.cos(p1) + 0.46 * Math.cos(p2) + 0.7 * Math.cos(p3) * (gy - mf.by) / rr2 * Math.exp(-rr2 / 9);
-            var nl = 1 / Math.sqrt(dhx * dhx + dhy * dhy + 1); tn = 1.25 * ((-dhx * -0.55 - dhy * -0.65 + 0.5) * nl - 0.5);
-          } else if (mf.si === 1) {                                                      /* 플립닷: 칸이 물결처럼 뒤집히며(옆으로 설 때 어둡게) 3칸 바둑판이 나타났다 반대쪽부터 되돌아간다 */
-            var ft = (gx * 0.8 + gy * 0.6 + 24) / 48, fa = sstep(0, 1, (mf.u - ft * 0.38) / 0.1), fb = sstep(0, 1, (mf.u - 0.5 - (1 - ft) * 0.38) / 0.1), on = (Math.floor((gx + 18) / 3) + Math.floor((gy + 18) / 3)) % 2 === 0;
-            tn = (fa - fb) * (on ? 0.6 : -0.32) - 0.55 * (Math.sin(Math.PI * fa) + Math.sin(Math.PI * fb));
-          } else {                                                                       /* 윤곽 추적: 로고가 어두워지고(꺼진 전시장) 흰 빛 둘이 가장자리를 반대로 돈 뒤, 가장자리부터 안쪽으로 빛이 찬다 */
-            tn = -0.3;
-            if (b.edge) for (var cs = 0; cs < 2; cs++) { var da = b.ang - (cs ? -mf.ca : mf.ca); da = Math.atan2(Math.sin(da), Math.cos(da)); var bk = cs ? -da : da; tn = Math.max(tn, 0.9 * Math.exp(-da * da / 0.03) + (bk < 0 && bk > -1.4 ? 0.4 * Math.exp(bk * 2.2) - 0.3 : -0.3)); }
-            tn = Math.max(tn, -0.3 + 0.7 * sstep(0, 1, (mf.u - 0.55 - b.dep * 0.035) / 0.12));
+        if (mf) {                                                                        /* 01 ①: Lt 0 = 꺼짐(어둠) … 1 = 흰 빛 */
+          var gx = b.gx, gy = b.gy, by = BAY[(b.r & 3) * 4 + (b.c & 3)], u = mf.u, Lt = 0;
+          if (mf.si === 0) {                                                             /* 윤곽: 꼭대기에서 두 빛이 양쪽으로 돌아 바닥에서 만나고(입장 테두리처럼) → 가장자리부터 안쪽으로 차고 → 위에서부터 스캔선이 지우며 꺼진다 */
+            var th = Math.abs(Math.atan2(gx, -gy)) / Math.PI, a = u / 0.38, y0 = -18 + (u - 0.8) / 0.18 * 36;
+            if (b.edge && th < a) Lt = th > a - 0.07 ? 1 : 0.55;
+            if (!b.edge && (u - 0.42) / 0.3 - (b.dep - 2) * 0.16 > by) Lt = 0.8;           /* 가장자리 한 칸은 회색 윤곽으로 남겨야 흰 종이 위에서 모양이 안 사라진다 */
+            if (gy < y0 - by * 3) Lt = 0; else if (Math.abs(gy - y0) < 0.6) Lt = 1;
+          } else if (mf.si === 1) {                                                      /* 스캔: 가로 빛줄이 위→아래, 세로 빛줄이 왼→오른쪽. 지나간 자리는 디더로 남았다 사라진다 */
+            var h1 = u < 0.5, sl = h1 ? -18 + u / 0.5 * 36 : -18 + (u - 0.5) / 0.5 * 34, dl = (h1 ? gy : gx) - sl;
+            if (Math.abs(dl) < 0.6) Lt = 1; else if (dl < 0 && Math.exp(dl / 3.5) * 0.9 > by) Lt = 0.62;
+          } else {                                                                       /* 줄무늬: 굵기 5칸 주기의 사선이 흐르며 천천히 돌고, 끝엔 가늘어져 사라진다 */
+            var an = 0.75 + u * 1.7, ph = (gx * Math.cos(an) + gy * Math.sin(an)) / 5 - t * 0.8, fr = ph - Math.floor(ph), hw = 0.27 * sstep(0, 0.12, u) * (1 - sstep(0.72, 1, u));
+            if (Math.max(0, Math.min(1, (hw - Math.abs(fr - 0.5)) * 5 + 0.5)) > by) Lt = 0.85;
           }
-          tn *= mf.w;
-          if (pOn) { d = (gx - mf.ux) * (gx - mf.ux) + (gy - mf.uy) * (gy - mf.uy); tn += 0.6 * Math.exp(-d / 9) - 0.18 * Math.exp(-(Math.sqrt(d) - 4.2) * (Math.sqrt(d) - 4.2) / 1.5); }   /* 관객이 비추는 빛 (가장자리는 살짝 그늘) */
-          for (var ti = 0; ti < taps.length; ti++) { var ta = t - taps[ti].t; if (ta < 0 || ta > 1.6) continue; var tx2 = gx - (taps[ti].x - OX) / U, ty2 = gy - (taps[ti].y - OY) / U; r = Math.sqrt(tx2 * tx2 + ty2 * ty2) - ta * 16; tn += 0.6 * Math.exp(-r * r / 2) * (1 - ta / 1.6) - 0.25 * Math.exp(-(r + 1.8) * (r + 1.8) / 1.5) * (1 - ta / 1.6); }
-          CFX[i * 4 + 3] = 0; CM[i * 2 + 1] = Math.max(-0.55, Math.min(0.75, tn));
+          if (pOn) { d = (gx - mf.ux) * (gx - mf.ux) + (gy - mf.uy) * (gy - mf.uy); if (1.25 * Math.exp(-d / 12) > by) Lt = Math.max(Lt, 0.95); }   /* 관객이 비추는 빛 (가장자리도 디더) */
+          for (var ti = 0; ti < taps.length; ti++) { var ta = t - taps[ti].t; if (ta < 0 || ta > 1.3) continue; var tx2 = gx - (taps[ti].x - OX) / U, ty2 = gy - (taps[ti].y - OY) / U; if (Math.abs(Math.sqrt(tx2 * tx2 + ty2 * ty2) - ta * 18) < 0.75) Lt = 1; }
+          tn = mf.k > by ? (Lt > 0 ? MDK + (MLT - MDK) * Lt : MDK) : 0;                  /* 들어올 땐 회색에서 디더로 꺼진다 */
+          CFX[i * 4 + 3] = 0; CM[i * 2 + 1] = tn;
+        } else if (mfo > 0) {
+          CM[i * 2 + 1] = mfo > BAY[(b.r & 3) * 4 + (b.c & 3)] ? MDK : 0;
         } else if (s2 === 0 && c2k > 0) {                                               /* 기획·연출 = 쇼 컨트롤: 큐 넷을 차례로 '실행'하면 로고가 무대처럼 반응한다 (오른쪽 아래 큐 목록) */
           var gx0 = b.gx, gy0 = b.gy;
           if (cue.i === 0) { d = (gx0 - cue.sx) * (gx0 - cue.sx) + (gy0 - cue.sy) * (gy0 - cue.sy); tn = 0.7 * Math.exp(-d / 30) - 0.32; }                       /* LIGHT: 어두운 무대를 핀 조명이 훑는다 */
@@ -1043,7 +1047,7 @@
         if (PAGED) el.scrollTo({ top: k * el.clientHeight, behavior: how }); else window.scrollTo({ top: el.offsetTop + k * VH(), behavior: how });
       }); });
     }
-    stepper(1, C1_STEPS, function(k){ var was = c1step >= 1; if (c1step === 2 && k === 3 && active === 1 && introDone) boomToCode(); c1step = k; railOn(); if (k === 1) mfT0 = sceneT; if (k !== 3) resetPlay(); if (active === 1 && was !== (k >= 1)) { syncLinks(); moveInd(1); } });
+    stepper(1, C1_STEPS, function(k){ var was = c1step >= 1, pv = c1step; if (c1step === 2 && k === 3 && active === 1 && introDone) boomToCode(); c1step = k; railOn(); if (k === 1) mfT0 = sceneT; else if (pv === 1) mfX = sceneT; if (k !== 3) resetPlay(); if (active === 1 && was !== (k >= 1)) { syncLinks(); moveInd(1); } });
     stepper(2, C2_STEPS, function(k){ c2step = k; c2T0 = sceneT; });
     /* ── 터치 기기: 스와이프를 감지하는 순간 다음/이전 챕터로 부드럽게 이동 (한 번에 한 챕터) ── */
     var paging = false, mainEl = document.querySelector('main');
