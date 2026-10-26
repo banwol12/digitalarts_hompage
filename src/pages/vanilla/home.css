@@ -142,6 +142,7 @@ html.booting .site-header{opacity:0;transform:translateY(-10px);pointer-events:n
 .hdr-actions{display:flex;gap:var(--space-8);align-items:center;justify-self:end}
 @property --a{syntax:'<percentage>';inherits:false;initial-value:0%}
 html.booting .progress{opacity:0}
+html.booting.mo-in .site-header{opacity:1;transform:none}html.booting.mo-in .progress{opacity:1}   /* motion 입장: 그릇은 바로 보이고 안의 요소가 차례로 들어온다 */
 .site-header .row{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:var(--space-24);height:calc(64px * var(--k))}
 .site-header .row>.brand{justify-self:start}
 .site-header .row>.site-nav{justify-self:center}

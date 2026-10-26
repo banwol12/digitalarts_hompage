@@ -899,11 +899,10 @@
       ctx.save(); ctx.globalAlpha = k; ctx.lineWidth = 1; ctx.strokeStyle = 'rgba(' + ink + ',0.5)'; ctx.font = '500 ' + (mob ? 9 : 10.5) + 'px "Geist Mono", ui-monospace, Menlo, monospace'; lastFont = null; ctx.textBaseline = 'middle';
       var txt = function(s, x, y, al, a){ ctx.fillStyle = 'rgba(' + ink + ',' + (a === undefined ? 0.62 : a) + ')'; ctx.textAlign = al || 'left'; ctx.fillText(s, x, y); return ctx.measureText(s).width; };
       [[X0, Y0, 1, 1], [X1, Y0, -1, 1], [X0, Y1, 1, -1], [X1, Y1, -1, -1]].forEach(function(c){ ctx.beginPath(); ctx.moveTo(c[0], c[1] + B * c[3]); ctx.lineTo(c[0], c[1]); ctx.lineTo(c[0] + B * c[2], c[1]); ctx.stroke(); });
-      if (s2 === 0) {                                                                  /* 기획·연출: 단계 탭 · 바닥 위 동선 · 구역 콜아웃(지시선) · 편집기 같은 큐 타임라인 */
-        var en = document.documentElement.lang === 'en', sp = shw.ph, plk = sstep(1.3, 1.7, sp) * (1 - sstep(9.4, 9.8, sp)), BZ = shw.bu;
-        var TB0 = en ? ['01 PLAN', '02 BUILD', '03 DIRECT'] : ['01 기획', '02 공간 구성', '03 연출'], tx0 = X0 + ins, kk = sp < 11 ? shw.k : 2;
-        for (var j = 0; j < 3; j++) { var o0 = j === kk, w0 = txt(TB0[j], tx0, TY, 'left', o0 ? 0.92 : 0.32); if (o0) { ctx.fillStyle = 'rgba(' + ink + ',0.8)'; ctx.fillRect(tx0, TY + 8, w0 * Math.min(1, kk === 0 ? sp / 4.2 : kk === 1 ? (sp - 4.2) / 1.2 : (sp - 5.4) / 4.2), 1); } tx0 += w0 + (mob ? 10 : 16); }
-        if (!mob) txt(tc, X1 - ins, TY, 'right');
+      if (s2 === 0) {                                                                  /* 기획·연출 (사용자 10-26: 글은 덜고 그림과 움직임으로): 단계 막대 · 바닥 위 동선 · 구역 아이콘(조명=해 · 영상=화면 · 사운드=음파) · 큐마다 바닥에 퍼지는 라임 빛 · 글 없는 큐 블록 */
+        var sp = shw.ph, plk = sstep(1.3, 1.7, sp) * (1 - sstep(9.4, 9.8, sp)), BZ = shw.bu, LIME = 'rgb(150,166,0)', LF = function(a){ return 'rgba(214,240,40,' + a + ')'; }, kk = sp < 11 ? shw.k : 2;
+        for (var j = 0; j < 3; j++) { var bxp = X0 + ins + j * 26, pr = j < kk ? 1 : j > kk ? 0 : Math.min(1, kk === 0 ? sp / 4.2 : kk === 1 ? (sp - 4.2) / 1.2 : (sp - 5.4) / 4.2); ctx.fillStyle = 'rgba(' + ink + ',0.15)'; ctx.fillRect(bxp, TY - 1, 20, 2); ctx.fillStyle = 'rgba(' + ink + ',0.8)'; ctx.fillRect(bxp, TY - 1, 20 * pr, 2); }   /* 단계 막대: 기획 · 공간 구성 · 연출 */
+        var ell = function(x, y, z, r, fill, stroke, lw){ ctx.beginPath(); for (var e = 0; e <= 32; e++) { var a = e / 32 * 6.2832, pe = hudProj(x + Math.cos(a) * r, y + Math.sin(a) * r, z); if (e) ctx.lineTo(pe[0], pe[1]); else ctx.moveTo(pe[0], pe[1]); } if (fill) { ctx.fillStyle = fill; ctx.fill(); } if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = lw || 1; ctx.stroke(); ctx.lineWidth = 1; } };   /* 바닥 위 원 (원근으로 타원) */
         if (plk > 0) {
           var rv = sstep(1.5, 2.9, sp), segs = [], tot = 0;
           for (var f = 1; f < FP.length; f++) { var pa0 = hudProj(FP[f - 1][0], FP[f - 1][1], 0), pa1 = hudProj(FP[f][0], FP[f][1], 0), sl = Math.hypot(pa1[0] - pa0[0], pa1[1] - pa0[1]); segs.push([pa0, pa1, sl]); tot += sl; }
@@ -911,17 +910,31 @@
           segs.forEach(function(sg){ if (run >= lim) return; var fr = Math.min(1, (lim - run) / sg[2]), e = [sg[0][0] + (sg[1][0] - sg[0][0]) * fr, sg[0][1] + (sg[1][1] - sg[0][1]) * fr]; ctx.moveTo(sg[0][0], sg[0][1]); ctx.lineTo(e[0], e[1]); tip = [e[0], e[1], Math.atan2(sg[1][1] - sg[0][1], sg[1][0] - sg[0][0])]; run += sg[2]; });
           ctx.stroke(); ctx.setLineDash([]);
           if (tip) { ctx.fillStyle = 'rgba(' + ink + ',0.6)'; ctx.beginPath(); ctx.moveTo(tip[0] + Math.cos(tip[2]) * 6, tip[1] + Math.sin(tip[2]) * 6); ctx.lineTo(tip[0] + Math.cos(tip[2] + 2.6) * 5, tip[1] + Math.sin(tip[2] + 2.6) * 5); ctx.lineTo(tip[0] + Math.cos(tip[2] - 2.6) * 5, tip[1] + Math.sin(tip[2] - 2.6) * 5); ctx.fill(); }
-          var io = hudProj(-12, 14.4, 0), oo = hudProj(12, -14.4, 0); txt('IN', io[0], io[1], 'center', 0.6); if (rv > 0.95) txt('OUT', oo[0], oo[1], 'center', 0.6);
-          var ZN = en ? ['A  LIGHT', 'B  VIDEO', 'C  SOUND'] : ['A  조명', 'B  영상', 'C  사운드'], ZP = [[-10.5, -4.5, 3.6], [0, -8.5, 2.6], [10, 6, 2.4]];   /* 콜아웃: 설치물 꼭대기에서 위로 지시선 → 이름 */
-          if (!mob) ZN.forEach(function(zn, zj){ var top = 0.22 + (ZP[zj][2] - 0.22) * BZ, zp = hudProj(ZP[zj][0], ZP[zj][1], -top), on = shw.q === zj || shw.q === 3, ly = zp[1] - 34, lx = zp[0] + 16; ctx.strokeStyle = 'rgba(' + ink + ',' + (on ? 0.85 : 0.45) + ')'; ctx.beginPath(); ctx.moveTo(zp[0], zp[1] - 4); ctx.lineTo(zp[0], ly); ctx.lineTo(lx, ly); ctx.stroke(); ctx.fillStyle = on ? acc : 'rgba(' + ink + ',0.5)'; ctx.fillRect(zp[0] - 2, zp[1] - 6, 4, 4); var zw = ctx.measureText(zn).width; ctx.fillStyle = '#f6f6f4'; ctx.fillRect(lx + 2, ly - 8, zw + 8, 16); txt(zn, lx + 6, ly, 'left', on ? 0.95 : 0.6); });
+          ell(-12, 13, 0, 1.1, null, 'rgba(' + ink + ',0.5)'); if (rv > 0.95) ell(12, -13, 0, 0.8, 'rgba(' + ink + ',0.55)');   /* 입구 = 빈 원 · 출구 = 찬 원 */
+          var q = shw.q, qa = shw.qa, qe = q >= 0 && qa >= 0 ? sstep(0, 0.15, qa) * (1 - sstep(0.8, 1, qa)) : 0;
+          if (qe > 0) {                                                                /* 큐 그래픽: 그 구역 바닥에 라임 빛 */
+            if (q === 0 || q === 3) { var tA = hudProj(-10.5, -4.5, -(0.22 + 3.38 * BZ)); ell(-10.5, -4.5, 0, 5.2 * (0.6 + 0.4 * qe), LF(0.22 * qe)); [[-15.7, -4.5], [-5.3, -4.5], [-10.5, 0.7], [-10.5, -9.7]].forEach(function(c){ var pc = hudProj(c[0] * 0.6 + -10.5 * 0.4, c[1] * 0.6 + -4.5 * 0.4, 0); ctx.strokeStyle = LF(0.5 * qe); ctx.beginPath(); ctx.moveTo(tA[0], tA[1]); ctx.lineTo(pc[0], pc[1]); ctx.stroke(); }); }   /* 조명: 타워에서 바닥으로 빛 뿔 + 빛 웅덩이 */
+            if (q === 1 || q === 3) { for (var rj = 0; rj < 7; rj++) { var sx0 = -3 + rj, s0 = hudProj(sx0, -7.6, -(0.22 + 2.38 * BZ) * 0.5), s1 = hudProj(sx0 * 1.5, -1.5, 0); ctx.strokeStyle = LF(0.45 * qe * (0.6 + 0.4 * Math.sin(t * 9 + rj))); ctx.beginPath(); ctx.moveTo(s0[0], s0[1]); ctx.lineTo(s1[0], s1[1]); ctx.stroke(); } ell(0, -3.5, 0, 4.4, LF(0.14 * qe)); }   /* 영상: 스크린에서 바닥으로 퍼지는 빛줄기 */
+            if (q === 2 || q === 3) [[7.5, 6], [12.5, 6]].forEach(function(c){ for (var wj = 0; wj < 3; wj++) { var wr = ((qa * 1.6 + wj / 3) % 1); ell(c[0], c[1], 0, 1 + wr * 5, null, LF((1 - wr) * 0.9 * qe), 1.5); } });   /* 사운드: 스피커에서 퍼지는 바닥 파동 */
+            if (q === 3) { var fq = -18 + qa * 40, f0 = hudProj(fq, -11, 0), f1 = hudProj(fq, 11, 0); ctx.strokeStyle = LF(0.9 * qe); ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(f0[0], f0[1]); ctx.lineTo(f1[0], f1[1]); ctx.stroke(); ctx.lineWidth = 1; }   /* 피날레: 바닥을 가로지르는 빛줄 */
+          }
+          var ZP = [[-10.5, -4.5, 3.6], [0, -8.5, 2.6], [10, 6, 2.4]];                /* 구역 아이콘: 설치물 위에 떠서 살짝 오르내린다 · 큐 땐 라임으로 차고 고리가 퍼진다 */
+          ZP.forEach(function(zp0, zj){
+            var on = (q === zj || q === 3) && qe > 0, top = 0.22 + (zp0[2] - 0.22) * BZ, zp = hudProj(zp0[0], zp0[1], -top), ix = zp[0], iy = zp[1] - 26 + Math.sin(t * 2 + zj * 2) * 2, R = mob ? 8 : 10;
+            ctx.strokeStyle = 'rgba(' + ink + ',0.35)'; ctx.beginPath(); ctx.moveTo(zp[0], zp[1] - 3); ctx.lineTo(ix, iy + R + 2); ctx.stroke();
+            if (on) { var pr2 = (t * 1.5) % 1; ctx.strokeStyle = LF(0.9 * (1 - pr2) * qe); ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(ix, iy, R + pr2 * 14, 0, 6.2832); ctx.stroke(); ctx.lineWidth = 1; }
+            ctx.fillStyle = on ? LF(0.95) : '#f6f6f4'; ctx.strokeStyle = on ? LIME : 'rgba(' + ink + ',0.55)'; ctx.beginPath(); ctx.arc(ix, iy, R, 0, 6.2832); ctx.fill(); ctx.stroke();
+            ctx.strokeStyle = 'rgba(' + ink + ',' + (on ? 0.95 : 0.7) + ')'; ctx.fillStyle = ctx.strokeStyle; ctx.beginPath(); var r0 = R * 0.32;
+            if (zj === 0) { ctx.arc(ix, iy, r0, 0, 6.2832); for (var ri = 0; ri < 8; ri++) { var ra = ri * 0.785; ctx.moveTo(ix + Math.cos(ra) * r0 * 1.6, iy + Math.sin(ra) * r0 * 1.6); ctx.lineTo(ix + Math.cos(ra) * r0 * 2.3, iy + Math.sin(ra) * r0 * 2.3); } ctx.stroke(); }   /* 해 */
+            else if (zj === 1) { ctx.rect(ix - R * 0.55, iy - R * 0.38, R * 1.1, R * 0.76); ctx.stroke(); ctx.beginPath(); ctx.moveTo(ix - R * 0.15, iy - R * 0.2); ctx.lineTo(ix + R * 0.25, iy); ctx.lineTo(ix - R * 0.15, iy + R * 0.2); ctx.fill(); }   /* 화면 + 재생 */
+            else { ctx.rect(ix - R * 0.55, iy - R * 0.2, R * 0.25, R * 0.4); ctx.moveTo(ix - R * 0.3, iy - R * 0.2); ctx.lineTo(ix - R * 0.05, iy - R * 0.42); ctx.lineTo(ix - R * 0.05, iy + R * 0.42); ctx.lineTo(ix - R * 0.3, iy + R * 0.2); ctx.fill(); ctx.beginPath(); ctx.arc(ix + R * 0.05, iy, R * 0.28, -0.8, 0.8); ctx.moveTo(ix + R * 0.05 + R * 0.5 * Math.cos(-0.8), iy + R * 0.5 * Math.sin(-0.8)); ctx.arc(ix + R * 0.05, iy, R * 0.5, -0.8, 0.8); ctx.stroke(); }   /* 스피커 + 음파 */
+          });
           ctx.globalAlpha = k;
         }
-        if (sp < 4.2) txt(en ? 'FLOOR PLAN \u00B7 12 \u00D7 8 m \u00B7 30 VISITORS' : '평면도 \u00B7 12 \u00D7 8 m \u00B7 관객 30명', X0 + ins, BY, 'left', 0.6);
-        else if (sp < 5.4) txt((en ? 'BUILD ' : '공간 구성 ') + Math.round(sstep(4.2, 5.2, sp) * 100) + '%', X0 + ins, BY, 'left', 0.6);
-        else if (sp < 10.4) {                                                          /* 큐 타임라인: 큐마다 블록, 재생 헤드가 들어가면 그 블록이 GO (라임) */
-          var CQ = en ? ['LIGHT', 'VIDEO', 'SOUND', 'ALL'] : ['조명', '영상', '사운드', '전체'], tl0 = X0 + ins, tl1 = X1 - ins, ph0 = Math.min(1, (sp - 5.4) / 4.4), tx = function(v){ return tl0 + (tl1 - tl0) * (v - 5.4) / 4.4; };
-          for (var qj = 0; qj < 4; qj++) { var bx0 = tx(5.6 + qj) + 1, bx1 = tx(6.6 + qj) - 1, hit = sp - 5.6 - qj, live = hit >= 0 && hit < 1; ctx.fillStyle = live ? 'rgba(150,166,0,0.22)' : hit >= 1 ? 'rgba(' + ink + ',0.08)' : 'rgba(' + ink + ',0.04)'; ctx.fillRect(bx0, BY - 7, bx1 - bx0, 14); ctx.strokeStyle = live ? acc : 'rgba(' + ink + ',0.25)'; ctx.strokeRect(bx0 + 0.5, BY - 6.5, bx1 - bx0 - 1, 13); ctx.save(); ctx.beginPath(); ctx.rect(bx0, BY - 7, bx1 - bx0, 14); ctx.clip(); txt('Q' + (qj + 1) + (mob ? '' : ' ' + CQ[qj]), bx0 + 5, BY, 'left', live ? 0.95 : 0.55); ctx.restore(); }
-          ctx.fillStyle = 'rgba(' + ink + ',0.9)'; ctx.fillRect(tl0 + (tl1 - tl0) * ph0 - 0.5, BY - 11, 1.5, 22);
+        if (sp >= 5.4 && sp < 10.4) {                                                  /* 큐 블록 (글 없이): 재생 헤드가 들어가면 그 블록이 라임으로 · 블록 안 작은 아이콘 점 */
+          var tl0 = X0 + ins, tl1 = X1 - ins, ph0 = Math.min(1, (sp - 5.4) / 4.4), tx = function(v){ return tl0 + (tl1 - tl0) * (v - 5.4) / 4.4; };
+          for (var qj = 0; qj < 4; qj++) { var bx0 = tx(5.6 + qj) + 2, bx1 = tx(6.6 + qj) - 2, hit = sp - 5.6 - qj, live = hit >= 0 && hit < 1; ctx.fillStyle = live ? LF(0.55) : hit >= 1 ? 'rgba(' + ink + ',0.12)' : 'rgba(' + ink + ',0.05)'; ctx.fillRect(bx0, BY - 4, bx1 - bx0, 8); if (live) { ctx.fillStyle = LIME; ctx.fillRect(bx0, BY - 4, (bx1 - bx0) * Math.min(1, hit), 8); } }
+          ctx.fillStyle = 'rgba(' + ink + ',0.9)'; ctx.fillRect(tl0 + (tl1 - tl0) * ph0 - 0.5, BY - 9, 1.5, 18);
         }
       } else if (s2 === 1) {                                                           /* CG: 작업 단계 탭 · 단계별 정보 · 렌더 땐 버킷 괄호 */
         var TB = ['MODEL', 'ANIMATE', 'RENDER'], tx3 = X0 + ins, up = (cg.ph % 3) / 3;
@@ -955,6 +968,20 @@
       }
       ctx.restore();
     }
+    /* 첫 입장 둘레 (사용자 10-26): 누른 자리에서 칸이 차오르는 동안 헤더(브랜드 → 메뉴 → 오른쪽 버튼), 오른쪽 번호 줄, 가운데 제목이 motion 스프링으로 차례로.
+       흐림이 걷히며 살짝 미끄러져 들어온다 (튀지 않게 bounce 0.15 안팎) */
+    function introMotion(){
+      var M = STATIC || reduce ? null : window.motion; if (!M) return;
+      var q = function(sel){ return Array.prototype.slice.call(document.querySelectorAll(sel)); }, brand = q('.site-header .brand'), nav = q('.site-nav a'), act = q('.hdr-actions > *'), rail = q('.progress > *');
+      brand.concat(nav, act, rail).forEach(function(el){ el.style.opacity = '0'; });
+      document.documentElement.classList.add('mo-in');
+      var sp = function(d){ return { type: 'spring', visualDuration: 0.7, bounce: 0.15, delay: d }; }, clear = function(els){ return function(){ els.forEach(function(el){ el.style.filter = ''; el.style.transform = ''; }); }; };
+      M.animate(brand, { opacity: [0, 1], x: [-16, 0], filter: ['blur(6px)', 'blur(0px)'] }, sp(0.1)).then(clear(brand));
+      M.animate(nav, { opacity: [0, 1], y: [-12, 0], filter: ['blur(4px)', 'blur(0px)'] }, sp(M.stagger(0.055, { startDelay: 0.2 }))).then(clear(nav));
+      M.animate(act, { opacity: [0, 1], y: [-12, 0] }, sp(M.stagger(0.07, { startDelay: 0.38 }))).then(clear(act));
+      M.animate(rail, { opacity: [0, 1], x: [14, 0] }, sp(M.stagger(0.045, { startDelay: 0.3 }))).then(clear(rail));
+      revealWordmark();
+    }
     function introFinish(){
       if (introDone) return;
       introDone = true; introAt = sceneT; revealWordmark(); document.documentElement.classList.remove('booting');
@@ -978,6 +1005,7 @@
       if (edge) { S3D.hide(); B.casc = u / CASC; }
       var shown = function(){
         var now = (performance.now() - start) / 1000, mx = 0;
+        introMotion();
         if (edge) {
           var cx = B.click ? (B.click.x - fz.cx) / u : 0, cy = B.click ? (B.click.y - fz.cy) / u : 0, dl = new Float32Array(N), md = 1;
           for (var k = 0; k < N; k++) { dl[k] = Math.sqrt((boxes[k].gx - cx) * (boxes[k].gx - cx) + (boxes[k].gy - cy) * (boxes[k].gy - cy)); if (dl[k] > md) md = dl[k]; }
@@ -1056,8 +1084,16 @@
       /* 라벨: 고정폭 글자가 잠깐 뒤섞였다가 제자리 (코드를 재료로 쓰는 전공이라는 표시) */
       all(sec, '.kicker').forEach(function(el){ el.dataset.t = el.dataset.t || el.textContent; A.animate(el, { innerHTML: A.scrambleText({ text: el.dataset.t, chars: 'uppercase' }), delay: at(el) }); });
     }
+    var wmShown = false;
     function revealWordmark(){
-      var A = AM(); chapters[0].classList.add('is-ready');
+      if (wmShown) return; wmShown = true;
+      var A = AM(), M = STATIC || reduce ? null : window.motion; chapters[0].classList.add('is-ready');
+      if (M) {                                                                        /* 제목: 줄마다 아래에서 올라오며 흐림이 걷힌다 (motion 스프링) */
+        var ml = all(chapters[0], '.wordmark .ln > span');
+        M.animate(ml, { y: ['118%', '0%'], filter: ['blur(10px)', 'blur(0px)'] }, { type: 'spring', visualDuration: 0.8, bounce: 0.12, delay: M.stagger(0.09, { startDelay: 0.12 }) })
+          .then(function(){ ml.forEach(function(el){ el.style.transform = ''; el.style.filter = ''; }); chapters[0].classList.add('wm-done'); });
+        return;
+      }
       if (!A || introReduce) return;
       var wl = all(chapters[0], '.wordmark .ln > span');
       A.utils.set(wl, { y: '140%' });                                               /* 가림 영역(.ln 아래 여백)보다 확실히 아래에서 출발 — Safari 에서 글자 윗부분이 제목 밑에 줄처럼 보였다 */
@@ -1160,7 +1196,7 @@
     /* 02 진로 (사용자 10-12: 방·화면·핀은 설명과 안 맞고 허접 → 로고가 직업마다 다른 일을 하고, 그 위에 그 일의 작업 화면 표시(HUD)를 얹는다. 오디오비주얼은 원래 필드) */
     var C2 = CHAPTERS[2], c2step = 0, L2 = { form: 'logo', yaw: -0.16, pitch: -0.1, sway: 0.05, spin: 0, morph: 0, flow: 0, live: 0, sMax: 1.0, sMin: 0.2, fit: 0.74, wall: -5.5 };
     var C2_STEPS = [
-      L2,                                                                            /* 기획·연출: 기획서를 쓰고 → 큐시트의 GO 마다 로고(무대)에서 그 큐가 실행된다 */
+      Object.assign({}, L2, { wall: -2.4 }),                                         /* 기획·연출: 평면도 → 모형 → 큐 (그림자 받는 면을 가까이 — 멀면 도면 위로 그림자가 길게 번져 지저분했다) */
       Object.assign({}, L2, { yaw: 0, sway: 0 }),                                    /* 그래픽·영상: 모델링 → 애니메이션 → 렌더 (턴테이블·작업 단계 탭·버킷) */
       Object.assign({}, L2, { yaw: -0.08, sway: 0.03 }),                             /* 인터랙션·테크: 손(커서)을 추적해 픽셀이 반응 — 조준점·좌표·센서 그래프 */
       C2];                                                                           /* 미디어 아티스트(오디오비주얼): 원래 데이터 필드 */
