@@ -535,7 +535,7 @@
       if (active === 2 && c2step === 3 && introDone && !reduce) { var ak = sstep(0, 1, (t - c2T0 - 0.25) / 0.7); yaw += Math.sin((t - c2T0) * 0.35) * 0.12 * ak; }   /* 02 오디오비주얼: 카메라가 천천히 돈다 */
       if (active === 2 && c2step === 1 && introDone && !reduce) { var tph = (t - c2T0) % 9; yaw += Math.sin((t - c2T0) * 0.7) * 0.5 * sstep(0, 1, (t - c2T0 - 0.25) / 0.7) * (1 - sstep(5.6, 6.2, tph) + sstep(8.4, 9, tph)); }   /* 02 CG: 모델링·애니메이션 동안 턴테이블처럼 돌고, 렌더 땐 멈춘다 */
       var pitch = g.pitch + Math.sin(t * 0.17) * g.sway * 0.35;
-      if (active === 2 && c2step === 0 && introDone && !reduce) { var bph = (t - c2T0) % 12.5, ce = function(a, d){ return eio(Math.min(1, Math.max(0, (bph - a) / d))); }, c1 = ce(0.15, 1.1), c2 = ce(4.1, 1.2), cb = 1 - ce(9.7, 1.1); yaw += (0.16 * c1 * (1 - c2) + 0.55 * c2) * cb; pitch += (0.1 * c1 * (1 - c2) - 0.8 * c2) * cb; }   /* 02 기획·연출 카메라: 정면 로고 → 똑바로 본 도면(평면도는 화면과 나란한 면이라 정면 = 위에서 본 것) → 벽이 솟을 때 비스듬한 모형 시점 → 다시 정면 */
+      if (active === 2 && c2step === 0 && introDone && !reduce) { var bph = (t - c2T0) % 14.2, ce = function(a, d){ return eio(Math.min(1, Math.max(0, (bph - a) / d))); }, c1 = ce(0.15, 1.1), c2 = ce(3.6, 1.4), cb = 1 - ce(12.0, 1.1), orb = sstep(5.0, 6.0, bph) * (1 - sstep(11.2, 12.0, bph)); yaw += (0.16 * c1 * (1 - c2) + 0.55 * c2 + 0.14 * Math.sin((bph - 5.0) * 0.55) * orb) * cb; pitch += (0.1 * c1 * (1 - c2) - 0.8 * c2) * cb; }   /* 02 기획·연출 카메라: 정면 로고 → 똑바로 본 2D 도면 → 3D 모형 시점(연출 동안 천천히 좌우로) → 다시 정면 */
       var cy = Math.cos(yaw), sy = Math.sin(yaw), cp = Math.cos(pitch), sp = Math.sin(pitch);
       var D = 72, F = Math.min(W, H) * 1.45, S = g.s, OX = g.cx, OY = g.cy;
       /* 광원이 아주 천천히 돌고, 부드러운 빛 띠가 표면을 스친다 */
@@ -676,7 +676,7 @@
       requestAnimationFrame(render);
     }
     /* 커서·누른 곳 (01 ① 관객이 비추는 빛 · 02 ③ 손) */
-    var ptr = { x: -1e4, y: -1e4, t: -1e9 }, taps = [], mfT0 = 0, c2T0 = 0, hand = { u: 0, v: 0 }, shw = { ph: 0, k: 0, q: -1, qa: -1, bu: 0, fx: 0 }, cg = { ph: 0, k: 0 }, trk = { sw: 0, hist: [] }, av = { bi: 0, ph: 0, pump: 0 }, HP = null;
+    var ptr = { x: -1e4, y: -1e4, t: -1e9 }, taps = [], mfT0 = 0, c2T0 = 0, hand = { u: 0, v: 0 }, shw = { ph: 0, k: 0, bu: 0, fx: 0, flat: 0, e1: 0, e2: 0, e3: 0, bx: 0, by: 0, bh: 0, sq: 0 }, cg = { ph: 0, k: 0 }, trk = { sw: 0, hist: [] }, av = { bi: 0, ph: 0, pump: 0 }, HP = null;
     /* 02 CG 렌더 버킷: 4×4 칸 타일 — 가운데서 가까운 순으로 네 개씩(스레드 4) 0.16초마다 */
     var TILE = (function(){
       var has = {}, list = [];
@@ -739,9 +739,13 @@
       }
       var mfo = !mf && active === 1 && !reduce ? 1 - (t - mfX) / 0.5 : 0;               /* ① 을 떠나면 0.5초 동안 디더로 다시 회색 */
       var c2k = s2 >= 0 && !reduce ? sstep(0, 1, (t - c2T0 - 0.25) / 0.7) : 0, ct = t - c2T0;   /* 02 연출은 단계에 들어와 로고가 자리 잡은 뒤 서서히 */
-      if (s2 === 0) {                                                                  /* 기획·연출 12.5초 (사용자 10-26: 글 대신 움직임으로 납득되게): 로고 픽셀이 날아가 전시장 평면도가 되고(기획) → 벽·설치물이 솟고(공간 구성) → 타임라인 큐마다 구역이 차례로 켜지고(연출) → 다시 로고로 */
-        var sp0 = ct % 12.5; shw.ph = sp0; shw.k = sp0 < 4.2 ? 0 : sp0 < 5.4 ? 1 : 2; shw.q = sp0 >= 5.6 && sp0 < 9.6 ? Math.floor(sp0 - 5.6) : -1; shw.qa = shw.q >= 0 ? sp0 - 5.6 - shw.q : -1;
-        shw.bu = sstep(4.2, 5.2, sp0) * (1 - sstep(9.6, 10.4, sp0)); shw.fx = -20 + (sp0 - 11.05) / 0.5 * 40;
+      if (s2 === 0) {                                                                  /* 기획·연출 14.2초 (사용자 10-26): 로고 → 2D 도면(납작·단색) → 3D 로 솟는 모형 → 영상 → 키네틱 인스톨레이션 → 애니메이션(튀는 공) → 다시 로고 */
+        var sp0 = ct % 14.2, ce0 = function(a, d){ return Math.min(1, Math.max(0, (sp0 - a) / d)); }; shw.ph = sp0;
+        shw.k = sp0 < 3.6 ? 0 : sp0 < 5.0 ? 1 : sp0 < 7.2 ? 2 : sp0 < 9.6 ? 3 : sp0 < 12.0 ? 4 : 5;   /* 2D · 3D · 영상 · 키네틱 · 애니메이션 · 돌아감 */
+        shw.flat = eio(ce0(0.5, 0.7)) * (1 - eio(ce0(3.7, 1.2)));                      /* 도면일 땐 납작한 단색 → 3D 로 넘어가며 두께가 생긴다 */
+        shw.bu = sstep(3.7, 4.9, sp0) * (1 - sstep(11.85, 12.3, sp0)); shw.fx = -20 + (sp0 - 13.05) / 0.5 * 40;
+        shw.e1 = sstep(5.0, 5.35, sp0) * (1 - sstep(6.9, 7.2, sp0)); shw.e2 = sstep(7.2, 7.6, sp0) * (1 - sstep(9.3, 9.6, sp0)); shw.e3 = sstep(9.6, 9.9, sp0) * (1 - sstep(11.6, 11.95, sp0));
+        var bu3 = ce0(9.75, 2.0), bph3 = bu3 * 3; shw.bx = -12 + 24 * bu3; shw.by = 1.5 + 2.5 * Math.sin(bu3 * Math.PI); shw.bh = 4.4 * Math.abs(Math.sin(Math.PI * bph3)) * (1 - 0.22 * Math.floor(Math.min(2.99, bph3))); shw.sq = 1 - Math.min(1, shw.bh / 1.1);   /* 튀는 공: 세 번 튀며 점점 낮게, 닿을 땐 납작 */
       }
       if (s2 === 3) { var BT = 60 / 124; av.bi = Math.floor(ct / BT); av.ph = (ct - av.bi * BT) / BT; av.pump = Math.exp(-av.ph * 5) * (av.bi % 4 === 0 ? 1 : 0.35); }   /* 124 BPM: 박마다 충격파, 네 박마다 크게 */
       if (s2 === 1) { cg.ph = ct % 9; cg.k = cg.ph < 3 ? 0 : cg.ph < 6 ? 1 : 2; }   /* CG: 모델링 3초 → 애니메이션 3초 → 렌더 3초 */
@@ -783,25 +787,29 @@
           CFX[i * 4] = dx; CFX[i * 4 + 3] = 0; CM[i * 2] = Math.max(CM[i * 2], sh * mf.k); CM[i * 2 + 1] = tn;
         } else if (mfo > 0) {
           CM[i * 2 + 1] = mfo > BAY[(b.r & 3) * 4 + (b.c & 3)] ? MDK : 0;
-        } else if (s2 === 0 && c2k > 0) {                                               /* 기획·연출: 평면도(바닥에 납작) → 벽·설치물이 튀어 오르며 솟는 모형 → 큐마다 그 구역이 라임 빛으로 → 다시 로고. 관객 픽셀은 계속 동선을 걷는다 */
+        } else if (s2 === 0 && c2k > 0) {                                               /* 기획·연출: 칸마다 평면도 자리(b.pl) · 관객은 동선을 걷는다 · 연출 셋은 공간 전체에서 */
           var pl = b.pl, sp = shw.ph, rd = Math.min(1, Math.sqrt(b.gx * b.gx + b.gy * b.gy) / 22), st0 = rd * 0.42 + hs(i * 0.61) * 0.08, st1 = (1 - rd) * 0.42 + hs(i * 0.37) * 0.08;   /* 갈 땐 가운데부터, 돌아올 땐 바깥부터 */
-          var fo = Math.min(1, Math.max(0, (sp - 0.1 - st0) / 0.95)), fb = Math.min(1, Math.max(0, (sp - 9.6 - st1) / 0.95)), eo = eio(fo), eb = eio(fb), mo = eo * (1 - eb), kd = pl.k, q = shw.q, qa = shw.qa;
-          var tx = pl.x, ty = pl.y, vu = 0; if (kd === 6) { vu = (sp * 0.055 + pl.j / NV) % 1; var vp2 = pathAt(vu); tx = vp2[0]; ty = vp2[1]; }
-          var TT = [1.6, 1.3, 3.6, 2.6, 2.4, 0.06, 0.75][kd], ksh = kd === 5 ? 0.86 : kd === 6 ? 0.5 : 0, rx = Math.min(1, Math.max(0, (sp - 4.2 - (kd >= 2 ? 0.28 : 0) - hs(i * 1.9) * 0.18) / 0.65));
-          var bu = kd >= 5 ? 1 : (1 + 2.0 * Math.pow(rx - 1, 3) + 1.0 * Math.pow(rx - 1, 2)) * (1 - eio(Math.min(1, Math.max(0, (sp - 9.45) / 0.4)))), top = 0.22 + (TT - 0.22) * bu;   /* 솟을 땐 살짝 넘쳤다 자리(back ease) */
+          var fo = Math.min(1, Math.max(0, (sp - 0.1 - st0) / 0.95)), fb = Math.min(1, Math.max(0, (sp - 12.0 - st1) / 0.95)), eo = eio(fo), eb = eio(fb), mo = eo * (1 - eb), kd = pl.k;
+          var tx = pl.x, ty = pl.y, vu = 0; if (kd === 6) { vu = (sp * 0.05 + pl.j / NV) % 1; var vp2 = pathAt(vu); tx = vp2[0]; ty = vp2[1]; }
+          var e1 = shw.e1, e2 = shw.e2, e3 = shw.e3, grow = Math.max(e2, e3), TT = [1.6, 1.3, 3.6, 2.6, 2.4, 0.06, 0.75][kd], ksh = kd === 5 ? 0.86 - 0.42 * grow : kd === 6 ? 0.5 : 0;   /* 키네틱·애니메이션 땐 바닥 픽셀이 커진다 */
+          var rx = Math.min(1, Math.max(0, (sp - 3.75 - (kd >= 2 ? 0.3 : 0) - hs(i * 1.9) * 0.2) / 0.75)), bu = kd >= 5 ? 1 : (1 + 2.0 * Math.pow(rx - 1, 3) + 1.0 * Math.pow(rx - 1, 2)) * (1 - eio(Math.min(1, Math.max(0, (sp - 11.85) / 0.4)))), top = 0.22 + (TT - 0.22) * bu, lz = 0, gw = 0;
           if (kd === 6) ksh = Math.max(ksh, 1 - Math.min(1, vu / 0.035, (1 - vu) / 0.035));   /* 관객: 입구에서 나타나 출구에서 사라짐 */
-          var zc = -top + b.h * (1 - ksh), lift = -2.6 * (Math.sin(Math.PI * eo) + Math.sin(Math.PI * eb));   /* 윗면 높이를 맞춘다 (칸마다 깊이가 달라서) · 날아가는 동안 위로 떴다 내려앉는다 */
+          tn = ([-0.45, -0.4, -0.2, -0.25, -0.25, 0.35, -0.65][kd] * shw.flat + [-0.12, -0.08, 0.12, 0.08, 0.08, 0.3, -0.6][kd] * (1 - shw.flat)) * mo;   /* 2D 도면: 벽은 짙은 선, 바닥은 옅게 */
+          if (e1 > 0) {                                                                  /* 영상: 스크린이 켜지고 바닥·벽 위로 비스듬한 영상 무늬가 흐른다 */
+            var vs = Math.sin(pl.x * 0.7 - pl.y * 0.45 - t * 6) + 0.6 * Math.sin(pl.x * 0.23 + t * 2.1);
+            if (kd === 3) { tn = e1 * (Math.sin(pl.x * 1.5 - t * 11) > 0 ? 0.75 : -0.3); gw = 0.4 * e1; } else if (kd === 5 || kd <= 1) { tn += e1 * (vs > 0.5 ? 0.45 : -0.1); gw = kd === 5 && vs > 1.1 ? 0.3 * e1 : 0; }
+          }
+          if (e2 > 0 && kd === 5) {                                                      /* 키네틱 인스톨레이션: 바닥 픽셀이 두 겹 파도로 오르내린다 */
+            var kw = (0.5 + 0.5 * Math.sin(pl.x * 0.55 + pl.y * 0.3 - t * 3.4)) * (0.55 + 0.45 * Math.sin(pl.y * 0.62 - t * 2.2 + pl.x * 0.12)); lz = 2.4 * kw * e2; tn += e2 * (0.55 * kw - 0.1); gw = 0.5 * kw * kw * e2;
+          }
+          if (e3 > 0 && kd === 5) {                                                      /* 애니메이션: 바닥 픽셀이 모여 튀는 공 — 닿을 땐 납작·옆으로, 아래엔 그림자 */
+            var rxb = 2.7 * (1 + 0.38 * shw.sq), ryb = 2.7 * (1 - 0.3 * shw.sq), dxb = (pl.x - shw.bx) / rxb, dyb = (pl.y - shw.by) / ryb, db = dxb * dxb + dyb * dyb;
+            if (db < 1) { lz = (shw.bh + 1.8 * Math.sqrt(1 - db) * (1 - 0.5 * shw.sq)) * e3; tn += 0.45 * e3; gw = 0.6 * e3; } else if (db < 2.6) tn -= 0.45 * e3 * (1 - shw.bh / 4.4) * (1 - (db - 1) / 1.6);
+          }
+          var zc = -top - lz + b.h * (1 - ksh), lift = -2.6 * (Math.sin(Math.PI * eo) + Math.sin(Math.PI * eb));   /* 윗면 높이를 맞춘다 · 날아가는 동안 위로 떴다 내려앉는다 */
           CFX[i * 4] = (tx - b.gx) * mo * c2k; CFX[i * 4 + 1] = (ty - b.gy) * mo * c2k; CFX[i * 4 + 2] = (zc * mo + lift) * c2k;
           if (ksh > 0) CM[i * 2] = Math.max(CM[i * 2], ksh * mo * c2k);
-          var gw = 0; tn = [-0.12, -0.08, 0.12, 0.08, 0.08, 0.3, -0.6][kd] * mo;   /* 바닥 점은 옅게, 관객은 짙게 */
-          if (q >= 0 && qa >= 0) {                                                       /* 큐: Q1 A 조명 · Q2 B 영상 · Q3 C 사운드 · Q4 전체 */
-            var qe = sstep(0, 0.12, qa) * (1 - sstep(0.82, 1, qa)), fl0 = kd === 5;
-            if (q === 0) { var dA = (pl.x + 10.5) * (pl.x + 10.5) + (pl.y + 4.5) * (pl.y + 4.5), pA = Math.exp(-dA / 16); if (kd === 2) { gw = 0.62 * qe; tn += 0.35 * qe; } else if (fl0 && pl.x < -5) { tn += 0.6 * qe * pA; gw = 0.4 * qe * pA; } }
-            else if (q === 1) { if (kd === 3) { tn = qe * (Math.sin(pl.x * 1.5 - t * 11) > 0 ? 0.75 : -0.35); gw = 0.28 * qe; } else if (fl0 && pl.y > -8 && pl.y < -1 && Math.abs(pl.x) < 5) { var fk = hs(i + Math.floor(t * 14)); tn += qe * 0.4 * fk; gw = 0.22 * qe * fk; } }
-            else if (q === 2) { var pump = Math.max(0, Math.sin(t * 20)); if (kd === 4) { CFX[i * 4 + 2] -= qe * 0.7 * pump * c2k; gw = qe * (0.3 + 0.35 * pump); } else if (fl0 && pl.x > 5) { var rq = Math.min(Math.hypot(pl.x - 7.5, pl.y - 6), Math.hypot(pl.x - 12.5, pl.y - 6)) - (qa % 0.35) * 26, rg = Math.exp(-rq * rq / 1.4); tn += qe * 0.65 * rg; gw = 0.38 * qe * rg; } }
-            else { var fq = -18 + qa * 40, sw0 = Math.exp(-Math.pow(pl.x - fq, 2) / 5); if (kd >= 2 && kd <= 4) gw = 0.55 * qe; else if (kd <= 1) tn += 0.8 * qe * sw0; else if (fl0) { tn += 0.45 * qe * sw0; gw = 0.3 * qe * sw0; } }
-          }
-          if (sp > 11 && sp < 11.7) tn += 0.85 * Math.exp(-Math.pow(b.gx - shw.fx, 2) / 3);   /* 다시 로고: 빛이 한 번 휩쓸고 지나간다 */
+          if (sp > 13.0 && sp < 13.7) tn += 0.85 * Math.exp(-Math.pow(b.gx - shw.fx, 2) / 3);   /* 다시 로고: 빛이 한 번 휩쓸고 지나간다 */
           CFX[i * 4 + 3] = gw * c2k; CM[i * 2 + 1] = tn * c2k;
         } else if (s2 === 1 && c2k > 0) {                                               /* CG: 모델링(아래부터 쌓기) → 애니메이션(줄 미끄러짐·열 튀어나옴) → 렌더(버킷이 칸씩 완성) */
           var ph1 = cg.ph, hsi = hs(i * 1.37), sh1 = 0;
@@ -871,7 +879,7 @@
         for (var si = 0; si < N * 4; si++) { SVF[si] += a1 * (CFX[si] - SFX[si]) - b1 * SVF[si]; SFX[si] += SVF[si] * sdt; }
         for (var sj = 0; sj < N * 2; sj++) { var ws = sj & 1; SVM[sj] += (ws ? a2 : a1) * (CM[sj] - SCM[sj]) - (ws ? b2 : b1) * SVM[sj]; SCM[sj] += SVM[sj] * sdt; if (!ws) SCM[sj] = Math.min(1, Math.max(0, SCM[sj])); }   /* 밝기는 넘치지 않게 더 빠르게 · 크기는 0–1 안에서만 (넘치면 큐브가 뒤집힌다) */
       }
-      S3D.render({ t: t, dt: lastFrameT ? t - lastFrameT : 1 / 60, cx: OX, cy: OY, s: S, yaw: yaw, pitch: pitch, mode: g.mode, flat: g.flat, wall: g.wall, F: F, D: D, ext: extT,
+      S3D.render({ t: t, dt: lastFrameT ? t - lastFrameT : 1 / 60, cx: OX, cy: OY, s: S, yaw: yaw, pitch: pitch, mode: g.mode, flat: s2 === 0 && c2k > 0 ? Math.max(g.flat, shw.flat * c2k) : g.flat, wall: g.wall, F: F, D: D, ext: extT,
         cellFx: SFX, cellM: SCM, light: LV, head: g.head, boom: BOOMS });
       lastFrameT = t;
       /* 02 챕터 코드 조각만 2D 로 (예전 투영 그대로) */
@@ -899,42 +907,36 @@
       ctx.save(); ctx.globalAlpha = k; ctx.lineWidth = 1; ctx.strokeStyle = 'rgba(' + ink + ',0.5)'; ctx.font = '500 ' + (mob ? 9 : 10.5) + 'px "Geist Mono", ui-monospace, Menlo, monospace'; lastFont = null; ctx.textBaseline = 'middle';
       var txt = function(s, x, y, al, a){ ctx.fillStyle = 'rgba(' + ink + ',' + (a === undefined ? 0.62 : a) + ')'; ctx.textAlign = al || 'left'; ctx.fillText(s, x, y); return ctx.measureText(s).width; };
       [[X0, Y0, 1, 1], [X1, Y0, -1, 1], [X0, Y1, 1, -1], [X1, Y1, -1, -1]].forEach(function(c){ ctx.beginPath(); ctx.moveTo(c[0], c[1] + B * c[3]); ctx.lineTo(c[0], c[1]); ctx.lineTo(c[0] + B * c[2], c[1]); ctx.stroke(); });
-      if (s2 === 0) {                                                                  /* 기획·연출 (사용자 10-26: 글은 덜고 그림과 움직임으로): 단계 막대 · 바닥 위 동선 · 구역 아이콘(조명=해 · 영상=화면 · 사운드=음파) · 큐마다 바닥에 퍼지는 라임 빛 · 글 없는 큐 블록 */
-        var sp = shw.ph, plk = sstep(1.3, 1.7, sp) * (1 - sstep(9.4, 9.8, sp)), BZ = shw.bu, LIME = 'rgb(150,166,0)', LF = function(a){ return 'rgba(214,240,40,' + a + ')'; }, kk = sp < 11 ? shw.k : 2;
-        for (var j = 0; j < 3; j++) { var bxp = X0 + ins + j * 26, pr = j < kk ? 1 : j > kk ? 0 : Math.min(1, kk === 0 ? sp / 4.2 : kk === 1 ? (sp - 4.2) / 1.2 : (sp - 5.4) / 4.2); ctx.fillStyle = 'rgba(' + ink + ',0.15)'; ctx.fillRect(bxp, TY - 1, 20, 2); ctx.fillStyle = 'rgba(' + ink + ',0.8)'; ctx.fillRect(bxp, TY - 1, 20 * pr, 2); }   /* 단계 막대: 기획 · 공간 구성 · 연출 */
-        var ell = function(x, y, z, r, fill, stroke, lw){ ctx.beginPath(); for (var e = 0; e <= 32; e++) { var a = e / 32 * 6.2832, pe = hudProj(x + Math.cos(a) * r, y + Math.sin(a) * r, z); if (e) ctx.lineTo(pe[0], pe[1]); else ctx.moveTo(pe[0], pe[1]); } if (fill) { ctx.fillStyle = fill; ctx.fill(); } if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = lw || 1; ctx.stroke(); ctx.lineWidth = 1; } };   /* 바닥 위 원 (원근으로 타원) */
+      if (s2 === 0) {                                                                  /* 기획·연출 (글 없이): 단계 막대 다섯(2D · 3D · 영상 · 키네틱 · 애니메이션) · 바닥 위 동선 · 지금 연출의 아이콘이 그 자리 위에 · 아래 연출 블록 셋 */
+        var sp = shw.ph, plk = sstep(1.3, 1.7, sp) * (1 - sstep(11.7, 12.1, sp)), LIME = 'rgb(150,166,0)', LF = function(a){ return 'rgba(214,240,40,' + a + ')'; }, kk = shw.k, SEG = [[1.2, 3.6], [3.6, 5.0], [5.0, 7.2], [7.2, 9.6], [9.6, 12.0]];
+        for (var j = 0; j < 5; j++) { var bxp = X0 + ins + j * 22, pr = Math.min(1, Math.max(0, (sp - SEG[j][0]) / (SEG[j][1] - SEG[j][0]))); ctx.fillStyle = 'rgba(' + ink + ',0.15)'; ctx.fillRect(bxp, TY - 1, 16, 2); ctx.fillStyle = j >= 2 && j === kk ? LIME : 'rgba(' + ink + ',0.8)'; ctx.fillRect(bxp, TY - 1, 16 * pr, 2); }
+        var ell = function(x, y, z, r, fill, stroke, lw){ ctx.beginPath(); for (var e = 0; e <= 32; e++) { var a = e / 32 * 6.2832, pe = hudProj(x + Math.cos(a) * r, y + Math.sin(a) * r, z); if (e) ctx.lineTo(pe[0], pe[1]); else ctx.moveTo(pe[0], pe[1]); } if (fill) { ctx.fillStyle = fill; ctx.fill(); } if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = lw || 1; ctx.stroke(); ctx.lineWidth = 1; } };
+        var icon = function(kind, ix, iy, R, on){                                      /* 아이콘: 0 영상(화면+재생) · 1 키네틱(오르내리는 막대) · 2 애니메이션(튀는 공 궤적) */
+          ctx.fillStyle = on ? LF(0.95) : '#f6f6f4'; ctx.strokeStyle = on ? LIME : 'rgba(' + ink + ',0.55)'; ctx.beginPath(); ctx.arc(ix, iy, R, 0, 6.2832); ctx.fill(); ctx.stroke();
+          ctx.strokeStyle = 'rgba(' + ink + ',0.9)'; ctx.fillStyle = ctx.strokeStyle; ctx.beginPath();
+          if (kind === 0) { ctx.rect(ix - R * 0.55, iy - R * 0.38, R * 1.1, R * 0.76); ctx.stroke(); ctx.beginPath(); ctx.moveTo(ix - R * 0.15, iy - R * 0.2); ctx.lineTo(ix + R * 0.25, iy); ctx.lineTo(ix - R * 0.15, iy + R * 0.2); ctx.fill(); }
+          else if (kind === 1) { for (var bj = 0; bj < 4; bj++) { var bh2 = R * (0.25 + 0.35 * (0.5 + 0.5 * Math.sin(t * 5 + bj * 1.3))); ctx.fillRect(ix - R * 0.5 + bj * R * 0.28, iy + R * 0.35 - bh2, R * 0.16, bh2); } }
+          else { ctx.arc(ix - R * 0.35, iy + R * 0.3, R * 0.14, 0, 6.2832); ctx.fill(); ctx.beginPath(); ctx.moveTo(ix - R * 0.5, iy + R * 0.4); ctx.quadraticCurveTo(ix - R * 0.2, iy - R * 0.7, ix + R * 0.1, iy + R * 0.4); ctx.quadraticCurveTo(ix + R * 0.3, iy - R * 0.2, ix + R * 0.5, iy + R * 0.4); ctx.stroke(); }
+        };
         if (plk > 0) {
           var rv = sstep(1.5, 2.9, sp), segs = [], tot = 0;
           for (var f = 1; f < FP.length; f++) { var pa0 = hudProj(FP[f - 1][0], FP[f - 1][1], 0), pa1 = hudProj(FP[f][0], FP[f][1], 0), sl = Math.hypot(pa1[0] - pa0[0], pa1[1] - pa0[1]); segs.push([pa0, pa1, sl]); tot += sl; }
-          var lim = tot * rv, run = 0, tip = null; ctx.globalAlpha = k * plk; ctx.setLineDash([3, 6]); ctx.lineDashOffset = -t * 18; ctx.strokeStyle = 'rgba(' + ink + ',0.45)'; ctx.beginPath();
+          var lim = tot * rv, run = 0, tip = null; ctx.globalAlpha = k * plk * (1 - 0.6 * Math.max(shw.e2, shw.e3)); ctx.setLineDash([3, 6]); ctx.lineDashOffset = -t * 18; ctx.strokeStyle = 'rgba(' + ink + ',0.45)'; ctx.beginPath();
           segs.forEach(function(sg){ if (run >= lim) return; var fr = Math.min(1, (lim - run) / sg[2]), e = [sg[0][0] + (sg[1][0] - sg[0][0]) * fr, sg[0][1] + (sg[1][1] - sg[0][1]) * fr]; ctx.moveTo(sg[0][0], sg[0][1]); ctx.lineTo(e[0], e[1]); tip = [e[0], e[1], Math.atan2(sg[1][1] - sg[0][1], sg[1][0] - sg[0][0])]; run += sg[2]; });
           ctx.stroke(); ctx.setLineDash([]);
           if (tip) { ctx.fillStyle = 'rgba(' + ink + ',0.6)'; ctx.beginPath(); ctx.moveTo(tip[0] + Math.cos(tip[2]) * 6, tip[1] + Math.sin(tip[2]) * 6); ctx.lineTo(tip[0] + Math.cos(tip[2] + 2.6) * 5, tip[1] + Math.sin(tip[2] + 2.6) * 5); ctx.lineTo(tip[0] + Math.cos(tip[2] - 2.6) * 5, tip[1] + Math.sin(tip[2] - 2.6) * 5); ctx.fill(); }
           ell(-12, 13, 0, 1.1, null, 'rgba(' + ink + ',0.5)'); if (rv > 0.95) ell(12, -13, 0, 0.8, 'rgba(' + ink + ',0.55)');   /* 입구 = 빈 원 · 출구 = 찬 원 */
-          var q = shw.q, qa = shw.qa, qe = q >= 0 && qa >= 0 ? sstep(0, 0.15, qa) * (1 - sstep(0.8, 1, qa)) : 0;
-          if (qe > 0) {                                                                /* 큐 그래픽: 그 구역 바닥에 라임 빛 */
-            if (q === 0 || q === 3) { var tA = hudProj(-10.5, -4.5, -(0.22 + 3.38 * BZ)); ell(-10.5, -4.5, 0, 5.2 * (0.6 + 0.4 * qe), LF(0.22 * qe)); [[-15.7, -4.5], [-5.3, -4.5], [-10.5, 0.7], [-10.5, -9.7]].forEach(function(c){ var pc = hudProj(c[0] * 0.6 + -10.5 * 0.4, c[1] * 0.6 + -4.5 * 0.4, 0); ctx.strokeStyle = LF(0.5 * qe); ctx.beginPath(); ctx.moveTo(tA[0], tA[1]); ctx.lineTo(pc[0], pc[1]); ctx.stroke(); }); }   /* 조명: 타워에서 바닥으로 빛 뿔 + 빛 웅덩이 */
-            if (q === 1 || q === 3) { for (var rj = 0; rj < 7; rj++) { var sx0 = -3 + rj, s0 = hudProj(sx0, -7.6, -(0.22 + 2.38 * BZ) * 0.5), s1 = hudProj(sx0 * 1.5, -1.5, 0); ctx.strokeStyle = LF(0.45 * qe * (0.6 + 0.4 * Math.sin(t * 9 + rj))); ctx.beginPath(); ctx.moveTo(s0[0], s0[1]); ctx.lineTo(s1[0], s1[1]); ctx.stroke(); } ell(0, -3.5, 0, 4.4, LF(0.14 * qe)); }   /* 영상: 스크린에서 바닥으로 퍼지는 빛줄기 */
-            if (q === 2 || q === 3) [[7.5, 6], [12.5, 6]].forEach(function(c){ for (var wj = 0; wj < 3; wj++) { var wr = ((qa * 1.6 + wj / 3) % 1); ell(c[0], c[1], 0, 1 + wr * 5, null, LF((1 - wr) * 0.9 * qe), 1.5); } });   /* 사운드: 스피커에서 퍼지는 바닥 파동 */
-            if (q === 3) { var fq = -18 + qa * 40, f0 = hudProj(fq, -11, 0), f1 = hudProj(fq, 11, 0); ctx.strokeStyle = LF(0.9 * qe); ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(f0[0], f0[1]); ctx.lineTo(f1[0], f1[1]); ctx.stroke(); ctx.lineWidth = 1; }   /* 피날레: 바닥을 가로지르는 빛줄 */
-          }
-          var ZP = [[-10.5, -4.5, 3.6], [0, -8.5, 2.6], [10, 6, 2.4]];                /* 구역 아이콘: 설치물 위에 떠서 살짝 오르내린다 · 큐 땐 라임으로 차고 고리가 퍼진다 */
-          ZP.forEach(function(zp0, zj){
-            var on = (q === zj || q === 3) && qe > 0, top = 0.22 + (zp0[2] - 0.22) * BZ, zp = hudProj(zp0[0], zp0[1], -top), ix = zp[0], iy = zp[1] - 26 + Math.sin(t * 2 + zj * 2) * 2, R = mob ? 8 : 10;
-            ctx.strokeStyle = 'rgba(' + ink + ',0.35)'; ctx.beginPath(); ctx.moveTo(zp[0], zp[1] - 3); ctx.lineTo(ix, iy + R + 2); ctx.stroke();
-            if (on) { var pr2 = (t * 1.5) % 1; ctx.strokeStyle = LF(0.9 * (1 - pr2) * qe); ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(ix, iy, R + pr2 * 14, 0, 6.2832); ctx.stroke(); ctx.lineWidth = 1; }
-            ctx.fillStyle = on ? LF(0.95) : '#f6f6f4'; ctx.strokeStyle = on ? LIME : 'rgba(' + ink + ',0.55)'; ctx.beginPath(); ctx.arc(ix, iy, R, 0, 6.2832); ctx.fill(); ctx.stroke();
-            ctx.strokeStyle = 'rgba(' + ink + ',' + (on ? 0.95 : 0.7) + ')'; ctx.fillStyle = ctx.strokeStyle; ctx.beginPath(); var r0 = R * 0.32;
-            if (zj === 0) { ctx.arc(ix, iy, r0, 0, 6.2832); for (var ri = 0; ri < 8; ri++) { var ra = ri * 0.785; ctx.moveTo(ix + Math.cos(ra) * r0 * 1.6, iy + Math.sin(ra) * r0 * 1.6); ctx.lineTo(ix + Math.cos(ra) * r0 * 2.3, iy + Math.sin(ra) * r0 * 2.3); } ctx.stroke(); }   /* 해 */
-            else if (zj === 1) { ctx.rect(ix - R * 0.55, iy - R * 0.38, R * 1.1, R * 0.76); ctx.stroke(); ctx.beginPath(); ctx.moveTo(ix - R * 0.15, iy - R * 0.2); ctx.lineTo(ix + R * 0.25, iy); ctx.lineTo(ix - R * 0.15, iy + R * 0.2); ctx.fill(); }   /* 화면 + 재생 */
-            else { ctx.rect(ix - R * 0.55, iy - R * 0.2, R * 0.25, R * 0.4); ctx.moveTo(ix - R * 0.3, iy - R * 0.2); ctx.lineTo(ix - R * 0.05, iy - R * 0.42); ctx.lineTo(ix - R * 0.05, iy + R * 0.42); ctx.lineTo(ix - R * 0.3, iy + R * 0.2); ctx.fill(); ctx.beginPath(); ctx.arc(ix + R * 0.05, iy, R * 0.28, -0.8, 0.8); ctx.moveTo(ix + R * 0.05 + R * 0.5 * Math.cos(-0.8), iy + R * 0.5 * Math.sin(-0.8)); ctx.arc(ix + R * 0.05, iy, R * 0.5, -0.8, 0.8); ctx.stroke(); }   /* 스피커 + 음파 */
-          });
+          ctx.globalAlpha = k * plk;
+          if (shw.e1 > 0) { for (var rj = 0; rj < 7; rj++) { var sx0 = -3 + rj, s0 = hudProj(sx0, -7.6, -1.3 * shw.bu), s1 = hudProj(sx0 * 1.7, 1.5, 0); ctx.strokeStyle = LF(0.4 * shw.e1 * (0.6 + 0.4 * Math.sin(t * 9 + rj))); ctx.beginPath(); ctx.moveTo(s0[0], s0[1]); ctx.lineTo(s1[0], s1[1]); ctx.stroke(); } var ip0 = hudProj(0, -8.5, -2.6 * shw.bu); icon(0, ip0[0], ip0[1] - 30, mob ? 8 : 10, true); }   /* 영상: 스크린에서 바닥으로 퍼지는 빛줄기 */
+          if (shw.e2 > 0) { var ip1 = hudProj(0, 0, -3.2); ctx.globalAlpha = k * plk * shw.e2; icon(1, ip1[0], ip1[1] - 30, mob ? 8 : 10, true); ctx.globalAlpha = k * plk; }
+          if (shw.e3 > 0) { ell(shw.bx, shw.by, 0, 2.7 * (1.2 - 0.12 * shw.bh / 4.4), LF(0.18 * shw.e3)); var ip2 = hudProj(shw.bx, shw.by, -(shw.bh + 4.2)); ctx.globalAlpha = k * plk * shw.e3; icon(2, ip2[0], ip2[1] - 18, mob ? 8 : 10, true); ctx.globalAlpha = k * plk; }   /* 애니메이션: 공 아래 그림자 원 + 공을 따라가는 아이콘 */
           ctx.globalAlpha = k;
         }
-        if (sp >= 5.4 && sp < 10.4) {                                                  /* 큐 블록 (글 없이): 재생 헤드가 들어가면 그 블록이 라임으로 · 블록 안 작은 아이콘 점 */
-          var tl0 = X0 + ins, tl1 = X1 - ins, ph0 = Math.min(1, (sp - 5.4) / 4.4), tx = function(v){ return tl0 + (tl1 - tl0) * (v - 5.4) / 4.4; };
-          for (var qj = 0; qj < 4; qj++) { var bx0 = tx(5.6 + qj) + 2, bx1 = tx(6.6 + qj) - 2, hit = sp - 5.6 - qj, live = hit >= 0 && hit < 1; ctx.fillStyle = live ? LF(0.55) : hit >= 1 ? 'rgba(' + ink + ',0.12)' : 'rgba(' + ink + ',0.05)'; ctx.fillRect(bx0, BY - 4, bx1 - bx0, 8); if (live) { ctx.fillStyle = LIME; ctx.fillRect(bx0, BY - 4, (bx1 - bx0) * Math.min(1, hit), 8); } }
-          ctx.fillStyle = 'rgba(' + ink + ',0.9)'; ctx.fillRect(tl0 + (tl1 - tl0) * ph0 - 0.5, BY - 9, 1.5, 18);
+        if (sp >= 4.8 && sp < 12.4) {                                                  /* 연출 블록 셋 (글 없이 아이콘): 재생 헤드가 들어가면 라임으로 차오른다 */
+          var tl0 = X0 + ins, tl1 = X1 - ins, ph0 = Math.min(1, Math.max(0, (sp - 5.0) / 7.0)), bw = (tl1 - tl0) / 3, ap = sstep(4.8, 5.1, sp) * (1 - sstep(12.1, 12.4, sp));
+          ctx.globalAlpha = k * ap;
+          for (var qj = 0; qj < 3; qj++) { var bx0 = tl0 + qj * bw + 2, bx1 = tl0 + (qj + 1) * bw - 2, a0 = SEG[2 + qj][0], a1 = SEG[2 + qj][1], hit = (sp - a0) / (a1 - a0), live = hit >= 0 && hit < 1; ctx.fillStyle = live ? LF(0.5) : hit >= 1 ? 'rgba(' + ink + ',0.12)' : 'rgba(' + ink + ',0.05)'; ctx.fillRect(bx0, BY - 4, bx1 - bx0, 8); if (live) { ctx.fillStyle = LIME; ctx.fillRect(bx0, BY - 4, (bx1 - bx0) * hit, 8); } icon(qj, bx0 + 12, BY - 16, mob ? 6 : 7, live); }
+          ctx.fillStyle = 'rgba(' + ink + ',0.9)'; ctx.fillRect(tl0 + (tl1 - tl0) * ph0 - 0.5, BY - 9, 1.5, 18); ctx.globalAlpha = k;
         }
       } else if (s2 === 1) {                                                           /* CG: 작업 단계 탭 · 단계별 정보 · 렌더 땐 버킷 괄호 */
         var TB = ['MODEL', 'ANIMATE', 'RENDER'], tx3 = X0 + ins, up = (cg.ph % 3) / 3;
@@ -968,18 +970,30 @@
       }
       ctx.restore();
     }
-    /* 첫 입장 둘레 (사용자 10-26): 누른 자리에서 칸이 차오르는 동안 헤더(브랜드 → 메뉴 → 오른쪽 버튼), 오른쪽 번호 줄, 가운데 제목이 motion 스프링으로 차례로.
-       흐림이 걷히며 살짝 미끄러져 들어온다 (튀지 않게 bounce 0.15 안팎) */
+    /* 첫 입장 둘레 (사용자 10-26: 디지털 픽셀 모션처럼): 누른 자리에서 칸이 차오르는 동안 헤더(브랜드 → 메뉴 → 버튼) · 오른쪽 번호 줄 · 가운데 제목이
+       글자마다 무작위 글자로 깨졌다가 왼쪽부터 제 글자로 맞춰지고(디코딩), 덩어리는 칸 단위로 끊어지며 드러난다(계단 이징 — 부드러운 미끄러짐 대신). 타이밍은 motion */
+    var STEP = function(n){ return function(p){ return Math.min(1, Math.floor(p * n + 1e-6) / n); }; };
+    function decode(el, delay, dur){                                                 /* 글자 디코딩: 한글은 한글로, 영문·숫자는 영문·숫자로 섞어 폭이 덜 흔들리게. 끝나면 원래 글자 그대로 */
+      var tw = document.createTreeWalker(el, NodeFilter.SHOW_TEXT), nodes = [], n; while ((n = tw.nextNode())) if (n.nodeValue.trim()) nodes.push([n, n.nodeValue]);
+      var LAT = 'ABCDEFGHJKLMNPQRSTUVWXYZ0123456789#%&*+=', HAN = '가나다라마바사아자차카타파하', pick = function(c){ return /[가-힣]/.test(c) ? HAN[Math.floor(Math.random() * HAN.length)] : /[A-Za-z0-9]/.test(c) ? LAT[Math.floor(Math.random() * LAT.length)] : c; };
+      var t0 = performance.now() + delay * 1000, last = 0;
+      (function tick(now){
+        var u = (now - t0) / (dur * 1000), done = u >= 1;
+        if (now - last > 45 || done) { last = now; nodes.forEach(function(pr){ var src = pr[1], out = ''; for (var ci = 0; ci < src.length; ci++) out += u * 1.25 - ci / Math.max(1, src.length) > 0.25 ? src[ci] : pick(src[ci]); pr[0].nodeValue = u < 0 ? src.replace(/\S/g, ' ') : out; }); }
+        if (!done) requestAnimationFrame(tick); else nodes.forEach(function(pr){ pr[0].nodeValue = pr[1]; });
+      })(performance.now());
+    }
     function introMotion(){
       var M = STATIC || reduce ? null : window.motion; if (!M) return;
       var q = function(sel){ return Array.prototype.slice.call(document.querySelectorAll(sel)); }, brand = q('.site-header .brand'), nav = q('.site-nav a'), act = q('.hdr-actions > *'), rail = q('.progress > *');
       brand.concat(nav, act, rail).forEach(function(el){ el.style.opacity = '0'; });
       document.documentElement.classList.add('mo-in');
-      var sp = function(d){ return { type: 'spring', visualDuration: 0.7, bounce: 0.15, delay: d }; }, clear = function(els){ return function(){ els.forEach(function(el){ el.style.filter = ''; el.style.transform = ''; }); }; };
-      M.animate(brand, { opacity: [0, 1], x: [-16, 0], filter: ['blur(6px)', 'blur(0px)'] }, sp(0.1)).then(clear(brand));
-      M.animate(nav, { opacity: [0, 1], y: [-12, 0], filter: ['blur(4px)', 'blur(0px)'] }, sp(M.stagger(0.055, { startDelay: 0.2 }))).then(clear(nav));
-      M.animate(act, { opacity: [0, 1], y: [-12, 0] }, sp(M.stagger(0.07, { startDelay: 0.38 }))).then(clear(act));
-      M.animate(rail, { opacity: [0, 1], x: [14, 0] }, sp(M.stagger(0.045, { startDelay: 0.3 }))).then(clear(rail));
+      var pop = function(els, d){ M.animate(els, { opacity: [0, 1] }, { duration: 0.18, ease: STEP(3), delay: d }); };   /* 깜박이듯 세 계단으로 켜진다 */
+      pop(brand, 0.08); decode(brand[0], 0.08, 0.5);
+      pop(nav, M.stagger(0.05, { startDelay: 0.16 })); nav.forEach(function(el, k){ decode(el, 0.16 + k * 0.05, 0.38); });
+      pop(act, M.stagger(0.07, { startDelay: 0.34 })); act.forEach(function(el, k){ decode(el, 0.34 + k * 0.07, 0.36); });
+      var cta = act[act.length - 1]; if (cta) M.animate(cta, { clipPath: ['inset(0 100% 0 0)', 'inset(0 0% 0 0)'] }, { duration: 0.4, ease: STEP(8), delay: 0.4 }).then(function(){ cta.style.clipPath = ''; });   /* 버튼: 칸 단위로 왼쪽부터 칠해진다 */
+      pop(rail, M.stagger(0.04, { startDelay: 0.26 })); rail.forEach(function(el, k){ decode(el, 0.26 + k * 0.04, 0.3); });
       revealWordmark();
     }
     function introFinish(){
@@ -1088,10 +1102,11 @@
     function revealWordmark(){
       if (wmShown) return; wmShown = true;
       var A = AM(), M = STATIC || reduce ? null : window.motion; chapters[0].classList.add('is-ready');
-      if (M) {                                                                        /* 제목: 줄마다 아래에서 올라오며 흐림이 걷힌다 (motion 스프링) */
+      if (M) {                                                                        /* 제목: 줄마다 칸 단위로 왼쪽부터 드러나며(계단) 글자가 깨졌다 맞춰진다 */
         var ml = all(chapters[0], '.wordmark .ln > span');
-        M.animate(ml, { y: ['118%', '0%'], filter: ['blur(10px)', 'blur(0px)'] }, { type: 'spring', visualDuration: 0.8, bounce: 0.12, delay: M.stagger(0.09, { startDelay: 0.12 }) })
-          .then(function(){ ml.forEach(function(el){ el.style.transform = ''; el.style.filter = ''; }); chapters[0].classList.add('wm-done'); });
+        ml.forEach(function(el, k){ decode(el, 0.12 + k * 0.12, k ? 0.62 : 0.45); });
+        M.animate(ml, { clipPath: ['inset(0 100% 0 0)', 'inset(0 0% 0 0)'] }, { duration: 0.5, ease: STEP(12), delay: M.stagger(0.12, { startDelay: 0.1 }) })
+          .then(function(){ ml.forEach(function(el){ el.style.clipPath = ''; }); chapters[0].classList.add('wm-done'); });
         return;
       }
       if (!A || introReduce) return;
