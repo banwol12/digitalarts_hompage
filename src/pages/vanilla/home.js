@@ -677,20 +677,29 @@
       list.forEach(function(id, k){ var s = 0.15 + Math.floor(k / 4) * 0.16; T.at[id] = s; T.st.push(s); T.tx.push(id % 8); T.ty.push(Math.floor(id / 8)); });
       return T;
     })();
-    var CAL = [-2.6, -1.57, -0.52, 0.52, 1.57, 2.6].map(function(a){ var best = null, bs = -1e9; boxes.forEach(function(b){ if (!b.edge) return; var da = Math.atan2(Math.sin(b.ang - a), Math.cos(b.ang - a)), sc = Math.sqrt(b.gx * b.gx + b.gy * b.gy) - Math.abs(da) * 40; if (sc > bs) { bs = sc; best = b; } }); return [best.gx, best.gy]; });   /* 매핑 보정점 여섯: 윤곽 위 고르게 */
-    function drawMedia(t, OX, OY, U, mf){                                          /* 01 ① 장면 설명: 프로젝터·빛줄기·보정점·관객·단계 탭 (로고와 같은 정면 2D 좌표) */
+    function edgeAt(a){ var best = null, bs = -1e9; boxes.forEach(function(b){ if (!b.edge) return; var da = Math.atan2(Math.sin(b.ang - a), Math.cos(b.ang - a)), sc = Math.sqrt(b.gx * b.gx + b.gy * b.gy) - Math.abs(da) * 40; if (sc > bs) { bs = sc; best = b; } }); return [best.gx, best.gy]; }
+    var BEAM = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].map(function(k){ return edgeAt(-Math.PI + (k + 0.5) / 12 * Math.PI * 2); });   /* 01 ① 빛의 뿔이 닿는 윤곽 열두 곳 */
+    var ETH = { l: [], r: [] }; boxes.forEach(function(b){ if (b.edge) ETH[b.gx < 0 ? 'l' : 'r'].push([Math.abs(Math.atan2(b.gx, -b.gy)) / Math.PI, b.gx, b.gy]); }); ETH.l.sort(function(a, b){ return a[0] - b[0]; }); ETH.r.sort(function(a, b){ return a[0] - b[0]; });   /* 매핑 빛이 따라갈 윤곽 칸 (꼭대기에서 잰 각도순) */
+    var CAL = [-2.6, -1.57, -0.52, 0.52, 1.57, 2.6].map(edgeAt);   /* 매핑 보정점 여섯: 윤곽 위 고르게 */
+    function drawMedia(t, OX, OY, U, mf){                                          /* 01 ① 장면 설명: 빔·보정점·실감 공간·단계 탭 (로고와 같은 정면 2D 좌표) */
       var en = document.documentElement.lang === 'en', mob = MOBILE(), ph = mf.ph, on = sstep(0, 0.45, ph) * (1 - sstep(6.5, 7.0, ph)), P = function(x, y){ return [OX + x * U, OY + y * U]; };
-      var pj = P(-0.5, mob ? -19.6 : -21.4), ang = Math.PI / 2, ln = [pj[0] + Math.cos(ang) * 1.7 * U, pj[1] + Math.sin(ang) * 1.7 * U], ink = 'rgba(17,17,17,';
+      var ink = 'rgba(17,17,17,', bo = sstep(0, 0.45, ph) * (1 - sstep(6.5, 6.9, ph)), live = performance.now() - ptr.t < 2500;
       ctx.save(); ctx.globalAlpha = mf.k; ctx.lineWidth = 1; ctx.font = '500 ' + (mob ? 9 : 10.5) + 'px "Geist Mono", "Pretendard", ui-monospace, monospace'; lastFont = null; ctx.textBaseline = 'middle';
       var txt = function(s, x, y, al, a){ ctx.fillStyle = ink + (a === undefined ? 0.62 : a) + ')'; ctx.textAlign = al || 'left'; ctx.fillText(s, x, y); return ctx.measureText(s).width; };
-      var c1 = P(15.6, -17.6), c2 = P(15.6, 17.6), c3 = P(-17.6, 17.6);              /* 빛줄기: 렌즈에서 벽(로고)까지 */
-      ctx.fillStyle = ink + (0.03 * on) + ')'; ctx.beginPath(); ctx.moveTo(ln[0], ln[1]); ctx.lineTo(c2[0], c2[1]); ctx.lineTo(c3[0], c3[1]); ctx.closePath(); ctx.fill();   /* 위에서 아래로 퍼지는 원뿔 */
-      ctx.setLineDash([3, 4]); ctx.strokeStyle = ink + (0.4 * on) + ')'; ctx.beginPath(); ctx.moveTo(ln[0], ln[1]); ctx.lineTo(c2[0], c2[1]); ctx.moveTo(ln[0], ln[1]); ctx.lineTo(c3[0], c3[1]); ctx.stroke(); ctx.setLineDash([]);
-      ctx.globalAlpha = mf.k * on; ctx.save(); ctx.translate(pj[0], pj[1]); ctx.rotate(ang); ctx.fillStyle = '#f6f6f4'; ctx.strokeStyle = ink + '0.85)'; ctx.lineWidth = 1.2;   /* 프로젝터 */
-      ctx.beginPath(); ctx.rect(-1.7 * U, -1.05 * U, 3.0 * U, 2.1 * U); ctx.fill(); ctx.stroke(); ctx.beginPath(); ctx.arc(1.3 * U, 0, 0.62 * U, 0, 6.2832); ctx.fill(); ctx.stroke();
-      ctx.fillStyle = ink + (0.25 + 0.6 * on) + ')'; ctx.beginPath(); ctx.arc(1.3 * U, 0, 0.3 * U, 0, 6.2832); ctx.fill();
-      ctx.beginPath(); for (var vj = 0; vj < 3; vj++) { ctx.moveTo(-1.3 * U, (-0.5 + vj * 0.5) * U); ctx.lineTo(-0.2 * U, (-0.5 + vj * 0.5) * U); } ctx.stroke(); ctx.restore();
-      txt(en ? 'PROJECTOR' : '프로젝터', pj[0] + 1.9 * U, pj[1], 'left', 0.75); ctx.globalAlpha = mf.k;
+      if (bo > 0) {                                                                  /* 빔 (사용자 10-26: 프로젝터 그림은 짜침 → 로고 앞 z +10 쯤 한 점에서 빛이 쏘아진다). 그 점은 로고보다 앞이라 커서·시간에 따라 어긋나 보이며(시차) 떠 있는 게 느껴진다 */
+        var A = [OX - 1.5 * U * 1.16 + (live ? -(ptr.x - OX) * 0.07 : Math.sin(t * 0.45) * 1.4 * U), OY - 2 * U * 1.16 + (live ? -(ptr.y - OY) * 0.05 : Math.sin(t * 0.33) * 0.8 * U)];
+        var lerp = function(q, f){ return [A[0] + (q[0] - A[0]) * f, A[1] + (q[1] - A[1]) * f]; };
+        ctx.globalAlpha = mf.k * bo; ctx.strokeStyle = ink + '0.13)'; ctx.beginPath(); BEAM.forEach(function(c){ var q = P(c[0], c[1]); ctx.moveTo(A[0], A[1]); ctx.lineTo(q[0], q[1]); }); ctx.stroke();   /* 빛의 뿔: 한 점에서 로고 윤곽으로 */
+        BEAM.forEach(function(c, j){                                                 /* 빛 펄스가 줄을 타고 날아가 닿으면 작은 고리 */
+          var q = P(c[0], c[1]), pp = (t * 1.3 + j * 0.37) % 1, a0 = lerp(q, pp), a1 = lerp(q, Math.min(1, pp + 0.16));
+          ctx.strokeStyle = ink + (0.6 * Math.sin(Math.PI * pp)) + ')'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(a0[0], a0[1]); ctx.lineTo(a1[0], a1[1]); ctx.stroke();
+          if (pp > 0.84) { var hr = (pp - 0.84) / 0.16; ctx.strokeStyle = ink + (0.5 * (1 - hr)) + ')'; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(q[0], q[1], 2 + hr * 9, 0, 6.2832); ctx.stroke(); }
+        });
+        ctx.lineWidth = 1;
+        if (mf.si === 0) { var ta = (mf.u - 0.12) / 0.5; if (ta > 0 && ta < 1.02) [ETH.l, ETH.r].forEach(function(ls){ var c = ls[ls.length - 1]; for (var e = 0; e < ls.length; e++) if (ls[e][0] >= ta - 0.035) { c = ls[e]; break; } var q = P(c[1], c[2]); ctx.strokeStyle = ink + '0.75)'; ctx.lineWidth = 1.3; ctx.beginPath(); ctx.moveTo(A[0], A[1]); ctx.lineTo(q[0], q[1]); ctx.stroke(); ctx.beginPath(); ctx.arc(q[0], q[1], 0.55 * U, 0, 6.2832); ctx.stroke(); ctx.lineWidth = 1; }); }   /* 매핑: 두 줄기 빛이 윤곽을 그리는 자리를 따라간다 */
+        ctx.fillStyle = ink + '0.85)'; ctx.beginPath(); ctx.arc(A[0], A[1], 2.4, 0, 6.2832); ctx.fill(); ctx.strokeStyle = ink + '0.3)'; ctx.beginPath(); ctx.arc(A[0], A[1], 6 + 2 * Math.sin(t * 4), 0, 6.2832); ctx.stroke();   /* 빛이 나오는 점 */
+        ctx.globalAlpha = mf.k;
+      }
       if (mf.si === 0) CAL.forEach(function(c, j){ var a = sstep(0.75 + j * 0.22, 0.95 + j * 0.22, ph) * (1 - sstep(2.7, 3, ph)); if (a <= 0) return; var q = P(c[0], c[1]), r = 0.75 * U; ctx.globalAlpha = mf.k * a; ctx.strokeStyle = ink + '0.9)'; ctx.beginPath(); ctx.moveTo(q[0] - r * 1.6, q[1]); ctx.lineTo(q[0] + r * 1.6, q[1]); ctx.moveTo(q[0], q[1] - r * 1.6); ctx.lineTo(q[0], q[1] + r * 1.6); ctx.rect(q[0] - r * 0.6, q[1] - r * 0.6, r * 1.2, r * 1.2); ctx.stroke(); if (!mob) txt('P' + (j + 1), q[0] + r * 1.2, q[1] - r * 1.2, 'left', 0.8); ctx.globalAlpha = mf.k; });   /* 보정점 */
       if (mf.si === 2) {                                                             /* 실감 공간: 로고 = 정면 벽, 바닥·천장·옆벽 원근선 + 벽에서 나와 보는 사람 쪽으로 밀려오는 빛 고리 */
         var rk = sstep(6.5, 7.1, ph) * (1 - sstep(10.1, 10.45, ph)), S1 = mob ? 1.18 : 1.24, bx = OX - U, by0 = OY, hw = 16.6 * U, hh = 17.6 * U, live = performance.now() - ptr.t < 2500;
@@ -724,8 +733,8 @@
       var hasFlow = g.flow > 0.01, nFr = 0, lv = g.live * (introDone ? Math.min(1, (t - introAt) / 1.5) : 0);
       var s1 = active === 1 && introDone ? c1step : 0, s2 = active === 2 && introDone ? c2step : -1;   /* 01·02 단계별 연출 */
       var U = S * F / D, pOn = performance.now() - ptr.t < 2500, mf = null, tau = (t % 3.2) / 3.2;
-      /* 01 ① 미디어아트·실감미디어 (사용자 10-26: 무슨 뜻인지 모르겠다 → 장면이 곧 설명이 되게). 왼쪽 위 프로젝터가 로고(벽)를 비춘다, 10.5초:
-         ① 매핑 — 어두운 벽에서 윤곽을 따고 보정점을 찍는다 → ② 프로젝션 — 그 모양 안에 영상이 흐른다 → ③ 실감 공간 — 프로젝터가 꺼지고 로고를 정면 벽으로 하는 방이 그려진다.
+      /* 01 ① 미디어아트·실감미디어 (사용자 10-26: 무슨 뜻인지 모르겠다 → 장면이 곧 설명이 되게). 로고 앞(z +10) 한 점에서 빔이 로고(벽)로 쏘아진다, 10.5초:
+         ① 매핑 — 어두운 벽에서 윤곽을 따고 보정점을 찍는다 → ② 프로젝션 — 그 모양 안에 영상이 흐른다 → ③ 실감 공간 — 빔이 꺼지고 로고를 정면 벽으로 하는 방이 그려진다.
          로고 가운데서 가장자리로 빛이 번져 나가 방을 따라 보는 사람 쪽으로 밀려온다 (화면 밖으로 나와 나를 둘러싸는 미디어). 커서를 움직이면 방의 원근이 따라 움직인다 (사람 그림은 사용자 10-26: 짜침 → 뺌).
          빛은 칸 단위로 딱 떨어지게(4×4 디더), 노랑 없이 흑백 (사용자 10-12). 커서는 관객이 비추는 빛, 누르면 빛 고리 */
       if (s1 === 1 && !reduce) {
