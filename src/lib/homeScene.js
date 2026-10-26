@@ -368,6 +368,7 @@ void main(){
     vBurn = step(1e-4, tau) * uBoom.y * (1.0 - rp);
     vLit = min(lit, 1.5) * uBoom.y * (1.0 - rw);
   }
+  float fz = mix(1.0, 0.05, uFlat); base.z *= fz; tailB.z *= fz;                         /* 2D(01): 알갱이 층의 깊이 자리도 납작하게 — 전엔 두께만 줄고 자리는 앞뒤로 퍼져 앞면이 카메라 쪽으로 나와 원근만큼 커 보였다 (01 ① 격자·윤곽과 칸이 어긋남) */
   float xe = clamp((uTime - uExt.x - length(P.xy) * 0.028) / uExt.y, 0.0, 1.0);
   vFl = max(uFlat, 1.0 - xe * xe * (3.0 - 2.0 * xe)); vTone = C1.y;                     /* 납작함: 2D(01) 이거나 아직 솟지 않은 입장 로고 — 깊이를 거의 없애고 로고 색 하나로 */
   size.z *= mix(1.0, 0.05, vFl);
