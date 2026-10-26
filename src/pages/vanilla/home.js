@@ -1575,4 +1575,10 @@
   }
 
   loadFeaturedWorks();
+
+  /* 한글이 든 라벨·버튼·캡션에 .ko — 본문 서체 · 좁은 자간 (home.css). 언어를 바꾸거나 작품 카드처럼 글이 새로 그려지면 다음 프레임에 다시 (10-26 글꼴 정리) */
+  var KO_SEL = '.cs-label,.cs-caption,.site-nav a,.subnav a,.btn,.tag', HG = /[가-힣]/, koQ = 0;
+  function tagKo(){ koQ = 0; document.querySelectorAll(KO_SEL).forEach(function(el){ el.classList.toggle('ko', HG.test(el.textContent)); }); }
+  tagKo();
+  new MutationObserver(function(){ if (!koQ) koQ = requestAnimationFrame(tagKo); }).observe(document.body, { subtree: true, childList: true, characterData: true });
 })();
