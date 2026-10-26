@@ -41,7 +41,7 @@ const text = {
   '미디어와 공간연출 · 모션 기반 미디어아트 · 미디어 퍼포먼스 & 익스프레션': 'Media & Spatial Staging · Motion-based Media Art · Media Performance & Expression',
   '센서·장치': 'Sensors',
   '피지컬 컴퓨팅 · 디지털 기반의 인스톨레이션 · 피지컬 시스템 디자인': 'Physical Computing · Digital Installation · Physical System Design',
-  '옆의 로고 — 빛을 비춰 표면을 바꾸는 프로젝션 매핑': 'The logo — projection mapping that changes a surface with light',
+  '옆의 로고 — 프로젝터로 모양을 따 영상을 입히고(프로젝션 매핑), 그 빛이 방 전체로 번져 관객을 둘러쌉니다(실감미디어)': 'The logo — a projector maps video onto its shape (projection mapping), then the light spreads through the whole room around the audience (immersive media)',
   '3D는 컴퓨터 안에 형태를 만들고 빛과 재질을 입히는 일, 애니메이션은 그 형태에 시간을 줘 움직이게 하는 일입니다. VFX는 실제로 찍은 영상에 없는 것을 만들어 자연스럽게 합성하는 시각 효과예요.': '3D means building forms inside the computer and giving them light and materials; animation gives those forms time so they move. VFX creates what was never in the footage and blends it in seamlessly.',
   '3D 캐릭터 · 단편 애니메이션 · 모션그래픽 · 영상 합성': '3D characters · Short animations · Motion graphics · Compositing',
   '형태': 'Form',
