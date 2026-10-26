@@ -35,8 +35,7 @@
     .boot-logo.loop::after{animation:boot-fill 1.4s steps(34,end) infinite}
     @keyframes boot-fill{0%{clip-path:inset(100% 0 0 0)}80%,100%{clip-path:inset(0)}}
     /* 홈 첫 입장 (사용자 10-26): 검정 화면에 원본 로고의 테두리만 — 받은 만큼 선이 그려지고, 누르면 누른 자리부터 픽셀로 바뀌며 시작 */
-    .boot-edge{position:fixed;fill:none;stroke:#cfcfcf;stroke-width:1.25;stroke-linejoin:round;overflow:visible}
-    .boot-edge path{vector-effect:non-scaling-stroke}
+    .boot-edge{position:fixed;fill:none;stroke:#cfcfcf;stroke-linejoin:round;stroke-linecap:round;overflow:visible}   /* 굵기는 크기에 맞춰 스크립트가 (non-scaling-stroke 를 쓰면 Safari 가 점선 길이를 화면 픽셀로 재 선이 군데군데 끊겼다) */
     .boot-hint{position:fixed;transform:translateX(-50%);font:500 11px/1 "Geist Mono",ui-monospace,Menlo,monospace;letter-spacing:.24em;text-transform:uppercase;color:#8a8a8a;white-space:nowrap;opacity:0;transition:opacity .6s}
     .boot-hint.on{opacity:1;animation:boot-hint 2.4s ease-in-out .6s infinite}
     @keyframes boot-hint{0%,100%{opacity:1}50%{opacity:.35}}
@@ -68,7 +67,7 @@
         var w0 = Math.min(innerWidth * 0.5, innerHeight * 0.42, 340); place(innerWidth / 2, innerHeight / 2, w0);
         Array.prototype.forEach.call(svg.children, function(pa){ var L = pa.getTotalLength(); LEN.push(L); pa.style.strokeDasharray = L; pa.style.strokeDashoffset = L; });
       }
-      function place(x, y, w){ var h = w * 1.0517; svg.style.left = (x - w / 2) + 'px'; svg.style.top = (y - h / 2) + 'px'; svg.style.width = w + 'px'; svg.style.height = h + 'px'; svg.__r = [x, y, w]; }
+      function place(x, y, w){ var h = w * 1.0517; svg.style.strokeWidth = (125 / w).toFixed(4); svg.style.left = (x - w / 2) + 'px'; svg.style.top = (y - h / 2) + 'px'; svg.style.width = w + 'px'; svg.style.height = h + 'px'; svg.__r = [x, y, w]; }
       function trace(q){ Array.prototype.forEach.call(svg.children, function(pa, i){ pa.style.strokeDashoffset = LEN[i] * (1 - q); }); }
       try { new PerformanceObserver(function(l){ B.goal = Math.min(0.9, B.goal + (0.9 - B.goal) * 0.15 * l.getEntries().length); }).observe({ type: 'resource', buffered: true }); } catch (e) {}
       setTimeout(function(){ B.fin = true; B.cssLeft = 0; }, 10000);
